@@ -1,4 +1,6 @@
-Copyright (C) <2012> <LexisNexis Risk Data Management Inc.>
+/*##############################################################################
+
+Copyright (C) 2011 HPCC Systems.
 
 All rights reserved. This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as
@@ -12,18 +14,32 @@ GNU Affero General Public License for more details.
 
 You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
+############################################################################## */
 
-http://hpccsystems.com
+package org.hpccsystems.jdbcdriver;
 
-JDBC driver for HPCC platform
+/**
+ * @author ChalaAX
+ */
 
-To build for Linux:
--------------------
+public class HPCCColumn
+{
+    private String name;
+    private String value;
 
-1. Check out sources (for example, to directory ~/hpcc-jdbc)
-2. Create a build directory
-3. cd to the build directory
-4. To create makefiles to build native release version for local machine, run cmake ~/hpcc-jdbc
-5. To build the makefiles just created above, run make
-6. class files will be built in <builddir>src/com/hpccsystems/jdbcdriver/class/
-7. Jar file will be created in <builddir>/src/com/hpccsystems/jdbcdriver/hpccsystems-jdbcdriver-MAJOR.MINOR.POINT.jar
+    public HPCCColumn(String name, String value)
+    {
+        this.name = name;
+        this.value = value;
+    }
+
+    public String getName()
+    {
+        return name;
+    }
+
+    public String getValue()
+    {
+        return value;
+    }
+}
