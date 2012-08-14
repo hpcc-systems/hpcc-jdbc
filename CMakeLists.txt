@@ -4,7 +4,7 @@ project(jdbcdriver Java)
 include(version.cmake)
 
     SET ( PRODUCT_PREFIX "hpccsystems" )
-    SET ( HPCC_JDBC_PAC_PATH com/hpccsystems/jdbcdriver)
+    SET ( HPCC_JDBC_PAC_PATH org/hpccsystems/jdbcdriver)
     SET ( HPCC_JDBC_REL_PATH src/${HPCC_JDBC_PAC_PATH})
     SET ( HPCC_ECLJDBC_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/${HPCC_JDBC_REL_PATH})
 
