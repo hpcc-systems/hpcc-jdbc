@@ -92,10 +92,10 @@ public class ECLEngine
             urlString = "http://" + props.getProperty("WsECLDirectAddress") + ":"
                     + props.getProperty("WsECLDirectPort") + "/EclDirect/RunEcl?Submit";
 
-            if (props.containsKey("Cluster"))
+            if (props.containsKey("TargetCluster"))
             {
                 urlString += "&cluster=";
-                urlString += props.getProperty("Cluster");
+                urlString += props.getProperty("TargetCluster");
             }
             else
                 System.out.println("No cluster property found, executing query on EclDirect default cluster");
@@ -569,8 +569,8 @@ public class ECLEngine
 
             StringBuilder sb = new StringBuilder();
 
-            if (props.containsKey("Cluster"))
-                sb.append("&cluster=").append(props.getProperty("Cluster"));
+            if (props.containsKey("TargetCluster"))
+                sb.append("&cluster=").append(props.getProperty("TargetCluster"));
             else
                 System.out.println("No cluster property found, executing query on EclDirect default cluster");
 

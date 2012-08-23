@@ -43,118 +43,23 @@ import java.util.Properties;
 
 public class HPCCConnection implements Connection
 {
-    public static final String   ECLRESULTLIMDEFAULT      = "100";
-    public static final String   CLUSTERDEFAULT           = "hthor";
-    public static final String   QUERYSETDEFAULT          = "hthor";
-    public static final String   SERVERADDRESSDEFAULT     = "localhost";
-    public static final String   WSECLWATCHPORTDEFAULT    = "8010";
-    public static final String   WSECLPORTDEFAULT         = "8002";
-    public static final String   WSECLDIRECTPORTDEFAULT   = "8010";
-    public static final int      FETCHPAGESIZEDEFAULT     = 100;
-    public static final String   LAZYLOADDEFAULT          = "true";
-    public static final int      CONNECTTIMEOUTMILDEFAULT = 1000;
-
     private boolean              closed;
     private HPCCDatabaseMetaData metadata;
-    private Properties           props;
-    private String               serverAddress;
+    private Properties           connectionProps;
     private Properties           clientInfo;
 
     public HPCCConnection(Properties props)
     {
-        closed = false;
-
-        this.serverAddress = SERVERADDRESSDEFAULT;
-
-        if (props.containsKey("ServerAddress"))
-            this.serverAddress = props.getProperty("ServerAddress");
-        else
-            props.setProperty("ServerAddress", this.serverAddress);
-
-        this.props = props;
-
-        if (!this.props.containsKey("Cluster"))
-            this.props.setProperty("Cluster", CLUSTERDEFAULT);
-
-        if (!this.props.containsKey("QuerySet"))
-            this.props.setProperty("QuerySet", QUERYSETDEFAULT);
-
-        if (!this.props.containsKey("WsECLWatchAddress"))
-            this.props.setProperty("WsECLWatchAddress", serverAddress);
-
-        if (!this.props.containsKey("WsECLWatchPort"))
-            this.props.setProperty("WsECLWatchPort", WSECLWATCHPORTDEFAULT);
-
-        if (!this.props.containsKey("WsECLAddress"))
-            this.props.setProperty("WsECLAddress", serverAddress);
-
-        if (!this.props.containsKey("WsECLPort"))
-            this.props.setProperty("WsECLPort", WSECLPORTDEFAULT);
-
-        if (!this.props.containsKey("WsECLDirectAddress"))
-            this.props.setProperty("WsECLDirectAddress", serverAddress);
-
-        if (!this.props.containsKey("WsECLDirectPort"))
-            this.props.setProperty("WsECLDirectPort", WSECLDIRECTPORTDEFAULT);
-
-        if (!this.props.containsKey("username"))
-            this.props.setProperty("username", "");
-
-        if (!this.props.containsKey("password"))
-            this.props.setProperty("password", "");
-
-        if (!this.props.containsKey("PageSize") || !HPCCJDBCUtils.isNumeric(this.props.getProperty("PageSize")))
-            this.props.setProperty("PageSize", String.valueOf(FETCHPAGESIZEDEFAULT));
-
-        if (!this.props.containsKey("ConnectTimeoutMilli")
-                || !HPCCJDBCUtils.isNumeric(this.props.getProperty("ConnectTimeoutMilli")))
-            this.props.setProperty("ConnectTimeoutMilli", String.valueOf(CONNECTTIMEOUTMILDEFAULT));
-
-        boolean setdefaultreslim = false;
-        if (this.props.containsKey("EclResultLimit"))
-        {
-            String eclreslim = this.props.getProperty("EclResultLimit").trim();
-            try
-            {
-                if (HPCCJDBCUtils.isNumeric(eclreslim))
-                {
-                    if (Integer.valueOf(eclreslim).intValue() <= 0)
-                        setdefaultreslim = true;
-                }
-                else
-                {
-                    if (!eclreslim.equalsIgnoreCase("ALL"))
-                        setdefaultreslim = true;
-                }
-            }
-            catch (Exception e)
-            {
-                setdefaultreslim = true;
-            }
-        }
-        else
-            setdefaultreslim = true;
-
-        if (setdefaultreslim)
-        {
-            this.props.setProperty("EclResultLimit", ECLRESULTLIMDEFAULT);
-            System.out.println("Invalid Numeric EclResultLimit value detected, using default value: "
-                    + ECLRESULTLIMDEFAULT);
-        }
-
-        String basicAuth = createBasicAuth(this.props.getProperty("username"), props.getProperty("password"));
-
-        this.props.put("BasicAuth", basicAuth);
-
-        if (!this.props.containsKey("LazyLoad"))
-            this.props.setProperty("LazyLoad", LAZYLOADDEFAULT);
+        this.connectionProps = props;
 
         metadata = new HPCCDatabaseMetaData(props);
 
         // TODO not doing anything w/ this yet, just exposing it to comply w/ API definition...
         clientInfo = new Properties();
 
-        System.out.println("EclConnection initialized - server: " + this.serverAddress);
+        closed = false;
+
+        System.out.println("EclConnection initialized - server: " + this.connectionProps.getProperty("ServerAddress"));
     }
 
     public static String createBasicAuth(String username, String passwd)
@@ -164,22 +69,22 @@ public class HPCCConnection implements Connection
 
     public Properties getProperties()
     {
-        return props;
+        return connectionProps;
     }
 
     public String getProperty(String propname)
     {
-        return props.getProperty(propname, "");
+        return connectionProps.getProperty(propname, "");
     }
 
     public String getServerAddress()
     {
-        return serverAddress;
+        return this.connectionProps.getProperty("ServerAddress");
     }
 
     public void setServerAddress(String serverAddress)
     {
-        this.serverAddress = serverAddress;
+        this.connectionProps.setProperty("ServerAddress", serverAddress);
     }
 
     public HPCCDatabaseMetaData getDatabaseMetaData()
@@ -264,7 +169,7 @@ public class HPCCConnection implements Connection
 
     public String getCatalog() throws SQLException
     {
-        return props.getProperty("Cluster", CLUSTERDEFAULT);
+        return connectionProps.getProperty("TargetCluster");
     }
 
     public void setTransactionIsolation(int level) throws SQLException
