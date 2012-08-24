@@ -3001,7 +3001,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                 }
                 else if (subfile.isSuperFile())
                 {
-                    fetchSuperFileSubfile(subfile);
+                    isSuccess = fetchSuperFileSubfile(subfile);
                 }
             }
         }
