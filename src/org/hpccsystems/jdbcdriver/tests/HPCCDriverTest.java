@@ -637,14 +637,14 @@ public class HPCCDriverTest
 
             if (args.length <= 0)
             {
-                info.put("ServerAddress", "192.168.124.128");
+                info.put("ServerAddress", "192.168.124.128"); //your HPCC address here
                 info.put("LazyLoad", "true");
-                info.put("TargetCluster", "myroxie");
-                info.put("QuerySet", "thor");
-                info.put("WsECLWatchPort", "8010");
-                info.put("WsECLDirectPort", "8008");
-                info.put("EclResultLimit", "ALL");
-                info.put("PageSize", "");
+                info.put("TargetCluster", "myroxie"); //queries will run on this HPCC target cluster
+                info.put("QuerySet", "thor"); //published HPCC queries will run from this queryset
+                info.put("WsECLWatchPort", "8010"); //Target HPCC configured to run WsECLWatch on this port
+                info.put("WsECLDirectPort", "8008"); //Target HPCC configured to run WsECLDirect on this port
+                info.put("EclResultLimit", "ALL"); //I want all records returned
+                info.put("PageSize", "20"); //GetTables and GetProcs will only return 20 entries
 
                 infourl = "jdbc:hpcc;ServerAddress=192.168.124.128;TargetCluster=myroxie;EclResultLimit=8";
 
