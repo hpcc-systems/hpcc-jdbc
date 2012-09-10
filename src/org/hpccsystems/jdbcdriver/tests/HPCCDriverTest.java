@@ -1,5 +1,8 @@
 package org.hpccsystems.jdbcdriver.tests;
 
+import java.sql.Driver;
+import java.sql.DriverManager;
+import java.sql.DriverPropertyInfo;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -21,6 +24,20 @@ public class HPCCDriverTest
     static
     {
         driver = new HPCCDriver();
+        try
+        {
+            DriverPropertyInfo[] info = driver.getPropertyInfo("", null);
+
+            System.out.println("-----------------Driver Properties----------------------------------");
+            for (int i = 0; i < info.length; i++)
+               System.out.println("\t" + info[i].name + ": " + info[i].description);
+            System.out.println("\n--------------------------------------------------------------------");
+        }
+        catch (SQLException e)
+        {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
     }
 
     @SuppressWarnings("unused")
@@ -597,17 +614,39 @@ public class HPCCDriverTest
             List<String> params = new ArrayList<String>();
             String infourl = "";
 
+            Driver rdriver = DriverManager.getDriver("jdbc:hpcc");
+            success &= (rdriver instanceof HPCCDriver);
+
+            success &= driver.acceptsURL("jdbc:hpcc");
+            success &= driver.acceptsURL("JDBC:hpcc");
+            success &= driver.acceptsURL("JDBC:HPCC");
+            success &= driver.acceptsURL("jdbc:HPCC");
+            success &= driver.acceptsURL("jDbC:hPcC");
+            success &= driver.acceptsURL("jdbc:hpcc;");
+            success &= driver.acceptsURL("jdbc:hpcc;prop1=val1;prop2=val2");
+            success &= !(driver.acceptsURL("jdbc:hpcc:"));
+            success &= !(driver.acceptsURL("jdbc : hpcc"));
+            success &= !(driver.acceptsURL("jdbc:hpcc:prop1=val1;prop2=val2"));
+            success &= !(driver.acceptsURL("  jdbc:hpcc"));
+            success &= !(driver.acceptsURL("Garbage"));
+            success &= !(driver.acceptsURL("url:jdbc:hpcc"));
+            success &= !(driver.acceptsURL(""));
+            success &= !(driver.acceptsURL(" "));
+            success &= !(driver.acceptsURL(null));
+
+
             if (args.length <= 0)
             {
                 info.put("ServerAddress", "192.168.124.128");
-                info.put("LazyLoad", "false");
-                info.put("Cluster", "myroxie");
+                info.put("LazyLoad", "true");
+                info.put("TargetCluster", "myroxie");
                 info.put("QuerySet", "thor");
                 info.put("WsECLWatchPort", "8010");
                 info.put("WsECLDirectPort", "8008");
                 info.put("EclResultLimit", "ALL");
+                info.put("PageSize", "");
 
-                infourl = "url:jdbc:ecl;ServerAddress=192.168.124.128;Cluster=myroxie;EclResultLimit=8";
+                infourl = "jdbc:hpcc;ServerAddress=192.168.124.128;TargetCluster=myroxie;EclResultLimit=8";
 
                 // success &= runFullTest(info, infourl);
 
@@ -758,7 +797,6 @@ public class HPCCDriverTest
                         info,
                         "select count(persons.zip) as zipcount, persons.city as mycity , zip, p2.ball from super::super::tutorial::rp::tutorialperson as persons join tutorial::rp::tutorialperson2 as p2 on p2.zip = persons.zip where persons.zip > ? group by zip limit 10",
                         params));
-
             }
             else
             {

@@ -28,13 +28,28 @@ import java.util.StringTokenizer;
 
 public class HPCCDriver implements Driver
 {
+    public static final String   ECLRESULTLIMDEFAULT      = "100";
+    public static final String   CLUSTERDEFAULT           = "hthor";
+    public static final String   QUERYSETDEFAULT          = "hthor";
+    public static final String   SERVERADDRESSDEFAULT     = "localhost";
+    public static final String   WSECLWATCHPORTDEFAULT    = "8010";
+    public static final String   WSECLPORTDEFAULT         = "8002";
+    public static final String   WSECLDIRECTPORTDEFAULT   = "8010";
+    public static final String   FETCHPAGESIZEDEFAULT     = "100";
+    public static final String   LAZYLOADDEFAULT          = "true";
+    public static final String   CONNECTTIMEOUTMILDEFAULT = "10000";
+    public static final String   JDBCURLPROTOCOL          = "jdbc:hpcc";
+
+    private static DriverPropertyInfo[] infoArray;
+
     static
     {
         try
         {
             HPCCDriver driver = new HPCCDriver();
             DriverManager.registerDriver(driver);
-            System.out.println("EclDriver initialized");
+            initializePropInfo();
+            System.out.println("HPCC JDBC Driver registered.");
         }
         catch (SQLException ex)
         {
@@ -55,22 +70,26 @@ public class HPCCDriver implements Driver
 
         try
         {
-            StringTokenizer urltokens = new StringTokenizer(url, ";");
-            while (urltokens.hasMoreTokens())
+            if (url != null && acceptsURL(url))
             {
-                String token = urltokens.nextToken();
-                if (token.contains("="))
+                StringTokenizer urltokens = new StringTokenizer(url, ";");
+
+                while (urltokens.hasMoreTokens())
                 {
-                    StringTokenizer keyvalues = new StringTokenizer(token, "=");
-                    while (keyvalues.hasMoreTokens())
+                    String token = urltokens.nextToken();
+                    if (token.contains("="))
                     {
-                        String key = keyvalues.nextToken();
-                        String value = keyvalues.nextToken();
-                        if (!connprops.containsKey(key))
-                            connprops.put(key, value);
-                        else
-                            System.out.println("Connection property: " + key
-                                    + " found in info properties and URL, ignoring URL value");
+                        StringTokenizer keyvalues = new StringTokenizer(token, "=");
+                        while (keyvalues.hasMoreTokens())
+                        {
+                            String key = keyvalues.nextToken();
+                            String value = keyvalues.nextToken();
+                            if (!connprops.containsKey(key))
+                                connprops.put(key, value);
+                            else
+                                System.out.println("Connection property: " + key
+                                        + " found in info properties and URL, ignoring URL value");
+                        }
                     }
                 }
             }
@@ -80,21 +99,173 @@ public class HPCCDriver implements Driver
             System.out.println("Issue parsing URL! \"" + url + "\"");
         }
 
-        String serverAddress = connprops.getProperty("ServerAddress");
-        System.out.println("EclDriver::connect" + serverAddress);
+        try
+        {
+            if (!connprops.containsKey("ServerAddress"))
+                connprops.setProperty("ServerAddress", SERVERADDRESSDEFAULT);
+
+            String serverAddress = connprops.getProperty("ServerAddress");
+
+            if (!connprops.containsKey("TargetCluster"))
+                connprops.setProperty("TargetCluster", CLUSTERDEFAULT);
+
+            if (!connprops.containsKey("QuerySet"))
+                connprops.setProperty("QuerySet", QUERYSETDEFAULT);
+
+            if (!connprops.containsKey("WsECLWatchAddress"))
+                connprops.setProperty("WsECLWatchAddress", serverAddress);
+
+            if (!connprops.containsKey("WsECLWatchPort"))
+                connprops.setProperty("WsECLWatchPort", WSECLWATCHPORTDEFAULT);
+
+            if (!connprops.containsKey("WsECLAddress"))
+                connprops.setProperty("WsECLAddress", serverAddress);
+
+            if (!connprops.containsKey("WsECLPort"))
+                connprops.setProperty("WsECLPort", WSECLPORTDEFAULT);
+
+            if (!connprops.containsKey("WsECLDirectAddress"))
+                connprops.setProperty("WsECLDirectAddress", serverAddress);
+
+            if (!connprops.containsKey("WsECLDirectPort"))
+                connprops.setProperty("WsECLDirectPort", WSECLDIRECTPORTDEFAULT);
+
+            if (!connprops.containsKey("username"))
+                connprops.setProperty("username", "");
+
+            if (!connprops.containsKey("password"))
+                connprops.setProperty("password", "");
+
+            if (!connprops.containsKey("PageSize") || !HPCCJDBCUtils.isNumeric(connprops.getProperty("PageSize")))
+                connprops.setProperty("PageSize", String.valueOf(FETCHPAGESIZEDEFAULT));
+
+            if (!connprops.containsKey("ConnectTimeoutMilli")
+                    || !HPCCJDBCUtils.isNumeric(connprops.getProperty("ConnectTimeoutMilli")))
+                connprops.setProperty("ConnectTimeoutMilli", String.valueOf(CONNECTTIMEOUTMILDEFAULT));
+
+            boolean setdefaultreslim = false;
+            if (connprops.containsKey("EclResultLimit"))
+            {
+                String eclreslim = connprops.getProperty("EclResultLimit").trim();
+                try
+                {
+                    if (HPCCJDBCUtils.isNumeric(eclreslim))
+                    {
+                        if (Integer.valueOf(eclreslim).intValue() <= 0)
+                            setdefaultreslim = true;
+                    }
+                    else
+                    {
+                        if (!eclreslim.equalsIgnoreCase("ALL"))
+                            setdefaultreslim = true;
+                    }
+                }
+                catch (Exception e)
+                {
+                    setdefaultreslim = true;
+                }
+            }
+            else
+                setdefaultreslim = true;
+
+            if (setdefaultreslim)
+            {
+                connprops.setProperty("EclResultLimit", ECLRESULTLIMDEFAULT);
+                System.out.println("Invalid Numeric EclResultLimit value detected, using default value: "
+                        + ECLRESULTLIMDEFAULT);
+            }
+
+            String basicAuth = HPCCConnection.createBasicAuth(connprops.getProperty("username"), connprops.getProperty("password"));
+
+            connprops.put("BasicAuth", basicAuth);
+
+            if (!connprops.containsKey("LazyLoad"))
+                connprops.setProperty("LazyLoad", LAZYLOADDEFAULT);
+        }
+        catch (Exception e)
+        {
+            System.out.println("Issue detected while setting connection properties!");
+        }
+
+        System.out.println("EclDriver::connect" + connprops.getProperty("ServerAddress"));
 
         return new HPCCConnection(connprops);
     }
 
     public boolean acceptsURL(String url) throws SQLException
     {
-        return true;
+        return url != null && url.matches("^(?i)jdbc:hpcc(;.*)*?");
+    }
+
+    private static void initializePropInfo()
+    {
+        infoArray = new DriverPropertyInfo[15];
+
+        infoArray[0] = new DriverPropertyInfo("ServerAddress", "myHPCCAddress");
+        infoArray[0].description = "Target HPCC ESP Address (used to contact WsECLWatch, WsECLDirect, or WsECL if override not specified).";
+        infoArray[0].required = true;
+
+        infoArray[1] = new DriverPropertyInfo("WsECLWatchAddress", "myWsECLWatchAddress");
+        infoArray[1].description = "WsECLWatch address (required if different than ServerAddress).";
+        infoArray[1].required = false;
+
+        infoArray[2] = new DriverPropertyInfo("WsECLWatchPort", WSECLWATCHPORTDEFAULT);
+        infoArray[2].description = "WsECLWatch port (required if HPCC configuration does not use default port).";
+        infoArray[2].required = false;
+
+        infoArray[3] = new DriverPropertyInfo("WsECLAddress", "myWsECLAddress");
+        infoArray[3].description = "WsECLAddress Address (required if different than ServerAddress).";
+        infoArray[3].required = false;
+
+        infoArray[4] = new DriverPropertyInfo("WsECLPort", WSECLPORTDEFAULT);
+        infoArray[4].description = "WsECL port (required if HPCC configuration does not use default port).";
+        infoArray[4].required = false;
+
+        infoArray[5] = new DriverPropertyInfo("WsECLDirectAddress", "myWsECLDirectAddress");
+        infoArray[5].description = "WsECLDirect Address (required if different than ServerAddress).";
+        infoArray[5].required = false;
+
+        infoArray[6] = new DriverPropertyInfo("WsECLDirectPort", WSECLDIRECTPORTDEFAULT);
+        infoArray[6].description = "WsECLDirect port (required if HPCC configuration does not use default port).";
+        infoArray[6].required = false;
+
+        infoArray[7] = new DriverPropertyInfo("username", "");
+        infoArray[7].description = "HPCC username (*Use JDBC client secure interface if available*).";
+        infoArray[7].required = false;
+
+        infoArray[8] = new DriverPropertyInfo("password", "");
+        infoArray[8].description = "HPCC password (*Use JDBC client secure interface if available*).";
+        infoArray[8].required = false;
+
+        infoArray[9] = new DriverPropertyInfo("TargetCluster", CLUSTERDEFAULT);
+        infoArray[9].description = "Target cluster on which to execute ECL code.";
+        infoArray[9].required = false;
+
+        infoArray[10] = new DriverPropertyInfo("QuerySet", QUERYSETDEFAULT);
+        infoArray[10].description = "Queryset from which published query (Stored Procedure) is chosen.";
+        infoArray[10].required = false;
+
+        infoArray[11] = new DriverPropertyInfo("PageSize", FETCHPAGESIZEDEFAULT);
+        infoArray[11].description = "Number of HPCC data files (DB tables) or HPCC published queries (DB Stored Procs) displayed.";
+        infoArray[11].required = false;
+
+        infoArray[12] = new DriverPropertyInfo("ConnectTimeoutMilli", CONNECTTIMEOUTMILDEFAULT);
+        infoArray[12].description = "Connection time out value in milliseconds.";
+        infoArray[12].required = false;
+
+        infoArray[13] = new DriverPropertyInfo("EclResultLimit", ECLRESULTLIMDEFAULT);
+        infoArray[13].description = "Default limit on number of result records returned.";
+        infoArray[13].required = false;
+
+        infoArray[14] = new DriverPropertyInfo("LazyLoad", LAZYLOADDEFAULT);
+        String [] choices = {"true", "false"};
+        infoArray[14].choices = choices;
+        infoArray[14].description = "If disabled, all HPCC metada loaded and cached at connect time, otherwise HPCC file, and published query info is loaded on-demand.";
+        infoArray[14].required = false;
     }
 
     public DriverPropertyInfo[] getPropertyInfo(String url, Properties info) throws SQLException
     {
-        DriverPropertyInfo[] infoArray = new DriverPropertyInfo[1];
-        infoArray[0] = new DriverPropertyInfo("ip", "IP Address");
         return infoArray;
     }
 
