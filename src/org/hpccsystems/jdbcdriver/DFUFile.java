@@ -24,46 +24,53 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 import java.util.StringTokenizer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class DFUFile
 {
-    private String              Prefix;
-    private String              ClusterName;
-    private String              Directory;
-    private String              Description;
-    private int                 Parts;
-    private String              FullyQualifiedName;
-    private String              FileName;
-    private String              Owner;
-    private long                TotalSize;
-    private long                RecordCount;
-    private String              Modified;
-    private long                LongSize;
-    private long                LongRecordCount;
-    private boolean             isSuperFile;
-    private boolean             isZipFile;
-    private boolean             isDirectory;
-    private int                 Replicate;
-    private int                 IntSize;
-    private int                 IntRecordCount;
-    private boolean             FromRoxieCluster;
-    private boolean             BrowseData;
-    private boolean             IsKeyFile;
-    private Properties          Fields;
-    private String              Format;
-    private String              CsvSeparate;
-    private String              CsvTerminate;
-    private String              CsvQuote;
-    private String              Ecl;
-    private Properties          KeyedColumns;
-    private Properties          NonKeyedColumns;
-    private List<String>        relatedIndexes;
-    private List<String>        subFiles;
-    private String              IdxFilePosField;
-    private boolean             HasPayLoad;
+    private String              Prefix = null;
+    private String              ClusterName = null;
+    private String              Directory = null;
+    private String              Description = "";
+    private int                 Parts = -1;
+    private String              FullyQualifiedName = null;
+    private String              FileName = null;
+    private String              Owner = null;
+    private long                TotalSize = -1;
+    private long                RecordCount = -1;
+    private String              Modified = null;
+    private long                LongSize = -1;
+    private long                LongRecordCount = -1;
+    private boolean             isSuperFile = false;
+    private boolean             isZipFile = false;
+    private boolean             isDirectory = false;
+    private int                 Replicate = -1;
+    private int                 IntSize = -1;
+    private int                 IntRecordCount = -1;
+    private boolean             FromRoxieCluster = false;
+    private boolean             BrowseData = false;
+    private boolean             IsKeyFile = false;
+    private String              Format = "FLAT";
+    private String              CsvSeparate = null;
+    private String              CsvTerminate = null;
+    private String              CsvQuote = null;
+    private String              Ecl = null;
+    private Properties          Fields = new Properties();
+    private Properties          KeyedColumns = new Properties();
+    private Properties          NonKeyedColumns = new Properties();
+    private List<String>        relatedIndexes = null;
+    private List<String>        subFiles = null;
+    private String              IdxFilePosField = null;
+    private boolean             HasPayLoad = false;
 
     private final static String RELATEDINDEXKEYWORD = "XDBC:RelIndexes";
+    private final static Pattern RELINDEXPATTERN = Pattern.compile(
+            "\\s*" + RELATEDINDEXKEYWORD + "\\s*=\\s*\\[(.*?)\\s*\\].*",Pattern.DOTALL);
+
     private final static String IDXFILEPOSFIELDTAG  = "XDBC:PosField";
+    private final static Pattern IDXPOSPATTERN = Pattern.compile(
+            "\\s*" + IDXFILEPOSFIELDTAG + "\\s*=\\s*\\[(.*?)\\s*\\].*",Pattern.DOTALL);
 
     public DFUFile(String prefix, String clusterName, String filename)
     {
@@ -72,37 +79,6 @@ public class DFUFile
         ClusterName = clusterName;
         FileName = filename;
         FullyQualifiedName = filename;
-
-        Directory = null;
-        Description = null;
-        Parts = -1;
-        Owner = null;
-        TotalSize = -1;
-        RecordCount = -1;
-        Modified = null;
-        LongSize = -1;
-        LongRecordCount = -1;
-        isSuperFile = false;
-        isZipFile = false;
-        isDirectory = false;
-        Replicate = -1;
-        IntSize = -1;
-        IntRecordCount = -1;
-        FromRoxieCluster = false;
-        BrowseData = false;
-        IsKeyFile = false;
-        Format = "FLAT";
-        CsvSeparate = null;
-        CsvTerminate = null;
-        CsvQuote = null;
-        Ecl = null;
-        Fields = new Properties();
-        KeyedColumns = new Properties();
-        NonKeyedColumns = new Properties();
-        relatedIndexes = null;
-        IdxFilePosField = null;
-        HasPayLoad = false;
-        subFiles = null;
     }
 
     public DFUFile(String prefix, String clusterName, String directory, String description, int parts, String filename,
@@ -133,62 +109,19 @@ public class DFUFile
         FromRoxieCluster = fromRoxieCluster;
         BrowseData = browseData;
         IsKeyFile = isKeyFile;
-        Fields = new Properties();
         Format = format;
         CsvSeparate = csvseparate;
         CsvTerminate = csvterminate;
         CsvQuote = csvquote;
-        KeyedColumns = new Properties();
-        NonKeyedColumns = new Properties();
 
         if (ecl != null && ecl.length() > 0)
         {
             Ecl = ecl;
             setFileRecDef(ecl);
         }
-        relatedIndexes = null;
-        IdxFilePosField = null;
-        HasPayLoad = false;
-        subFiles = null;
     }
 
-    public DFUFile()
-    {
-        Prefix = null;
-        ClusterName = null;
-        Directory = null;
-        Description = null;
-        Parts = -1;
-        FullyQualifiedName = null;
-        FileName = null;
-        Owner = null;
-        TotalSize = -1;
-        RecordCount = -1;
-        Modified = null;
-        LongSize = -1;
-        LongRecordCount = -1;
-        this.isSuperFile = false;
-        this.isZipFile = false;
-        this.isDirectory = false;
-        Replicate = -1;
-        IntSize = -1;
-        IntRecordCount = -1;
-        FromRoxieCluster = false;
-        BrowseData = false;
-        IsKeyFile = false;
-        Fields = new Properties();
-        Format = "FLAT";
-        CsvSeparate = null;
-        CsvTerminate = null;
-        CsvQuote = null;
-        Ecl = null;
-        KeyedColumns = new Properties();
-        NonKeyedColumns = new Properties();
-        relatedIndexes = null;
-        IdxFilePosField = null;
-        HasPayLoad = false;
-        subFiles = null;
-    }
+    public DFUFile() {}
 
     public String getFileName()
     {
@@ -237,18 +170,26 @@ public class DFUFile
 
     public void setDescription(String description)
     {
-        Description = description;
+        if (description != null && description.length() > 0 )
+        {
+            Description = description.trim();
 
-        if (description.contains(RELATEDINDEXKEYWORD))
-            setRelatedIndexes(description.substring(description.indexOf(RELATEDINDEXKEYWORD)));
+            int pos=Description.indexOf(RELATEDINDEXKEYWORD);
+            if ( pos > -1) //found keyword
+                setRelatedIndexes(description.substring(pos));
 
-        if (description.contains(IDXFILEPOSFIELDTAG))
-            setIdxFilePosField(description.substring(description.indexOf(IDXFILEPOSFIELDTAG)));
+            pos=Description.indexOf(IDXFILEPOSFIELDTAG);
+            if ( pos > -1) //found keyword
+                setIdxFilePosField(description.substring(pos));
+        }
     }
 
     private void setIdxFilePosField(String str)
     {
-        IdxFilePosField = str.substring(IDXFILEPOSFIELDTAG.length() + 1 + 1, str.indexOf(']'));
+        Matcher matcher = IDXPOSPATTERN.matcher(str);
+
+        if(matcher.matches() && matcher.groupCount() >= 1)
+            IdxFilePosField = matcher.group(1);
     }
 
     public String getIdxFilePosField()
@@ -259,7 +200,7 @@ public class DFUFile
     public boolean hasValidIdxFilePosField()
     {
         String tmp = getIdxFilePosField();
-        return tmp != null && tmp.length() > 0 ? true : false;
+        return tmp != null && tmp.length() > 0;
     }
 
     private String getLastNonKeyedNumericField()
@@ -270,13 +211,19 @@ public class DFUFile
 
     private void setRelatedIndexes(String str)
     {
-        String indexes = str.substring(RELATEDINDEXKEYWORD.length() + 1 + 1, str.indexOf(']'));
-        StringTokenizer indexeToks = new StringTokenizer(indexes, ";");
+        Matcher matcher = RELINDEXPATTERN.matcher(str);
 
-        while (indexeToks.hasMoreTokens())
+        if(matcher.matches() && matcher.groupCount() >= 1)
         {
-            addRelatedIndex(indexeToks.nextToken().trim());
+            StringTokenizer indexeToks = new StringTokenizer(matcher.group(1), ";");
+
+            while (indexeToks.hasMoreTokens())
+            {
+                addRelatedIndex(indexeToks.nextToken().trim());
+            }
         }
+        else
+            System.out.println("Could not determine releated index for file: " + this.getFullyQualifiedName());
     }
 
     public int getParts()
