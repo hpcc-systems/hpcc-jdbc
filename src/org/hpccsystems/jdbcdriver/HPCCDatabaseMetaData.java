@@ -97,22 +97,22 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public HPCCDatabaseMetaData(Properties props)
     {
         super();
-        this.serverAddress = props.getProperty("ServerAddress", HPCCConnection.SERVERADDRESSDEFAULT);
-        this.targetcluster = props.getProperty("Cluster", HPCCConnection.CLUSTERDEFAULT);
-        this.queryset = props.getProperty("QuerySet", HPCCConnection.QUERYSETDEFAULT);
-        this.wseclwatchport = props.getProperty("WsECLWatchPort", HPCCConnection.WSECLWATCHPORTDEFAULT);
+        this.serverAddress = props.getProperty("ServerAddress", HPCCDriver.SERVERADDRESSDEFAULT);
+        this.targetcluster = props.getProperty("TargetCluster", HPCCDriver.CLUSTERDEFAULT);
+        this.queryset = props.getProperty("QuerySet", HPCCDriver.QUERYSETDEFAULT);
+        this.wseclwatchport = props.getProperty("WsECLWatchPort", HPCCDriver.WSECLWATCHPORTDEFAULT);
         this.wseclwatchaddress = props.getProperty("WsECLWatchAddress", this.serverAddress);
         this.UserName = props.getProperty("username", "");
         this.basicAuth = props.getProperty("BasicAuth",
                 HPCCConnection.createBasicAuth(this.UserName, props.getProperty("password", "")));
-        this.lazyLoad = Boolean.parseBoolean(props.getProperty("LazyLoad", HPCCConnection.LAZYLOADDEFAULT));
+        this.lazyLoad = Boolean.parseBoolean(props.getProperty("LazyLoad", HPCCDriver.LAZYLOADDEFAULT));
         this.pageSize = HPCCJDBCUtils.stringToInt(
-                props.getProperty("PageSize", String.valueOf(HPCCConnection.FETCHPAGESIZEDEFAULT)),
-                HPCCConnection.FETCHPAGESIZEDEFAULT);
-        this.connectTimoutMillis = HPCCJDBCUtils.stringToInt(props.getProperty("ConnectTimeoutMilli", ""),
-                HPCCConnection.CONNECTTIMEOUTMILDEFAULT);
+                props.getProperty("PageSize"),
+                Integer.valueOf(HPCCDriver.FETCHPAGESIZEDEFAULT));
+        this.connectTimoutMillis = HPCCJDBCUtils.stringToInt(props.getProperty("ConnectTimeoutMilli"),
+                Integer.valueOf(HPCCDriver.CONNECTTIMEOUTMILDEFAULT));
 
-        System.out.println("EclDatabaseMetaData ServerAddress: " + serverAddress + " Cluster: " + targetcluster
+        System.out.println("EclDatabaseMetaData ServerAddress: " + serverAddress + " TargetCluster: " + targetcluster
                 + " eclwatch: " + wseclwatchaddress + ":" + wseclwatchport);
 
         targetclusters = new ArrayList<String>();
@@ -129,7 +129,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
 
             if (targetclusters.size() > 0 && !targetclusters.contains(this.targetcluster))
             {
-                props.setProperty("Cluster", targetclusters.get(0));
+                props.setProperty("TargetCluster", targetclusters.get(0));
                 System.out.println("Invalid cluster name found: " + this.targetcluster + ". using: "
                         + targetclusters.get(0));
                 this.targetcluster = targetclusters.get(0);
