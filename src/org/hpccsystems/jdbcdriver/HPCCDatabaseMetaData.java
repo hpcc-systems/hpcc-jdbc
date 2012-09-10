@@ -2991,19 +2991,21 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         List<String> subfiles = file.getSubfiles();
         for (String subfilename : subfiles)
         {
-            if (tableExists("", subfilename))
+            if (tableExists("", subfilename) && !isSuccess)
             {
                 DFUFile subfile = dfufiles.getFile(subfilename);
                 if (subfile.hasFileRecDef())
                 {
                     isSuccess = true;
-                    break;
                 }
                 else if (subfile.isSuperFile())
                 {
-                    fetchSuperFileSubfile(subfile);
+                    isSuccess = fetchSuperFileSubfile(subfile);
                 }
             }
+
+            if (isSuccess) //no need to continue looking for more recdefs
+                break;
         }
         return isSuccess;
     }
