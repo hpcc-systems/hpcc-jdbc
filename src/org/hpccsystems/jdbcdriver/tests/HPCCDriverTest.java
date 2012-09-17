@@ -259,6 +259,86 @@ public class HPCCDriverTest
         return success;
     }
 
+    private static PreparedStatement createPrepStatement(HPCCConnection hpccconnection, String SQL) throws Exception
+    {
+        if (hpccconnection == null)
+          throw new Exception("Could not connect with properties object");
+
+        return hpccconnection.prepareStatement(SQL);
+    }
+
+    private static boolean reusePrepStatement(PreparedStatement p)
+    {
+        boolean success = true;
+        try
+        {
+            HPCCResultSet qrs = (HPCCResultSet) ((HPCCPreparedStatement) p).executeQuery();
+
+            ResultSetMetaData meta = qrs.getMetaData();
+            System.out.println();
+
+            for (int i = 1; i <= meta.getColumnCount(); i++)
+            {
+                System.out.print("[*****" + meta.getColumnName(i) + "*****]");
+            }
+            System.out.println("");
+
+            while (qrs.next())
+            {
+                System.out.println();
+                for (int i = 1; i <= meta.getColumnCount(); i++)
+                {
+                    System.out.print("[ " + qrs.getObject(i) + " ]");
+                }
+            }
+            System.out.println("\nTotal Records found: " + qrs.getRowCount());
+        }
+        catch (Exception e)
+        {
+            System.err.println(e.getMessage());
+            success = false;
+        }
+        return success;
+    }
+
+    public static boolean testPrepStatementReuse(Properties conninfo)
+    {
+        boolean success = true;
+        try
+        {
+            HPCCConnection connectionprops = connectViaProps(conninfo);
+            if (connectionprops == null)
+                throw new Exception("Could not connect with properties object");
+
+            String SQL = "select * from tutorial::rp::tutorialperson persons where zip= ? limit 100";
+            HPCCPreparedStatement p = (HPCCPreparedStatement)createPrepStatement(connectionprops, SQL);
+
+            for (int i = 33445; i < 33448; i++)
+            {
+                p.clearParameters();
+                p.setString(1, "'" + Integer.toString(i, 10) + "'");
+                success &= reusePrepStatement(p);
+            }
+
+            SQL = "call myroxie::fetchpeoplebyzipservice(?)";
+            p = (HPCCPreparedStatement)createPrepStatement(connectionprops, SQL);
+
+            for (int i = 33445; i < 33448; i++)
+            {
+                p.clearParameters();
+                p.setString(1, Integer.toString(i, 10));
+                success &= reusePrepStatement(p);
+            }
+        }
+        catch (Exception e)
+        {
+            System.err.println(e.getMessage());
+            success = false;
+        }
+        return success;
+
+    }
+
     private static boolean executeFreeHandSQL(Properties conninfo, String SQL, List<String> params)
     {
         boolean success = true;
@@ -583,15 +663,8 @@ public class HPCCDriverTest
             }
 
             success &= testSelect1(connectionprops);
-            // success &= printoutExportedKeys(connectionprops);
-            // success &= printouttable(connectionprops,
-            // ".::doughenschen__infinity_rollup_best1");
-            // success &= printouttables(connectionprops);
+
             success &= printoutalltablescols(connectionprops);
-            // success &=
-            // printouttablecols(connectionprops,".::doughenschen__infinity_rollup_best1");
-            // success &= printoutprocs(connectionprops);
-            // success &= printoutproccols(connectionprops);
 
         }
         catch (Exception e)
@@ -634,7 +707,6 @@ public class HPCCDriverTest
             success &= !(driver.acceptsURL(" "));
             success &= !(driver.acceptsURL(null));
 
-
             if (args.length <= 0)
             {
                 info.put("ServerAddress", "192.168.124.128"); //your HPCC address here
@@ -650,8 +722,57 @@ public class HPCCDriverTest
 
                 // success &= runFullTest(info, infourl);
 
+                success &= testPrepStatementReuse(info);
+
+                success &= executeFreeHandSQL(
+                        info,
+                        "call myroxie::fetchpeoplebyzipservice(33488)",
+                        params);
+
+                params.clear();
+                params.add("33445");
+
+                success &= executeFreeHandSQL(
+                        info,
+                        "call myroxie::fetchpeoplebyzipservice(?)",
+                        params);
+
+
+                /*parametrized query with empty params */
+                params.clear();
+                success &= !executeFreeHandSQL(
+                        info,
+                        "call myroxie::fetchpeoplebyzipservice(?)",
+                        params);
+
+                /* not enough in params */
+                success &= !executeFreeHandSQL(
+                        info,
+                        "call myroxie::fetchpeoplebyzipservice()",
+                        params);
+
                 params.add("'33445'");
                 params.add("'90210'");
+
+                success &= executeFreeHandSQL(
+                        info,
+                        "select 1",
+                        params);
+
+                success &= executeFreeHandSQL(
+                        info,
+                        "select 1,2,3,4",
+                        params);
+
+                success &= executeFreeHandSQL(
+                        info,
+                        "select '1a'",
+                        params);
+
+                success &= executeFreeHandSQL(
+                        info,
+                        "select * from tutorial::rp::tutorialperson persons where persons.firstname = 'RANDOMNAMEXX' ",
+                        params);
 
                 success &= executeFreeHandSQL(
                         info,
@@ -785,18 +906,21 @@ public class HPCCDriverTest
                         info,
                         "select count(persons.zip) as zipcount, persons.city as mycity , zip, p2.ball from super::super::tutorial::rp::tutorialperson as persons join thor::motionchart_motion_chart_test_fixed as p2 on p2.zip = persons.zip where persons.zip > ? group by zip limit 10",
                         params));
+
                 success &= executeFreeHandSQL(
                         info,
                         "select acct.account, acct.personid, persons.firstname, persons.lastname from progguide::exampledata::people as persons outer join 	progguide::exampledata::accounts as acct on acct.personid = persons.personid  where persons.personid > 5 limit 10",
                         params);
-                success &= executeFreeHandSQL(
-                        info,
-                        "select count(persons.personid), persons.firstname, persons.lastname from progguide::exampledata::people as persons  limit 10",
-                        params);
+
                 expectedFailure |= !(executeFreeHandSQL(
                         info,
                         "select count(persons.zip) as zipcount, persons.city as mycity , zip, p2.ball from super::super::tutorial::rp::tutorialperson as persons join tutorial::rp::tutorialperson2 as p2 on p2.zip = persons.zip where persons.zip > ? group by zip limit 10",
                         params));
+
+                success &= executeFreeHandSQL(
+                        info,
+                        "select count(persons.personid), persons.firstname, persons.lastname from progguide::exampledata::people as persons  limit 10",
+                        params);
             }
             else
             {

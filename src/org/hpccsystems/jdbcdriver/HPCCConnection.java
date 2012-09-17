@@ -104,7 +104,12 @@ public class HPCCConnection implements Connection
 
     public PreparedStatement prepareStatement(String query) throws SQLException
     {
-        return new HPCCPreparedStatement(this, query);
+        HPCCPreparedStatement p = new HPCCPreparedStatement(this, query);
+        SQLWarning prepstmtexcp = p.getWarnings();
+        if (prepstmtexcp != null)
+            throw (SQLException)prepstmtexcp.getNextException();
+
+        return p;
     }
 
     public CallableStatement prepareCall(String sql) throws SQLException

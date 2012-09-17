@@ -82,7 +82,7 @@ public class SQLExpression
         if (splitedsqlexp.length != 2) // something went wrong, only the operator was found?
             throw new SQLException("Invalid SQL Where clause found around: " + expression);
 
-        setPrefix(splitedsqlexp[0]);
+        setPrefix(splitedsqlexp[0].trim());
 
         setOperator(operator);
         if (!isOperatorValid())
@@ -254,5 +254,22 @@ public class SQLExpression
             if (prefix.getType() == FragmentType.FIELD_TYPE)
                 prefix.updateFragmentColumParent(sqlTables);
         }
+    }
+
+    /*
+     * Sets parametrized values based on index passed in.
+     * Expression could contain multiple parameters, returns
+     * appropriately advanced index.
+     */
+
+    public int setParametrizedNames(int currentIndex)
+    {
+        if (prefix.getType() == FragmentType.PARAMETRIZED_TYPE)
+            prefix.setValue(SQLParser.parametrizedPrefix + currentIndex++);
+
+        if (postfix.getType() == FragmentType.PARAMETRIZED_TYPE)
+            postfix.setValue(SQLParser.parametrizedPrefix + currentIndex++);
+
+        return currentIndex;
     }
 }

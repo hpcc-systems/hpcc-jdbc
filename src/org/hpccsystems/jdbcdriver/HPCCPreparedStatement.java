@@ -52,40 +52,91 @@ public class HPCCPreparedStatement implements PreparedStatement
 {
     private boolean                  closed        = false;
     private int                      maxRows       = 100;
-    private String                   query;
-    private Connection               connection;
+    private String                   sqlQuery;
+    private HPCCConnection           hpccConnection;
     private HashMap<Integer, Object> parameters    = new HashMap<Integer, Object>();
-    private ArrayList<SQLWarning>    warnings;
-    private HashMap<String, String>  indexToUseMap = new HashMap<String, String>();
+    private SQLWarning               warnings;
+    private HPCCResultSet            result        = null;
 
-    private HPCCResultSet            result;
+    private HPCCDatabaseMetaData                dbMetadata;
+    private ECLEngine                           eclQuery = null;
+    private SQLParser                           parser = new SQLParser();
 
     public HPCCPreparedStatement(Connection connection, String query)
     {
         System.out.println("ECLPreparedStatement::ECLPreparedStatement: " + query);
-        this.query = query;
-        this.connection = connection;
-        warnings = new ArrayList<SQLWarning>();
+        this.sqlQuery = query;
+        this.hpccConnection = (HPCCConnection)connection;
+        this.dbMetadata = hpccConnection.getDatabaseMetaData();
+
+        if (sqlQuery != null)
+            processQuery();
     }
 
-    public boolean isIndexSet(String sourcefilename)
+    private void processQuery()
     {
-        return indexToUseMap.get(sourcefilename) != null;
-    }
+        try
+        {
+            parser.process(sqlQuery);
 
-    public void setIndexToUse(String sourcefilename, String indexfilename)
-    {
-        indexToUseMap.put(sourcefilename, indexfilename);
-    }
+            eclQuery = new ECLEngine(parser, dbMetadata, hpccConnection.getProperties());
 
-    public String getIndexToUse(String sourcefilename)
-    {
-        return indexToUseMap.get(sourcefilename);
+            eclQuery.generateECL();
+        }
+        catch (SQLException e)
+        {
+            System.out.println(e.getLocalizedMessage());
+            if (warnings == null)
+                warnings = new SQLWarning();
+            warnings.setNextException(e);
+
+            eclQuery = null;
+            parser = null;
+        }
     }
 
     public ResultSet executeQuery() throws SQLException
     {
-        return new HPCCResultSet(this, query, parameters);
+        result = null;
+
+        try
+        {
+            if (eclQuery == null)
+            {
+                String message = "HPCCPreparedStatement: Cannot execute SQL command";
+
+                if (warnings != null)
+                {
+                    SQLException  w = warnings.getNextException();
+                    if(w != null)
+                    {
+                        message += "\n\t";
+                        message += w.getLocalizedMessage();
+                    }
+                }
+                throw new SQLException(message);
+            }
+
+            ArrayList dsList = eclQuery.execute(parameters);
+
+            if (dsList != null)
+                result = new HPCCResultSet(this, dsList, eclQuery.getExpectedRetCols(), "HPCC Result");
+
+        }
+        catch (Exception e)
+        {
+            SQLException sqlexcept = new SQLException(e.getLocalizedMessage());
+            sqlexcept.setStackTrace(e.getStackTrace());
+
+            if (warnings == null)
+                warnings = new SQLWarning();
+
+            warnings.setNextException(sqlexcept);
+
+            throw sqlexcept;
+        }
+
+        return result;
     }
 
     public int executeUpdate() throws SQLException
@@ -185,22 +236,19 @@ public class HPCCPreparedStatement implements PreparedStatement
 
     public void setObject(int parameterIndex, Object x, int targetSqlType) throws SQLException
     {
-        System.out.println("ECLPrepStamt::setObject Parameter Index = " + parameterIndex + ", Object = " + x
-                + ", targetSqlType = " + targetSqlType);
         parameters.put(new Integer(parameterIndex), x);
     }
 
     public void setObject(int parameterIndex, Object x) throws SQLException
     {
-        System.out.println("ECLPrepStamt::setObject Parameter Index = " + parameterIndex + ", Object = " + x);
         parameters.put(new Integer(parameterIndex), x);
     }
 
     public boolean execute() throws SQLException
     {
-        result = new HPCCResultSet(this, query, parameters);
-        System.out.println("ECLPreparedStatement: execute rowcount: " + result.getRowCount());
-        return result.getRowCount() > 0 ? true : false;
+        executeQuery();
+
+        return result != null;
     }
 
     public void addBatch() throws SQLException
@@ -235,8 +283,7 @@ public class HPCCPreparedStatement implements PreparedStatement
 
     public ResultSetMetaData getMetaData() throws SQLException
     {
-        System.out.println("ECLPreparedStatement: getMetaData");
-        return result.getMetaData();
+        return result != null ? result.getMetaData() : null;
     }
 
     public void setDate(int parameterIndex, Date x, Calendar cal) throws SQLException
@@ -312,8 +359,6 @@ public class HPCCPreparedStatement implements PreparedStatement
 
     public void setObject(int parameterIndex, Object x, int targetSqlType, int scaleOrLength) throws SQLException
     {
-        System.out.println("ECLPrepStamt::setObject Parameter Index = " + parameterIndex + ", Object = " + x
-                + ", targetSqlType = " + targetSqlType + ", scaleOrLength = " + scaleOrLength);
         parameters.put(new Integer(parameterIndex), x);
     }
 
@@ -369,13 +414,13 @@ public class HPCCPreparedStatement implements PreparedStatement
 
     public ResultSet executeQuery(String query) throws SQLException
     {
-        System.out.println("ECLPreparedStatement: executeQuery(" + query + ")");
-        result = new HPCCResultSet(this, query, parameters);
-        System.out.println("ECLPreparedStatement: executeQuery returned " + result.getRowCount() + " rows, and "
-                + result.getMetaData().getColumnCount() + " columns");
-        System.out.println("results object id: " + (Object) result.hashCode());
+        sqlQuery = query;
 
-        return result;
+        System.out.println("ECLPreparedStatement: executeQuery(" + query + ")");
+
+        processQuery();
+
+        return executeQuery();
     }
 
     public int executeUpdate(String sql) throws SQLException
@@ -385,10 +430,24 @@ public class HPCCPreparedStatement implements PreparedStatement
 
     public void close() throws SQLException
     {
-        connection.close();
-        query = "";
-        result = null;
+        if (hpccConnection != null)
+        {
+            hpccConnection.close();
+            hpccConnection = null;
+        }
+
+        if (result != null)
+        {
+            result.close();
+            result = null;
+        }
+
+        sqlQuery = "";
+        dbMetadata = null;
         closed = true;
+        parameters = null;
+        parser = null;
+        eclQuery = null;
     }
 
     public int getMaxFieldSize() throws SQLException
@@ -433,12 +492,12 @@ public class HPCCPreparedStatement implements PreparedStatement
 
     public SQLWarning getWarnings() throws SQLException
     {
-        return (warnings.size() <= 0) ? null : warnings.get(1);
+        return warnings;
     }
 
     public void clearWarnings() throws SQLException
     {
-        warnings.clear();
+        warnings = null;
     }
 
     public void setCursorName(String name) throws SQLException
@@ -448,11 +507,13 @@ public class HPCCPreparedStatement implements PreparedStatement
 
     public boolean execute(String sql) throws SQLException
     {
+        sqlQuery = sql;
+
         System.out.println("ECLPREPSTMT execute(" + sql + ")");
-        query = sql;
-        result = new HPCCResultSet(this, query, parameters);
-        System.out.println("ECLPreparedStatement: execute rowcount: " + result.getRowCount());
-        return result.getRowCount() > 0 ? true : false;
+
+        processQuery();
+
+        return execute();
     }
 
     public ResultSet getResultSet() throws SQLException
@@ -517,7 +578,7 @@ public class HPCCPreparedStatement implements PreparedStatement
 
     public Connection getConnection() throws SQLException
     {
-        return connection;
+        return hpccConnection;
     }
 
     public boolean getMoreResults(int current) throws SQLException
