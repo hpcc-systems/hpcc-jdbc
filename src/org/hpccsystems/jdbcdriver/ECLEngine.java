@@ -26,8 +26,9 @@ import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
-import java.sql.SQLWarning;
+import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -45,70 +46,60 @@ import org.w3c.dom.NodeList;
 
 public class ECLEngine
 {
-
-    private String                  urlString;
-    private HPCCQuery               hpccQuery;
-    private final String            datasetName;
-    private NodeList                resultSchema;
-    private final Properties        props;
-    private ArrayList<SQLWarning>   warnings;
-    private SQLParser               parser;
+    private HPCCQuery               hpccPublishedQuery = null;
+    private String                  expectedDSName = null;
+    private NodeList                resultSchema = null;
+    private final Properties        hpccConnProps;
+    private SQLParser               sqlParser;
     private HPCCDatabaseMetaData    dbMetadata;
-    private HashMap<String, String> indexToUseMap;
-    private HashMap<String, String> eclEntities;
-    private HashMap<String, String> eclDSSourceMapping;
 
-    public ECLEngine(SQLParser parser, HPCCDatabaseMetaData dbmetadata, Properties props, HPCCQuery query)
+    private StringBuilder           eclCode;
+    private URL                     hpccRequestUrl;
+    private ArrayList<HPCCColumnMetaData> storeProcInParams = null;
+    private String[]                        procInParamValues = null;
+    private List<HPCCColumnMetaData> expectedretcolumns = null;
+
+    private static final int            INDEXSCORECRITERIAVARS         = 3;
+
+    private static final int            NumberOfCommonParamInThisIndex_INDEX = 0;
+    private static final int            LeftMostKeyIndexPosition_INDEX       = 1;
+    private static final int            NumberofColsKeyedInThisIndex_INDEX   = 2;
+
+    private static final int            NumberOfCommonParamInThisIndex_WEIGHT = 5;
+    private static final int            LeftMostKeyIndexPosition_WEIGHT       = 3;
+    private static final int            NumberofColsKeyedInThisIndex_WEIGHT   = 2;
+
+    private static final String         SELECTOUTPUTNAME = "JDBCSelectQueryResult";
+
+    public ECLEngine(SQLParser parser, HPCCDatabaseMetaData dbmetadata, Properties props)
     {
-        this.props = props;
+        this.hpccConnProps = props;
         this.dbMetadata = dbmetadata;
-        this.parser = parser;
-        this.datasetName = null;
-        this.resultSchema = null;
-        this.hpccQuery = query;
-        this.eclEntities = new HashMap<String, String>();
-        this.indexToUseMap = new HashMap<String, String>();
-        this.eclDSSourceMapping = new HashMap<String, String>();
+        this.sqlParser = parser;
     }
 
-    public ECLEngine(SQLParser parser, HPCCDatabaseMetaData dbmetadata, Properties props,
-            HashMap<String, String> indextouse)
+    public List<HPCCColumnMetaData> getExpectedRetCols ()
     {
-        this.props = props;
-        this.dbMetadata = dbmetadata;
-        this.parser = parser;
-        this.indexToUseMap = indextouse;
-        this.datasetName = null;
-        this.resultSchema = null;
-        this.hpccQuery = null;
-        this.eclEntities = new HashMap<String, String>();
-        this.eclDSSourceMapping = new HashMap<String, String>();
+        return expectedretcolumns;
     }
 
-    public ArrayList executeSelectConstant(String eclstring)
+    private void addFileColsToAvailableCols(DFUFile dfufile, HashMap<String, HPCCColumnMetaData> availablecols)
+    {
+        Enumeration fields = dfufile.getAllFields();
+        while (fields.hasMoreElements())
+        {
+            HPCCColumnMetaData col = (HPCCColumnMetaData) fields.nextElement();
+            availablecols.put(col.getTableName() + "." + col.getColumnName(), col);
+        }
+    }
+
+    public ArrayList executeSelectConstant()
     {
         try
         {
-            urlString = "http://" + props.getProperty("WsECLDirectAddress") + ":"
-                    + props.getProperty("WsECLDirectPort") + "/EclDirect/RunEcl?Submit";
-
-            if (props.containsKey("TargetCluster"))
-            {
-                urlString += "&cluster=";
-                urlString += props.getProperty("TargetCluster");
-            }
-            else
-                System.out.println("No cluster property found, executing query on EclDirect default cluster");
-
-            urlString += "&eclText=";
-            urlString += URLEncoder.encode(eclstring, "UTF-8");
-
-            System.out.println("WSECL:executeSelect: " + urlString);
-
             long startTime = System.currentTimeMillis();
 
-            URL url = new URL(urlString);
-            HttpURLConnection conn = dbMetadata.createHPCCESPConnection(url);
+            HttpURLConnection conn = dbMetadata.createHPCCESPConnection(hpccRequestUrl);
 
             return parse(conn.getInputStream(), startTime);
         }
@@ -118,369 +109,738 @@ public class ECLEngine
         }
     }
 
-    public ArrayList execute() throws Exception
+    private void generateSelectECL() throws SQLException
     {
-        int sqlReqType = parser.getSqlType();
+        boolean avoidindex = false;
 
-        List<HPCCColumnMetaData> expectedretcolumns = new ArrayList();
-        String queryFileName = "";
-        String indexPosField = null;
-        StringBuilder keyedAndWild = new StringBuilder();
+        HashMap<String, String> eclEntities = new HashMap<String, String>();
+        HashMap<String, String> eclDSSourceMapping = new HashMap<String, String>();
+
         DFUFile indexFileToUse = null;
-        StringBuilder eclCode = new StringBuilder("");
         int totalParamCount = 0;
         boolean isPayloadIndex = false;
+        String indexPosField = null;
+
+        //Currently, query table is always 0th index.
+        String queryFileName = HPCCJDBCUtils.handleQuotedString(sqlParser.getTableName(0));
+        if (!dbMetadata.tableExists("", queryFileName))
+            throw new SQLException("Invalid table found: " + queryFileName);
+
+        DFUFile hpccQueryFile = dbMetadata.getDFUFile(queryFileName);
+
+        if (!hpccQueryFile.hasFileRecDef())
+            throw new SQLException("Cannot query: " + queryFileName
+                    + " because it does not contain an ECL record definition.");
+
+        HashMap<String, HPCCColumnMetaData> availablecols = new HashMap<String, HPCCColumnMetaData>();
+
+        addFileColsToAvailableCols(hpccQueryFile, availablecols);
+
+        if (sqlParser.hasJoinClause())
+        {
+            String joinTableName = sqlParser.getJoinClause().getJoinTableName();
+            if (!dbMetadata.tableExists("", joinTableName))
+                throw new SQLException("Invalid Join table found: " + joinTableName);
+
+            DFUFile joinTableFile = dbMetadata.getDFUFile(joinTableName);
+            if (!hpccQueryFile.hasFileRecDef())
+                throw new SQLException("Cannot query: " + joinTableName
+                        + " because it does not contain an ECL record definition.");
+
+            addFileColsToAvailableCols(joinTableFile, availablecols);
+
+            avoidindex = true; // will not be using index
+            System.out.println("Will not use INDEX files for \"Join\" query.");
+        }
+
+        sqlParser.verifyAndProcessALLSelectColumns(availablecols );
+
+        expectedretcolumns = sqlParser.getSelectColumns();
+
+        String tmpindexname = null;
+        String indexhint = sqlParser.getIndexHint();
+
+        if (indexhint != null)
+        {
+            if (indexhint.trim().equals("0"))
+            {
+                avoidindex = true;
+                System.out.println("Will not use any index.");
+            }
+            if (!avoidindex)
+            {
+                tmpindexname = findAppropriateIndex(indexhint, expectedretcolumns, sqlParser);
+                if (tmpindexname == null)
+                    System.out.println("Cannot use USE INDEX hint: " + indexhint);
+            }
+        } else
+
+        if (hpccQueryFile.hasRelatedIndexes() && !avoidindex)
+        {
+            tmpindexname = findAppropriateIndex(hpccQueryFile.getRelatedIndexesList(), expectedretcolumns, sqlParser);
+        }
+
+        totalParamCount = sqlParser.getWhereClauseExpressionsCount();
+
+        eclEntities.put("PARAMCOUNT", Integer.toString(totalParamCount));
+
+        if (tmpindexname != null)
+        {
+            System.out.print("Generating ECL using index file: " + tmpindexname);
+            indexFileToUse = dbMetadata.getDFUFile(tmpindexname);
+            indexPosField = indexFileToUse.getIdxFilePosField();
+
+            StringBuilder keyedAndWild = new StringBuilder();
+            isPayloadIndex = processIndex(indexFileToUse, keyedAndWild);
+
+            eclEntities.put("KEYEDWILD", keyedAndWild.toString());
+            if (isPayloadIndex)
+                eclEntities.put("PAYLOADINDEX", "true");
+
+            eclDSSourceMapping.put(queryFileName, "IdxDS");
+
+            StringBuffer idxsetupstr = new StringBuffer();
+            idxsetupstr.append("Idx := INDEX(Tbl1DS, {")
+                    .append(indexFileToUse.getKeyedFieldsAsDelmitedString(',', null)).append("}");
+
+            if (indexFileToUse.getNonKeyedColumnsCount() > 0)
+                idxsetupstr.append(",{ ")
+                            .append(indexFileToUse.getNonKeyedFieldsAsDelmitedString(',', null))
+                            .append(" }");
+
+            idxsetupstr.append(",\'~").append(indexFileToUse.getFullyQualifiedName()).append("\');\n");
+
+            eclEntities.put("IndexDef", idxsetupstr.toString());
+
+            idxsetupstr.setLength(0);
+
+            if (isPayloadIndex)
+            {
+                System.out.println(" as PAYLOAD");
+                idxsetupstr.append("IdxDS := Idx(").append(keyedAndWild.toString()).append(");\n");
+            }
+            else
+            {
+                System.out.println(" Not as PAYLOAD");
+                idxsetupstr.append("IdxDS := FETCH(Tbl1DS, Idx( ").append(keyedAndWild.toString())
+                        .append("), RIGHT.").append(indexFileToUse.getIdxFilePosField()).append(");\n");
+            }
+            eclEntities.put("IndexRead", idxsetupstr.toString());
+
+        }
+        else
+            System.out.println("NOT USING INDEX!");
+
+        if (hpccQueryFile.hasFileRecDef())
+        {
+            if (indexFileToUse != null && indexPosField != null)
+                eclCode.append(hpccQueryFile.getFileRecDefwithIndexpos(
+                        indexFileToUse.getFieldMetaData(indexPosField), "Tbl1RecDef"));
+            else
+                eclCode.append(hpccQueryFile.getFileRecDef("Tbl1RecDef"));
+            eclCode.append("\n");
+        }
+        else
+            throw new SQLException("Target HPCC file (" + queryFileName
+                    + ") does not contain ECL record definition");
+
+        if (!eclDSSourceMapping.containsKey(queryFileName))
+            eclDSSourceMapping.put(queryFileName, "Tbl1DS");
+
+        if (!hpccQueryFile.isKeyFile())
+            eclCode.append("Tbl1DS := DATASET(\'~").append(hpccQueryFile.getFullyQualifiedName())
+                    .append("\', Tbl1RecDef,").append(hpccQueryFile.getFormat()).append("); ");
+        else
+        {
+            eclCode.append("Tbl1DS := INDEX( ");
+            eclCode.append('{');
+            eclCode.append(hpccQueryFile.getKeyedFieldsAsDelmitedString(',', "Tbl1RecDef"));
+            eclCode.append("},{");
+            eclCode.append(hpccQueryFile.getNonKeyedFieldsAsDelmitedString(',', "Tbl1RecDef"));
+            eclCode.append("},");
+            eclCode.append("\'~").append(hpccQueryFile.getFullyQualifiedName()).append("\');");
+        }
+
+        if (sqlParser.hasJoinClause())
+        {
+            String hpccJoinFileName = HPCCJDBCUtils.handleQuotedString(sqlParser.getJoinClause()
+                    .getJoinTableName());
+
+            if (!dbMetadata.tableExists("", hpccJoinFileName))
+                throw new SQLException("Invalid Join table found: " + hpccJoinFileName);
+
+            DFUFile hpccJoinFile = dbMetadata.getDFUFile(hpccJoinFileName);
+
+            if (hpccJoinFile.hasFileRecDef())
+            {
+                // if (indexfiletouse != null && indexposfield != null)
+                // eclcode.append(hpccQueryFile.getFileRecDefwithIndexpos(indexfiletouse.getFieldMetaData(indexposfield),
+                // "Tbl1RecDef"));
+                // else
+                eclCode.append(hpccJoinFile.getFileRecDef("\nTbl2RecDef"));
+                eclCode.append("\n");
+            }
+            else
+                throw new SQLException("Target HPCC file (" + hpccJoinFile
+                        + ") does not contain ECL record definition");
+
+            eclDSSourceMapping.put(hpccJoinFile.getFullyQualifiedName(), "Tbl2DS");
+
+            if (!hpccJoinFile.isKeyFile())
+                eclCode.append("Tbl2DS := DATASET(\'~").append(hpccJoinFile.getFullyQualifiedName())
+                        .append("\', Tbl2RecDef,").append(hpccJoinFile.getFormat()).append("); ");
+            else
+            {
+                eclCode.append("Tbl2DS := INDEX( ");
+                eclCode.append('{');
+                eclCode.append(hpccJoinFile.getKeyedFieldsAsDelmitedString(',', "Tbl2RecDef"));
+                eclCode.append("},{");
+                eclCode.append(hpccJoinFile.getNonKeyedFieldsAsDelmitedString(',', "Tbl2RecDef"));
+                eclCode.append("},");
+                eclCode.append("\'~").append(hpccJoinFile.getFullyQualifiedName()).append("\');");
+            }
+
+            HashMap<String, String> translator = new HashMap<String, String>(2);
+
+            translator.put(queryFileName, "LEFT");
+            translator.put(hpccJoinFileName, "RIGHT");
+
+            eclCode.append("\n").append("JndDS := JOIN(").append(" Tbl1DS").append(", Tbl2DS").append(", ")
+                    .append(sqlParser.getJoinClause().getOnClause().toStringTranslateSource(translator));
+
+            if (totalParamCount > 0)
+                eclCode.append(" AND ").append(sqlParser.getWhereClauseStringTranslateSource(translator));
+            eclCode.append(", ").append(sqlParser.getJoinClause().getECLTypeStr()).append(" );\n");
+
+            eclDSSourceMapping.put(queryFileName, "JndDS");
+            eclDSSourceMapping.put(hpccJoinFileName, "JndDS");
+
+            eclEntities.put("JoinQuery", "1");
+        }
+
+        eclEntities.put("SourceDS", eclDSSourceMapping.get(queryFileName));
+
+        StringBuilder selectStructSB = new StringBuilder("SelectStruct := RECORD\n ");
+
+        for (int i = 0; i < expectedretcolumns.size(); i++)
+        {
+            HPCCColumnMetaData col = expectedretcolumns.get(i);
+
+            String datasource = eclDSSourceMapping.get(col.getTableName());
+
+            if (col.getColumnType() == HPCCColumnMetaData.COLUMN_TYPE_CONSTANT)
+            {
+                selectStructSB.append(col.getEclType())
+                              .append(" ")
+                              .append(col.getColumnName())
+                              .append(" := ")
+                              .append(col.getConstantValue())
+                              .append("; ");
+
+                if (i == 0 && expectedretcolumns.size() == 1)
+                    eclEntities.put("SCALAROUTNAME", col.getColumnName());
+            }
+
+            else if (col.getColumnType() == HPCCColumnMetaData.COLUMN_TYPE_FNCTION)
+            {
+                if (col.getColumnName().equalsIgnoreCase("COUNT"))
+                {
+                    eclEntities.put("COUNTFN", "TRUE");
+                    selectStructSB.append(col.getAlias() + " := ");
+                    if (sqlParser.hasGroupByColumns())
+                    {
+                        selectStructSB.append(col.getColumnName().toUpperCase()).append("( GROUP");
+                        List<HPCCColumnMetaData> funccols = col.getFunccols();
+
+                        if (funccols.size() > 0)
+                        {
+                            String paramname = funccols.get(0).getColumnName();
+                            if (!paramname.equals("*")
+                                    && funccols.get(0).getColumnType() != HPCCColumnMetaData.COLUMN_TYPE_CONSTANT)
+                            {
+                                selectStructSB.append(", ");
+                                selectStructSB.append(datasource);
+                                selectStructSB.append(".");
+                                selectStructSB.append(paramname);
+                                selectStructSB.append("<> \'\'");
+                            }
+                        }
+                        selectStructSB.append(" );");
+                    }
+                    else
+                    {
+                        selectStructSB.append(" ScalarOut;");
+                        if (expectedretcolumns.size() == 1)
+                            eclEntities.put("SCALAROUTNAME", col.getColumnName());
+                    }
+
+                    col.setSqlType(java.sql.Types.NUMERIC);
+                }
+                else if (col.getColumnName().equalsIgnoreCase("MAX"))
+                {
+                    eclEntities.put("MAXFN", "TRUE");
+                    selectStructSB.append(col.getAlias() + " := ");
+
+                    if (sqlParser.hasGroupByColumns())
+                    {
+                        selectStructSB.append("MAX( GROUP ");
+                    }
+                    else
+                    {
+                        selectStructSB.append("MAX( ").append(datasource);
+                        if (eclEntities.size() > 0)
+                            addFilterClause(selectStructSB, eclEntities);
+                    }
+
+                    List<HPCCColumnMetaData> funccols = col.getFunccols();
+                    if (funccols.size() > 0)
+                    {
+                        String paramname = funccols.get(0).getColumnName();
+                        eclEntities.put("FNCOLS", paramname);
+                        if (!paramname.equals("*")
+                                && funccols.get(0).getColumnType() != HPCCColumnMetaData.COLUMN_TYPE_CONSTANT)
+                        {
+                            selectStructSB.append(", ");
+                            selectStructSB.append(datasource);
+                            selectStructSB.append(".");
+                            selectStructSB.append(paramname);
+                        }
+                    }
+                    selectStructSB.append(" );");
+                }
+                else if (col.getColumnName().equalsIgnoreCase("MIN"))
+                {
+                    eclEntities.put("MINFN", "TRUE");
+                    selectStructSB.append(col.getAlias() + " := ");
+
+                    if (sqlParser.hasGroupByColumns())
+                    {
+                        selectStructSB.append("MIN( GROUP ");
+                    }
+                    else
+                    {
+                        selectStructSB.append("MIN( ").append(datasource);
+                        if (eclEntities.size() > 0)
+                            addFilterClause(selectStructSB, eclEntities);
+                    }
+
+                    List<HPCCColumnMetaData> funccols = col.getFunccols();
+                    if (funccols.size() > 0)
+                    {
+                        String paramname = funccols.get(0).getColumnName();
+                        eclEntities.put("FNCOLS", paramname);
+                        if (!paramname.equals("*")
+                                && funccols.get(0).getColumnType() != HPCCColumnMetaData.COLUMN_TYPE_CONSTANT)
+                        {
+                            selectStructSB.append(", ");
+                            selectStructSB.append(datasource);
+                            selectStructSB.append(".");
+                            selectStructSB.append(paramname);
+                        }
+                    }
+                    selectStructSB.append(" );");
+                }
+                else if (col.getColumnName().equalsIgnoreCase("SUM"))
+                {
+                    eclEntities.put("SUMFN", "TRUE");
+                    selectStructSB.append(col.getAlias() + " := ");
+
+                    selectStructSB.append("SUM( ");
+                    if (sqlParser.hasGroupByColumns())
+                    {
+                        selectStructSB.append(" GROUP ");
+                    }
+                    else
+                    {
+                        selectStructSB.append(datasource);
+                        if (eclEntities.size() > 0)
+                            addFilterClause(selectStructSB, eclEntities);
+                    }
+
+                    List<HPCCColumnMetaData> funccols = col.getFunccols();
+                    if (funccols.size() > 0)
+                    {
+                        String paramname = funccols.get(0).getColumnName();
+                        eclEntities.put("FNCOLS", paramname);
+                        if (!paramname.equals("*")
+                                && funccols.get(0).getColumnType() != HPCCColumnMetaData.COLUMN_TYPE_CONSTANT)
+                        {
+                            selectStructSB.append(", ");
+                            selectStructSB.append(datasource);
+                            selectStructSB.append(".");
+                            selectStructSB.append(paramname);
+                        }
+                    }
+                    selectStructSB.append(" );");
+                }
+            }
+            else
+                selectStructSB.append(col.getEclType()).append(" ").append(col.getColumnName()).append(" := ")
+                        .append(datasource).append(".").append(col.getColumnName()).append("; ");
+
+        }
+        selectStructSB.append("\nEND;\n");
+
+        eclEntities.put("SELECTSTRUCT", selectStructSB.toString());
+
+        if (sqlParser.hasOrderByColumns())
+            eclEntities.put("ORDERBY", sqlParser.getOrderByString());
+        if (sqlParser.hasGroupByColumns())
+            eclEntities.put("GROUPBY", sqlParser.getGroupByString());
+        if (sqlParser.hasLimitBy())
+            eclEntities.put("LIMIT", Integer.toString(sqlParser.getLimit()));
+
+        if (eclEntities.get("IndexDef") == null)
+        {
+            if (!eclEntities.containsKey("GROUPBY"))
+            {
+                if (eclEntities.containsKey("COUNTFN"))
+                {
+                    eclCode.append("ScalarOut := COUNT( ").append(eclEntities.get("SourceDS"));
+
+                    if (eclEntities.size() > 0)
+                        addFilterClause(eclCode, eclEntities);
+                    eclCode.append(");");
+                    eclCode.append("\n");
+                }
+                else if (eclEntities.containsKey("SUMFN"))
+                {
+                    eclCode.append("ScalarOut := SUM( ").append(eclEntities.get("SourceDS"));
+                    if (eclEntities.size() > 0)
+                        addFilterClause(eclCode, eclEntities);
+
+                    eclCode.append(" , ");
+                    eclCode.append(eclEntities.get("SourceDS"));
+                    eclCode.append(".");
+                    eclCode.append(eclEntities.get("FNCOLS"));
+                    eclCode.append(");");
+                    eclCode.append("\n");
+                }
+                else if (eclEntities.containsKey("MAXFN"))
+                {
+                    eclCode.append("ScalarOut := MAX( ").append(eclEntities.get("SourceDS"));
+                    if (eclEntities.size() > 0)
+                        addFilterClause(eclCode, eclEntities);
+
+                    eclCode.append(" , ");
+                    eclCode.append(eclEntities.get("SourceDS"));
+                    eclCode.append(".");
+                    eclCode.append(eclEntities.get("FNCOLS"));
+                    eclCode.append(");");
+                    eclCode.append("\n");
+                }
+                else if (eclEntities.containsKey("MINFN"))
+                {
+                    eclCode.append("ScalarOut := MIN( ").append(eclEntities.get("SourceDS"));
+                    if (eclEntities.size() > 0)
+                        addFilterClause(eclCode, eclEntities);
+
+                    eclCode.append(" , ");
+                    eclCode.append(eclEntities.get("SourceDS"));
+                    eclCode.append(".");
+                    eclCode.append(eclEntities.get("FNCOLS"));
+                    eclCode.append(");");
+                    eclCode.append("\n");
+                }
+            }
+
+            if (eclEntities.containsKey("SCALAROUTNAME"))
+            {
+                eclCode.append("OUTPUT(ScalarOut ,NAMED(\'");
+                eclCode.append(eclEntities.get("SCALAROUTNAME"));
+                eclCode.append("\'));");
+            }
+            else
+            {
+                eclCode.append(eclEntities.get("SELECTSTRUCT"));
+                eclCode.append("OUTPUT(CHOOSEN(");
+
+                if (eclEntities.containsKey("ORDERBY"))
+                    eclCode.append("SORT( ");
+
+                eclCode.append("TABLE( ");
+                eclCode.append(eclEntities.get("SourceDS"));
+
+                if (eclEntities.size() > 0 && !eclEntities.containsKey("JoinQuery"))
+                    addFilterClause(eclCode, eclEntities);
+
+                eclCode.append(", SelectStruct");
+                if (eclEntities.containsKey("GROUPBY"))
+                {
+                    eclCode.append(",");
+                    eclCode.append(eclEntities.get("GROUPBY"));
+                }
+
+                eclCode.append(")");
+
+                if (eclEntities.containsKey("ORDERBY"))
+                {
+                    eclCode.append(",");
+                    eclCode.append(eclEntities.get("ORDERBY"));
+                    eclCode.append(")");
+                }
+            }
+        }
+        else
+        // use index
+        {
+            eclCode.append(eclEntities.get("IndexDef"));
+            eclCode.append(eclEntities.get("IndexRead"));
+
+            if (!eclEntities.containsKey("GROUPBY"))
+            {
+                if (eclEntities.containsKey("COUNTFN"))
+                {
+                    eclCode.append("ScalarOut := COUNT(IdxDS");
+                    eclCode.append(eclEntities.containsKey("PAYLOADINDEX") == false ? ");" : ", KEYED);\n");
+                }
+                if (eclEntities.containsKey("SUMFN"))
+                {
+                    eclCode.append("ScalarOut := SUM(IdxDS, ");
+                    eclCode.append(eclEntities.get("SourceDS"));
+                    eclCode.append(".");
+                    eclCode.append(eclEntities.get("FNCOLS"));
+                    eclCode.append(eclEntities.containsKey("PAYLOADINDEX") == false ? ");" : ", KEYED);\n");
+                }
+                if (eclEntities.containsKey("MAXFN"))
+                {
+                    eclCode.append("ScalarOut := MAX(IdxDS, ");
+                    eclCode.append(eclEntities.get("SourceDS"));
+                    eclCode.append(".");
+                    eclCode.append(eclEntities.get("FNCOLS"));
+                    eclCode.append(eclEntities.containsKey("PAYLOADINDEX") == false ? ");" : ", KEYED);\n");
+                }
+                if (eclEntities.containsKey("MINFN"))
+                {
+                    eclCode.append("ScalarOut := MIN(IdxDS, ");
+                    eclCode.append(eclEntities.get("SourceDS"));
+                    eclCode.append(".");
+                    eclCode.append(eclEntities.get("FNCOLS"));
+                    eclCode.append(eclEntities.containsKey("PAYLOADINDEX") == false ? ");" : ", KEYED);\n");
+                }
+            }
+
+            if (eclEntities.containsKey("SCALAROUTNAME"))
+            {
+                eclCode.append("OUTPUT(ScalarOut ,NAMED(\'");
+                eclCode.append(eclEntities.get("SCALAROUTNAME"));
+                eclCode.append("\'));");
+            }
+            else
+            {
+                eclCode.append(eclEntities.get("SELECTSTRUCT"));
+
+                eclCode.append("IdxDSTable := TABLE(IdxDS, SelectStruct ");
+
+                if (eclEntities.containsKey("GROUPBY"))
+                {
+                    eclCode.append(", ");
+                    eclCode.append(eclEntities.get("GROUPBY"));
+                }
+                eclCode.append(");\n");
+
+                if (eclEntities.containsKey("ORDERBY"))
+                {
+                    eclCode.append("SortedIdxTable := SORT( IdxDSTable, ");
+                    eclCode.append(eclEntities.get("ORDERBY"));
+                    eclCode.append(");\n");
+                    eclCode.append("ResultSet := SortedIdxTable;\n");
+                }
+                else
+                    eclCode.append("ResultSet := IdxDSTable;\n");
+
+                eclCode.append("OUTPUT(CHOOSEN(");
+                eclCode.append(" ResultSet ");
+            }
+        }
+
+        if (!eclEntities.containsKey("SCALAROUTNAME"))
+        {
+            eclCode.append(",");
+            if (eclEntities.containsKey("LIMIT"))
+                eclCode.append(eclEntities.get("LIMIT"));
+            else
+                eclCode.append(hpccConnProps.getProperty("EclResultLimit"));
+
+            eclCode.append("),NAMED(\'")
+                    .append(SELECTOUTPUTNAME)
+                    .append("\'));");
+
+            expectedDSName = SELECTOUTPUTNAME;
+        }
+    }
+
+    public void generateECL() throws SQLException
+    {
+        int sqlReqType = sqlParser.getSqlType();
+
+        eclCode = new StringBuilder("");
+        hpccRequestUrl = null;
 
         switch (sqlReqType)
         {
             case SQLParser.SQL_TYPE_SELECT:
             {
-                //Currently, query table is always 0th index.
-                queryFileName = HPCCJDBCUtils.handleQuotedString(parser.getTableName(0));
-                if (!dbMetadata.tableExists("", queryFileName))
-                    throw new Exception("Invalid table found: " + queryFileName);
+                generateSelectECL();
+                generateSelectURL();
 
-                DFUFile hpccQueryFile = dbMetadata.getDFUFile(queryFileName);
-
-                expectedretcolumns = parser.getSelectColumns();
-
-                totalParamCount = parser.getWhereClauseExpressionsCount();
-
-                eclEntities.put("PARAMCOUNT", Integer.toString(totalParamCount));
-
-                String tempindexname = indexToUseMap.get(queryFileName);
-                if (tempindexname != null)
-                {
-                    System.out.print("Generating ECL using index file: " + tempindexname);
-                    indexFileToUse = dbMetadata.getDFUFile(tempindexname);
-                    indexPosField = indexFileToUse.getIdxFilePosField();
-
-                    isPayloadIndex = processIndex(indexFileToUse, keyedAndWild);
-
-                    eclEntities.put("KEYEDWILD", keyedAndWild.toString());
-                    if (isPayloadIndex)
-                        eclEntities.put("PAYLOADINDEX", "true");
-
-                    eclDSSourceMapping.put(queryFileName, "IdxDS");
-
-                    StringBuffer idxsetupstr = new StringBuffer();
-                    idxsetupstr.append("Idx := INDEX(Tbl1DS, {")
-                            .append(indexFileToUse.getKeyedFieldsAsDelmitedString(',', null)).append("}");
-
-                    if (indexFileToUse.getNonKeyedColumnsCount() > 0)
-                        idxsetupstr.append(",{ ").append(indexFileToUse.getNonKeyedFieldsAsDelmitedString(',', null))
-                                .append(" }");
-
-                    idxsetupstr.append(",\'~").append(indexFileToUse.getFullyQualifiedName()).append("\');\n");
-
-                    eclEntities.put("IndexDef", idxsetupstr.toString());
-
-                    idxsetupstr.setLength(0);
-
-                    if (isPayloadIndex)
-                    {
-                        System.out.println(" as PAYLOAD");
-                        idxsetupstr.append("IdxDS := Idx(").append(keyedAndWild.toString()).append(");\n");
-                    }
-                    else
-                    {
-                        System.out.println(" Not as PAYLOAD");
-                        idxsetupstr.append("IdxDS := FETCH(Tbl1DS, Idx( ").append(keyedAndWild.toString())
-                                .append("), RIGHT.").append(indexFileToUse.getIdxFilePosField()).append(");\n");
-                    }
-                    eclEntities.put("IndexRead", idxsetupstr.toString());
-
-                }
-                else
-                    System.out.println("NOT USING INDEX!");
-
-                if (hpccQueryFile.hasFileRecDef())
-                {
-                    if (indexFileToUse != null && indexPosField != null)
-                        eclCode.append(hpccQueryFile.getFileRecDefwithIndexpos(
-                                indexFileToUse.getFieldMetaData(indexPosField), "Tbl1RecDef"));
-                    else
-                        eclCode.append(hpccQueryFile.getFileRecDef("Tbl1RecDef"));
-                    eclCode.append("\n");
-                }
-                else
-                    throw new Exception("Target HPCC file (" + queryFileName
-                            + ") does not contain ECL record definition");
-
-                if (!eclDSSourceMapping.containsKey(queryFileName))
-                    eclDSSourceMapping.put(queryFileName, "Tbl1DS");
-
-                if (!hpccQueryFile.isKeyFile())
-                    eclCode.append("Tbl1DS := DATASET(\'~").append(hpccQueryFile.getFullyQualifiedName())
-                            .append("\', Tbl1RecDef,").append(hpccQueryFile.getFormat()).append("); ");
-                else
-                {
-                    eclCode.append("Tbl1DS := INDEX( ");
-                    eclCode.append('{');
-                    eclCode.append(hpccQueryFile.getKeyedFieldsAsDelmitedString(',', "Tbl1RecDef"));
-                    eclCode.append("},{");
-                    eclCode.append(hpccQueryFile.getNonKeyedFieldsAsDelmitedString(',', "Tbl1RecDef"));
-                    eclCode.append("},");
-                    eclCode.append("\'~").append(hpccQueryFile.getFullyQualifiedName()).append("\');");
-                }
-
-                if (parser.hasJoinClause())
-                {
-                    String hpccJoinFileName = HPCCJDBCUtils.handleQuotedString(parser.getJoinClause()
-                            .getJoinTableName());
-
-                    if (!dbMetadata.tableExists("", hpccJoinFileName))
-                        throw new Exception("Invalid Join table found: " + hpccJoinFileName);
-
-                    DFUFile hpccJoinFile = dbMetadata.getDFUFile(hpccJoinFileName);
-
-                    if (hpccJoinFile.hasFileRecDef())
-                    {
-                        // if (indexfiletouse != null && indexposfield != null)
-                        // eclcode.append(hpccQueryFile.getFileRecDefwithIndexpos(indexfiletouse.getFieldMetaData(indexposfield),
-                        // "Tbl1RecDef"));
-                        // else
-                        eclCode.append(hpccJoinFile.getFileRecDef("\nTbl2RecDef"));
-                        eclCode.append("\n");
-                    }
-                    else
-                        throw new Exception("Target HPCC file (" + hpccJoinFile
-                                + ") does not contain ECL record definition");
-
-                    eclDSSourceMapping.put(hpccJoinFile.getFullyQualifiedName(), "Tbl2DS");
-
-                    if (!hpccJoinFile.isKeyFile())
-                        eclCode.append("Tbl2DS := DATASET(\'~").append(hpccJoinFile.getFullyQualifiedName())
-                                .append("\', Tbl2RecDef,").append(hpccJoinFile.getFormat()).append("); ");
-                    else
-                    {
-                        eclCode.append("Tbl2DS := INDEX( ");
-                        eclCode.append('{');
-                        eclCode.append(hpccJoinFile.getKeyedFieldsAsDelmitedString(',', "Tbl2RecDef"));
-                        eclCode.append("},{");
-                        eclCode.append(hpccJoinFile.getNonKeyedFieldsAsDelmitedString(',', "Tbl2RecDef"));
-                        eclCode.append("},");
-                        eclCode.append("\'~").append(hpccJoinFile.getFullyQualifiedName()).append("\');");
-                    }
-
-                    HashMap<String, String> translator = new HashMap<String, String>(2);
-
-                    translator.put(queryFileName, "LEFT");
-                    translator.put(hpccJoinFileName, "RIGHT");
-
-                    eclCode.append("\n").append("JndDS := JOIN(").append(" Tbl1DS").append(", Tbl2DS").append(", ")
-                            .append(parser.getJoinClause().getOnClause().toStringTranslateSource(translator));
-                    if (parser.getWhereClauseExpressionsCount() > 0)
-                        eclCode.append(" AND ").append(parser.getWhereClauseStringTranslateSource(translator));
-                    eclCode.append(", ").append(parser.getJoinClause().getECLTypeStr()).append(" );\n");
-
-                    eclDSSourceMapping.put(queryFileName, "JndDS");
-                    eclDSSourceMapping.put(hpccJoinFileName, "JndDS");
-
-                    eclEntities.put("JoinQuery", "1");
-                }
-
-                eclEntities.put("SourceDS", eclDSSourceMapping.get(queryFileName));
-
-                StringBuilder selectStructSB = new StringBuilder("SelectStruct := RECORD\n ");
-
-                for (int i = 0; i < expectedretcolumns.size(); i++)
-                {
-                    HPCCColumnMetaData col = expectedretcolumns.get(i);
-
-                    String datasource = eclDSSourceMapping.get(col.getTableName());
-
-                    if (col.getColumnType() == HPCCColumnMetaData.COLUMN_TYPE_CONSTANT)
-                    {
-                        selectStructSB.append(col.getEclType()).append(" ").append(col.getColumnName()).append(" := ")
-                                .append(col.getConstantValue()).append("; ");
-                        if (i == 0 && expectedretcolumns.size() == 1)
-                            eclEntities.put("SCALAROUTNAME", col.getColumnName());
-                    }
-
-                    else if (col.getColumnType() == HPCCColumnMetaData.COLUMN_TYPE_FNCTION)
-                    {
-                        if (col.getColumnName().equalsIgnoreCase("COUNT"))
-                        {
-                            eclEntities.put("COUNTFN", "TRUE");
-                            selectStructSB.append(col.getAlias() + " := ");
-                            if (parser.hasGroupByColumns())
-                            {
-                                selectStructSB.append(col.getColumnName().toUpperCase()).append("( GROUP");
-                                List<HPCCColumnMetaData> funccols = col.getFunccols();
-
-                                if (funccols.size() > 0)
-                                {
-                                    String paramname = funccols.get(0).getColumnName();
-                                    if (!paramname.equals("*")
-                                            && funccols.get(0).getColumnType() != HPCCColumnMetaData.COLUMN_TYPE_CONSTANT)
-                                    {
-                                        selectStructSB.append(", ");
-                                        selectStructSB.append(datasource);
-                                        selectStructSB.append(".");
-                                        selectStructSB.append(paramname);
-                                        selectStructSB.append("<> \'\'");
-                                    }
-                                }
-                                selectStructSB.append(" );");
-                            }
-                            else
-                            {
-                                selectStructSB.append(" ScalarOut;");
-                                if (expectedretcolumns.size() == 1)
-                                    eclEntities.put("SCALAROUTNAME", col.getColumnName());
-                            }
-
-                            col.setSqlType(java.sql.Types.NUMERIC);
-                        }
-                        else if (col.getColumnName().equalsIgnoreCase("MAX"))
-                        {
-                            eclEntities.put("MAXFN", "TRUE");
-                            selectStructSB.append(col.getAlias() + " := ");
-
-                            if (parser.hasGroupByColumns())
-                            {
-                                selectStructSB.append("MAX( GROUP ");
-                            }
-                            else
-                            {
-                                selectStructSB.append("MAX( ").append(datasource);
-                                if (eclEntities.size() > 0)
-                                    addFilterClause(selectStructSB, eclEntities);
-                            }
-
-                            List<HPCCColumnMetaData> funccols = col.getFunccols();
-                            if (funccols.size() > 0)
-                            {
-                                String paramname = funccols.get(0).getColumnName();
-                                eclEntities.put("FNCOLS", paramname);
-                                if (!paramname.equals("*")
-                                        && funccols.get(0).getColumnType() != HPCCColumnMetaData.COLUMN_TYPE_CONSTANT)
-                                {
-                                    selectStructSB.append(", ");
-                                    selectStructSB.append(datasource);
-                                    selectStructSB.append(".");
-                                    selectStructSB.append(paramname);
-                                }
-                            }
-                            selectStructSB.append(" );");
-                        }
-                        else if (col.getColumnName().equalsIgnoreCase("MIN"))
-                        {
-                            eclEntities.put("MINFN", "TRUE");
-                            selectStructSB.append(col.getAlias() + " := ");
-
-                            if (parser.hasGroupByColumns())
-                            {
-                                selectStructSB.append("MIN( GROUP ");
-                            }
-                            else
-                            {
-                                selectStructSB.append("MIN( ").append(datasource);
-                                if (eclEntities.size() > 0)
-                                    addFilterClause(selectStructSB, eclEntities);
-                            }
-
-                            List<HPCCColumnMetaData> funccols = col.getFunccols();
-                            if (funccols.size() > 0)
-                            {
-                                String paramname = funccols.get(0).getColumnName();
-                                eclEntities.put("FNCOLS", paramname);
-                                if (!paramname.equals("*")
-                                        && funccols.get(0).getColumnType() != HPCCColumnMetaData.COLUMN_TYPE_CONSTANT)
-                                {
-                                    selectStructSB.append(", ");
-                                    selectStructSB.append(datasource);
-                                    selectStructSB.append(".");
-                                    selectStructSB.append(paramname);
-                                }
-                            }
-                            selectStructSB.append(" );");
-                        }
-                        else if (col.getColumnName().equalsIgnoreCase("SUM"))
-                        {
-                            eclEntities.put("SUMFN", "TRUE");
-                            selectStructSB.append(col.getAlias() + " := ");
-
-                            selectStructSB.append("SUM( ");
-                            if (parser.hasGroupByColumns())
-                            {
-                                selectStructSB.append(" GROUP ");
-                            }
-                            else
-                            {
-                                selectStructSB.append(datasource);
-                                if (eclEntities.size() > 0)
-                                    addFilterClause(selectStructSB, eclEntities);
-                            }
-
-                            List<HPCCColumnMetaData> funccols = col.getFunccols();
-                            if (funccols.size() > 0)
-                            {
-                                String paramname = funccols.get(0).getColumnName();
-                                eclEntities.put("FNCOLS", paramname);
-                                if (!paramname.equals("*")
-                                        && funccols.get(0).getColumnType() != HPCCColumnMetaData.COLUMN_TYPE_CONSTANT)
-                                {
-                                    selectStructSB.append(", ");
-                                    selectStructSB.append(datasource);
-                                    selectStructSB.append(".");
-                                    selectStructSB.append(paramname);
-                                }
-                            }
-                            selectStructSB.append(" );");
-                        }
-                    }
-                    else
-                        selectStructSB.append(col.getEclType()).append(" ").append(col.getColumnName()).append(" := ")
-                                .append(datasource).append(".").append(col.getColumnName()).append("; ");
-
-                }
-                selectStructSB.append("\nEND;\n");
-
-                eclEntities.put("SELECTSTRUCT", selectStructSB.toString());
-
-                if (parser.hasOrderByColumns())
-                    eclEntities.put("ORDERBY", parser.getOrderByString());
-                if (parser.hasGroupByColumns())
-                    eclEntities.put("GROUPBY", parser.getGroupByString());
-                if (parser.hasLimitBy())
-                    eclEntities.put("LIMIT", Integer.toString(parser.getLimit()));
-
-                return executeSelect(eclCode.toString(), eclEntities);
+                break;
             }
             case SQLParser.SQL_TYPE_SELECTCONST:
             {
-                System.out.println("Processing test_query...");
-                eclCode.append("SelectStruct:=RECORD ");
-                expectedretcolumns = parser.getSelectColumns();
-                StringBuilder ecloutput = new StringBuilder("OUTPUT(DATASET([{ ");
-                for (int i = 1; i <= expectedretcolumns.size(); i++)
-                {
-                    HPCCColumnMetaData col = expectedretcolumns.get(i - 1);
-                    eclCode.append(col.getEclType()).append(" ").append(col.getColumnName()).append("; ");
-                    ecloutput.append(col.getConstantValue());
-                    if (i < expectedretcolumns.size())
-                        ecloutput.append(", ");
-                }
-                ecloutput.append("}],SelectStruct), NAMED(\'");
-                ecloutput.append("ConstECLQueryResult");
-                ecloutput.append("\'));");
+                generateConstSelectECL();
+                generateConstSelectURL();
 
-                eclCode.append(" END; ");
-                eclCode.append(ecloutput.toString());
-
-                return executeSelectConstant(eclCode.toString());
+                break;
             }
             case SQLParser.SQL_TYPE_CALL:
             {
-                if (hpccQuery == null)
-                    throw new Exception("Invalid store procedure found");
+                hpccPublishedQuery =
+                        dbMetadata.getHpccQuery(HPCCJDBCUtils.handleQuotedString(sqlParser.getStoredProcName()));
 
-                return executeCall(null);
+                if (hpccPublishedQuery != null)
+                {
+                    /*list of published input params for this published query*/
+                    storeProcInParams = hpccPublishedQuery.getAllInFields();
+
+                    /*array of values for this query*/
+                    procInParamValues = sqlParser.getStoredProcInParamVals();
+
+                    expectedretcolumns = hpccPublishedQuery.getAllNonInFields();
+
+                    expectedDSName = hpccPublishedQuery.getDefaultTableName();
+
+                    int inParamValuesCount = procInParamValues == null ? 0 : procInParamValues.length;
+
+                    if (inParamValuesCount != storeProcInParams.size())
+                        throw new SQLException(hpccPublishedQuery.getName() + " expects "+ storeProcInParams.size() + " input parameters, " + " received " + inParamValuesCount);
+
+                    generateCallURL();
+
+                }
+                else
+                    throw new SQLException("Invalid Stored Procedure found, verify name and QuerySet: " + sqlParser.getStoredProcName());
+
+                break;
             }
             default:
+                throw new SQLException("Invalid SQL type detected!");
+        }
+    }
 
+    private void generateCallURL() throws SQLException
+    {
+        String urlString;
+
+        try
+        {
+            urlString = "http://" + hpccConnProps.getProperty("WsECLAddress")
+                + ":" + hpccConnProps.getProperty("WsECLPort")
+                + "/WsEcl/submit/query/" + hpccPublishedQuery.getQuerySet()
+                + "/" + hpccPublishedQuery.getName() + "/expanded";
+
+            hpccRequestUrl = new URL(urlString);
+        }
+        catch (Exception e)
+        {
+            throw new SQLException(e.getMessage());
+        }
+
+        System.out.println("HPCC URL created: " + urlString);
+    }
+
+    private void generateConstSelectURL() throws SQLException
+    {
+        String urlString;
+
+        try
+        {
+            urlString = "http://" + hpccConnProps.getProperty("WsECLDirectAddress") + ":"
+                    + hpccConnProps.getProperty("WsECLDirectPort") + "/EclDirect/RunEcl?Submit";
+
+            if (hpccConnProps.containsKey("TargetCluster"))
+            {
+                urlString += "&cluster=";
+                urlString += hpccConnProps.getProperty("TargetCluster");
+            }
+            else
+                System.out.println("No cluster property found, executing query on EclDirect default cluster");
+
+            urlString += "&eclText=";
+            urlString += URLEncoder.encode(eclCode.toString(), "UTF-8");
+            hpccRequestUrl = new URL(urlString);
+        }
+        catch (Exception e)
+        {
+            throw new SQLException(e.getMessage());
+        }
+
+        System.out.println("HPCC URL created: " + urlString);
+    }
+
+    private void generateConstSelectECL()
+    {
+        eclCode.append("SelectStruct:=RECORD ");
+        expectedretcolumns = sqlParser.getSelectColumns();
+        StringBuilder ecloutput = new StringBuilder("OUTPUT(DATASET([{ ");
+        for (int i = 1; i <= expectedretcolumns.size(); i++)
+        {
+            HPCCColumnMetaData col = expectedretcolumns.get(i - 1);
+            eclCode.append(col.getEclType()).append(" ").append(col.getColumnName()).append("; ");
+            ecloutput.append(col.getConstantValue());
+            if (i < expectedretcolumns.size())
+                ecloutput.append(", ");
+        }
+        ecloutput.append("}],SelectStruct), NAMED(\'");
+        ecloutput.append(SELECTOUTPUTNAME);
+        ecloutput.append("\'));");
+
+        eclCode.append(" END; ");
+        eclCode.append(ecloutput.toString());
+
+        expectedDSName = SELECTOUTPUTNAME;
+    }
+
+    private void generateSelectURL() throws SQLException
+    {
+        try
+        {
+            String urlString = "http://" + hpccConnProps.getProperty("WsECLDirectAddress") + ":"
+                    + hpccConnProps.getProperty("WsECLDirectPort") + "/EclDirect/RunEcl?Submit";
+
+            if (hpccConnProps.containsKey("TargetCluster"))
+                urlString += "&cluster=" + hpccConnProps.getProperty("TargetCluster");
+            else
+                System.out.println("No cluster property found, executing query on EclDirect default cluster");
+
+            hpccRequestUrl = new URL(urlString);
+
+            System.out.println("HPCC URL created: " + urlString);
+        }
+        catch (Exception e)
+        {
+            throw new SQLException(e.getMessage());
+        }
+
+    }
+
+    public ArrayList execute(Map inParameters) throws Exception
+    {
+        switch (sqlParser.getSqlType())
+        {
+            case SQLParser.SQL_TYPE_SELECT:
+            {
+                return executeSelect(inParameters);
+            }
+            case SQLParser.SQL_TYPE_SELECTCONST:
+            {
+                return executeSelectConstant();
+            }
+            case SQLParser.SQL_TYPE_CALL:
+            {
+                return executeCall(inParameters);
+            }
+            default:
                 break;
         }
 
@@ -489,8 +849,8 @@ public class ECLEngine
 
     public boolean processIndex(DFUFile indexfiletouse, StringBuilder keyedandwild)
     {
-        boolean isPayloadIndex = containsPayload(indexfiletouse.getAllFieldsProps(), parser.getSelectColumns()
-                .iterator());
+        boolean isPayloadIndex =
+                containsPayload(indexfiletouse.getAllFieldsProps(), sqlParser.getSelectColumns().iterator());
 
         Vector<String> keyed = new Vector<String>();
         Vector<String> wild = new Vector<String>();
@@ -500,8 +860,8 @@ public class ECLEngine
         for (int i = 1; i <= keyedcols.size(); i++)
         {
             String keyedcolname = (String) keyedcols.get(i);
-            if (parser.whereClauseContainsKey(keyedcolname))
-                keyed.add(" " + parser.getExpressionFromColumnName(keyedcolname).toString() + " ");
+            if (sqlParser.whereClauseContainsKey(keyedcolname))
+                keyed.add(" " + sqlParser.getExpressionFromColumnName(keyedcolname).toString() + " ");
             else if (keyed.isEmpty())
                 wild.add(" " + keyedcolname + " ");
         }
@@ -530,13 +890,13 @@ public class ECLEngine
                 }
             }
 
-            keyedandwild.append(" and (").append(parser.getWhereClauseString()).append(" )");
+            keyedandwild.append(" and (").append(sqlParser.getWhereClauseString()).append(" )");
         }
         else
         // non-payload just AND the keyed expressions
         {
             keyedandwild.append("( ");
-            keyedandwild.append(parser.getWhereClauseString());
+            keyedandwild.append(sqlParser.getWhereClauseString());
             keyedandwild.append(" )");
         }
 
@@ -559,208 +919,44 @@ public class ECLEngine
         return true;
     }
 
-    public ArrayList executeSelect(String eclcode, HashMap parameters)
+    public ArrayList executeSelect(Map inParameters)
     {
         int responseCode = -1;
+
         try
         {
-            urlString = "http://" + props.getProperty("WsECLDirectAddress") + ":"
-                    + props.getProperty("WsECLDirectPort") + "/EclDirect/RunEcl?Submit";
-
             StringBuilder sb = new StringBuilder();
 
-            if (props.containsKey("TargetCluster"))
-                sb.append("&cluster=").append(props.getProperty("TargetCluster"));
-            else
-                System.out.println("No cluster property found, executing query on EclDirect default cluster");
-
             sb.append("&eclText=\n");
-            sb.append(eclcode);
+
+            if (sqlParser.getParameterizedCount() > 0 && inParameters != null)
+            {
+                if (sqlParser.getParameterizedCount() <= inParameters.size())
+                {
+                    for (int paramIndex = 1; paramIndex <= inParameters.size(); paramIndex++)
+                    {
+                        //TODO the type has to be better inferred/determined.
+                        String value = (String) inParameters.get(new Integer(paramIndex));
+                        if (HPCCJDBCUtils.isNumeric(value))
+                            sb.append("INTEGER ");
+                        else
+                            sb.append("STRING ");
+
+                        sb.append(SQLParser.parameterizedPrefix).append(paramIndex).append(" := ").append(value).append(";\n");
+                    }
+                }
+                else
+                    throw new Exception("Insufficient number of parameters provided");
+            }
+
+            sb.append(eclCode.toString());
             sb.append("\n");
 
-            if (eclEntities.get("IndexDef") == null)
-            {
-                if (!parameters.containsKey("GROUPBY"))
-                {
-                    if (parameters.containsKey("COUNTFN"))
-                    {
-                        sb.append("ScalarOut := COUNT( ").append(parameters.get("SourceDS"));
-
-                        if (parameters.size() > 0)
-                            addFilterClause(sb, parameters);
-                        sb.append(");");
-                        sb.append("\n");
-                    }
-                    else if (parameters.containsKey("SUMFN"))
-                    {
-                        sb.append("ScalarOut := SUM( ").append(eclEntities.get("SourceDS"));
-                        if (parameters.size() > 0)
-                            addFilterClause(sb, parameters);
-
-                        sb.append(" , ");
-                        sb.append(parameters.get("SourceDS"));
-                        sb.append(".");
-                        sb.append(parameters.get("FNCOLS"));
-                        sb.append(");");
-                        sb.append("\n");
-                    }
-                    else if (parameters.containsKey("MAXFN"))
-                    {
-                        sb.append("ScalarOut := MAX( ").append(parameters.get("SourceDS"));
-                        if (parameters.size() > 0)
-                            addFilterClause(sb, parameters);
-
-                        sb.append(" , ");
-                        sb.append(parameters.get("SourceDS"));
-                        sb.append(".");
-                        sb.append(parameters.get("FNCOLS"));
-                        sb.append(");");
-                        sb.append("\n");
-                    }
-                    else if (parameters.containsKey("MINFN"))
-                    {
-                        sb.append("ScalarOut := MIN( ").append(parameters.get("SourceDS"));
-                        if (parameters.size() > 0)
-                            addFilterClause(sb, parameters);
-
-                        sb.append(" , ");
-                        sb.append(parameters.get("SourceDS"));
-                        sb.append(".");
-                        sb.append(parameters.get("FNCOLS"));
-                        sb.append(");");
-                        sb.append("\n");
-                    }
-                }
-
-                if (parameters.containsKey("SCALAROUTNAME"))
-                {
-                    sb.append("OUTPUT(ScalarOut ,NAMED(\'");
-                    sb.append(parameters.get("SCALAROUTNAME"));
-                    sb.append("\'));");
-                }
-                else
-                {
-                    sb.append(parameters.get("SELECTSTRUCT"));
-                    sb.append("OUTPUT(CHOOSEN(");
-
-                    if (parameters.containsKey("ORDERBY"))
-                        sb.append("SORT( ");
-
-                    sb.append("TABLE( ");
-                    sb.append(eclEntities.get("SourceDS"));
-
-                    if (parameters.size() > 0 && !parameters.containsKey("JoinQuery"))
-                        addFilterClause(sb, parameters);
-
-                    sb.append(", SelectStruct");
-                    if (parameters.containsKey("GROUPBY"))
-                    {
-                        sb.append(",");
-                        sb.append(parameters.get("GROUPBY"));
-                    }
-
-                    sb.append(")");
-
-                    if (parameters.containsKey("ORDERBY"))
-                    {
-                        sb.append(",");
-                        sb.append(parameters.get("ORDERBY"));
-                        sb.append(")");
-                    }
-                }
-            }
-            else
-            // use index
-            {
-                sb.append(parameters.get("IndexDef"));
-                sb.append(parameters.get("IndexRead"));
-
-                if (!parameters.containsKey("GROUPBY"))
-                {
-                    if (parameters.containsKey("COUNTFN"))
-                    {
-                        sb.append("ScalarOut := COUNT(IdxDS");
-                        sb.append(parameters.containsKey("PAYLOADINDEX") == false ? ");" : ", KEYED);\n");
-                    }
-                    if (parameters.containsKey("SUMFN"))
-                    {
-                        sb.append("ScalarOut := SUM(IdxDS, ");
-                        sb.append(eclEntities.get("SourceDS"));
-                        sb.append(".");
-                        sb.append(parameters.get("FNCOLS"));
-                        sb.append(parameters.containsKey("PAYLOADINDEX") == false ? ");" : ", KEYED);\n");
-                    }
-                    if (parameters.containsKey("MAXFN"))
-                    {
-                        sb.append("ScalarOut := MAX(IdxDS, ");
-                        sb.append(eclEntities.get("SourceDS"));
-                        sb.append(".");
-                        sb.append(parameters.get("FNCOLS"));
-                        sb.append(parameters.containsKey("PAYLOADINDEX") == false ? ");" : ", KEYED);\n");
-                    }
-                    if (parameters.containsKey("MINFN"))
-                    {
-                        sb.append("ScalarOut := MIN(IdxDS, ");
-                        sb.append(eclEntities.get("SourceDS"));
-                        sb.append(".");
-                        sb.append(parameters.get("FNCOLS"));
-                        sb.append(parameters.containsKey("PAYLOADINDEX") == false ? ");" : ", KEYED);\n");
-                    }
-                }
-
-                if (parameters.containsKey("SCALAROUTNAME"))
-                {
-                    sb.append("OUTPUT(ScalarOut ,NAMED(\'");
-                    sb.append(parameters.get("SCALAROUTNAME"));
-                    sb.append("\'));");
-                }
-                else
-                {
-                    sb.append(parameters.get("SELECTSTRUCT"));
-
-                    sb.append("IdxDSTable := TABLE(IdxDS, SelectStruct ");
-
-                    if (parameters.containsKey("GROUPBY"))
-                    {
-                        sb.append(", ");
-                        sb.append(parameters.get("GROUPBY"));
-                    }
-                    sb.append(");\n");
-
-                    if (parameters.containsKey("ORDERBY"))
-                    {
-                        sb.append("SortedIdxTable := SORT( IdxDSTable, ");
-                        sb.append(parameters.get("ORDERBY"));
-                        sb.append(");\n");
-                        sb.append("ResultSet := SortedIdxTable;\n");
-                    }
-                    else
-                        sb.append("ResultSet := IdxDSTable;\n");
-
-                    sb.append("OUTPUT(CHOOSEN(");
-                    sb.append(" ResultSet ");
-                }
-            }
-
-            if (!parameters.containsKey("SCALAROUTNAME"))
-            {
-                sb.append(",");
-                if (parameters.containsKey("LIMIT"))
-                    sb.append(parameters.get("LIMIT"));
-                else
-                    sb.append(props.getProperty("EclResultLimit"));
-                ;
-                sb.append("),NAMED(\'HPCCJDBCSelectOutput\'));");
-            }
-
-            System.out.println("WSECL:executeSelect: " + urlString + sb.toString());
-
-            // Send data
             long startTime = System.currentTimeMillis();
 
-            URL url = new URL(urlString);
-            HttpURLConnection conn = dbMetadata.createHPCCESPConnection(url);
+            HttpURLConnection conn = dbMetadata.createHPCCESPConnection(hpccRequestUrl);
 
+            System.out.println("Executing ECL: " + sb);
             OutputStreamWriter wr = new OutputStreamWriter(conn.getOutputStream());
             wr.write(sb.toString());
             wr.flush();
@@ -774,7 +970,7 @@ public class ECLEngine
             if (responseCode != 200)
             {
                 throw new RuntimeException("HTTP Connection Response code: " + responseCode
-                        + " verify access to WsECLDirect", e);
+                        + "\nVerify access to WsECLDirect: " + hpccRequestUrl, e);
             }
             else
                 throw new RuntimeException(e);
@@ -783,7 +979,7 @@ public class ECLEngine
 
     private void addFilterClause(StringBuilder sb, HashMap parameters)
     {
-        String whereclause = parser.getWhereClauseString();
+        String whereclause = sqlParser.getWhereClauseString();
         if (whereclause != null && whereclause.length() > 0)
         {
             sb.append("( ");
@@ -792,46 +988,39 @@ public class ECLEngine
         }
     }
 
-    public ArrayList executeCall(Map parameters)
+    public ArrayList executeCall( Map inParameters)
     {
+        StringBuilder sb = new StringBuilder();
         try
         {
-            urlString = "http://" + props.getProperty("WsECLAddress")
-                    + ":" + props.getProperty("WsECLPort")
-                    + "/WsEcl/submit/query/" + hpccQuery.getQuerySet()
-                    + "/" + hpccQuery.getName() + "/expanded";
-
-            System.out.println("WSECL:executeCall: " + urlString);
-
-            // Construct data
-            StringBuilder sb = new StringBuilder();
             sb.append(URLEncoder.encode("submit_type_=xml", "UTF-8"));
             sb.append("&").append(URLEncoder.encode("S1=Submit", "UTF-8"));
 
-            ArrayList<HPCCColumnMetaData> storeProcInParams = hpccQuery.getAllInFields();
-            String[] procInParamValues = parser.getStoredProcInParamVals();
-
-            if (procInParamValues.length != storeProcInParams.size())
-                throw new Exception("Invalid number of parameter passed in.");
-
-            for (int i = 0; i < procInParamValues.length; i++)
+            for (int columindex = 0; columindex < procInParamValues.length; columindex++)
             {
-                String key = storeProcInParams.get(i).getColumnName();
-                sb.append("&").append(key).append("=").append(procInParamValues[i]);
+                String key = storeProcInParams.get(columindex).getColumnName();
+                String value = procInParamValues[columindex];
+
+                if (HPCCJDBCUtils.isParameterizedStr(value))
+                {
+                    value = (String) inParameters.get(new Integer(columindex + 1));
+                    if (value == null)
+                        throw new SQLException("Could not bind parameter");
+                }
+
+                sb.append("&").append(key).append("=").append(value);
             }
 
             long startTime = System.currentTimeMillis();
-            // Send data
-            URL url = new URL(urlString);
-            HttpURLConnection conn = dbMetadata.createHPCCESPConnection(url);
+
+            HttpURLConnection conn = dbMetadata.createHPCCESPConnection(hpccRequestUrl);
 
             OutputStreamWriter wr = new OutputStreamWriter(conn.getOutputStream());
             wr.write(sb.toString());
             wr.flush();
 
-            System.out.println("WsEcl Execute: " + urlString + " : " + sb.toString());
+            System.out.println("Executing: " + hpccRequestUrl + " : " + sb.toString());
 
-            // Get the response
             return parse(conn.getInputStream(), startTime);
         }
         catch (Exception e)
@@ -872,8 +1061,8 @@ public class ECLEngine
                 {
                     Element ds = (Element) dsList.item(i);
                     String currentdatsetname = ds.getAttribute("name");
-                    if (datasetName == null || datasetName.length() == 0
-                            || currentdatsetname.equalsIgnoreCase(datasetName))
+                    if (expectedDSName == null || expectedDSName.length() == 0
+                            || currentdatsetname.equalsIgnoreCase(expectedDSName))
                     {
                         NodeList rowList = ds.getElementsByTagName("Row");
 
@@ -893,7 +1082,6 @@ public class ECLEngine
                                 ArrayList columnsArray = new ArrayList();
                                 rowArray.add(columnsArray);
 
-
                                 for (int k = 0; k < columnList.getLength(); k++)
                                 {
                                     columnsArray.add(new HPCCColumn(columnList.item(k).getNodeName(), columnList.item(k).getTextContent()));
@@ -902,7 +1090,6 @@ public class ECLEngine
                         }
                         break;
                     }
-
                 }
             }
             else if (docElement.getElementsByTagName("Exception").getLength() > 0)
@@ -1040,5 +1227,88 @@ public class ECLEngine
     public NodeList getResultschema()
     {
         return resultSchema;
+    }
+
+    public String findAppropriateIndex(String index, List<HPCCColumnMetaData> expectedretcolumns, SQLParser parser)
+    {
+        List<String> indexhint = new ArrayList<String>();
+        indexhint.add(index);
+        return findAppropriateIndex(indexhint, expectedretcolumns, parser);
+    }
+
+    public String findAppropriateIndex(List<String> relindexes, List<HPCCColumnMetaData> expectedretcolumns, SQLParser parser)
+    {
+        String indextouse = null;
+        String[] sqlqueryparamnames = parser.getWhereClauseColumnNames();
+        if (sqlqueryparamnames.length <= 0)
+            return indextouse;
+
+        int totalparamcount = parser.getWhereClauseExpressionsCount();
+        /*[ FieldsInIndexCount ][LeftMostKeyIndex][ColsKeyedcount]*/
+        int indexscore[][] = new int[relindexes.size()][INDEXSCORECRITERIAVARS];
+        int highscore = Integer.MIN_VALUE;
+        boolean payloadIdxWithAtLeast1KeyedFieldFound = false;
+        for (int indexcounter = 0; indexcounter < relindexes.size(); indexcounter++)
+        {
+            String indexname = relindexes.get(indexcounter);
+            DFUFile indexfile = dbMetadata.getDFUFile(indexname);
+            if (indexfile != null && indexfile.isKeyFile() && indexfile.hasValidIdxFilePosField())
+            {
+                for (int j = 0; j < expectedretcolumns.size(); j++)
+                {
+                    if (indexfile.containsField(expectedretcolumns.get(j), true))
+                        ++indexscore[indexcounter][NumberOfCommonParamInThisIndex_INDEX];
+                }
+                if (payloadIdxWithAtLeast1KeyedFieldFound
+                        && indexscore[indexcounter][NumberOfCommonParamInThisIndex_INDEX] == 0)
+                    break; // Don't bother with this index
+                int localleftmostindex = Integer.MAX_VALUE;
+
+                Properties KeyColumns = indexfile.getKeyedColumns();
+                if (KeyColumns != null)
+                {
+                    for (int i = 0; i < sqlqueryparamnames.length; i++)
+                    {
+                        String currentparam = sqlqueryparamnames[i];
+                        if (KeyColumns.contains(currentparam))
+                        {
+                            ++indexscore[indexcounter][NumberofColsKeyedInThisIndex_INDEX];
+                            int paramindex = indexfile.getKeyColumnIndex(currentparam);
+                            if (localleftmostindex > paramindex)
+                                localleftmostindex = paramindex;
+                        }
+                    }
+                    indexscore[indexcounter][LeftMostKeyIndexPosition_INDEX] = localleftmostindex;
+                }
+                if (indexscore[indexcounter][NumberOfCommonParamInThisIndex_INDEX] == expectedretcolumns.size()
+                        && indexscore[indexcounter][NumberofColsKeyedInThisIndex_INDEX] > 0
+                        && (!parser.whereClauseContainsOrOperator()))
+                    payloadIdxWithAtLeast1KeyedFieldFound = true; // during scoring, give this priority
+            }
+        }
+
+        for (int i = 0; i < relindexes.size(); i++)
+        {
+            if (indexscore[i][NumberofColsKeyedInThisIndex_INDEX] == 0) // does one imply the other?
+                continue; // not good enough
+            if (payloadIdxWithAtLeast1KeyedFieldFound
+                    && indexscore[i][NumberOfCommonParamInThisIndex_INDEX] < expectedretcolumns.size())
+                continue; // not good enough
+            if (indexscore[i][NumberofColsKeyedInThisIndex_INDEX] < totalparamcount
+                    && parser.whereClauseContainsOrOperator())
+                continue; // not so sure about this rule.
+
+            int localscore =
+                    ((indexscore[i][NumberOfCommonParamInThisIndex_INDEX] / expectedretcolumns.size()) * NumberOfCommonParamInThisIndex_WEIGHT)
+                    - (((indexscore[i][LeftMostKeyIndexPosition_INDEX] / totalparamcount) - 1) * LeftMostKeyIndexPosition_WEIGHT)
+                    + ((indexscore[i][NumberofColsKeyedInThisIndex_INDEX]) * NumberofColsKeyedInThisIndex_WEIGHT);
+
+            if (highscore < localscore)
+            {
+                highscore = localscore;
+                indextouse = relindexes.get(i);
+            }
+        }
+        return indextouse;
     }
 }

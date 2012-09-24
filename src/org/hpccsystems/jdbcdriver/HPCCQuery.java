@@ -38,8 +38,6 @@ public class HPCCQuery
     private String                   defaulttable;
     private List<HPCCColumnMetaData> defaultfields;
 
-    private final static String      DEFAULTDATASETNAME = "BIOUTPUT";
-
     public HPCCQuery()
     {
         ID = "";
@@ -97,7 +95,7 @@ public class HPCCQuery
 
     public void addResultDataset(String ds)
     {
-        if (defaulttable == null || ds.equalsIgnoreCase(DEFAULTDATASETNAME))
+        if (defaulttable == null)
         {
             defaulttable = ds;
             defaultfields.clear();
@@ -163,58 +161,6 @@ public class HPCCQuery
     public void setSuspended(boolean suspended)
     {
         Suspended = suspended;
-    }
-
-    @Override
-    public String toString()
-    {
-        String tmp = Name + " " + WUID;
-
-        tmp += "tables: {";
-        Iterator<String> iterator = ResultDatasets.iterator();
-        while (iterator.hasNext())
-        {
-            tmp += " " + iterator.next();
-        }
-
-        tmp += "}";
-
-        tmp += "elements: {";
-        Iterator<HPCCColumnMetaData> iterator2 = schema.iterator();
-        while (iterator2.hasNext())
-        {
-            tmp += " " + iterator2.next();
-        }
-
-        tmp += "}";
-
-        return tmp;
-    }
-
-    public boolean containsField(String tablename, String fieldname)
-    {
-        Iterator<HPCCColumnMetaData> it = defaultfields.iterator();
-        while (it.hasNext())
-        {
-            HPCCColumnMetaData field = (HPCCColumnMetaData) it.next();
-            if (field.getTableName().equalsIgnoreCase(tablename) && field.getColumnName().equalsIgnoreCase(fieldname))
-                return true;
-        }
-
-        return false;
-    }
-
-    public HPCCColumnMetaData getFieldMetaData(String fieldname)
-    {
-        Iterator<HPCCColumnMetaData> it = schema.iterator();
-        while (it.hasNext())
-        {
-            HPCCColumnMetaData field = (HPCCColumnMetaData) it.next();
-            if (field.getColumnName().equalsIgnoreCase(fieldname))
-                return field;
-        }
-
-        return null;
     }
 
     public Iterator<HPCCColumnMetaData> getColumnsMetaDataIterator()
