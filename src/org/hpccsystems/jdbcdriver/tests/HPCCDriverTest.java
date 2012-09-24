@@ -301,6 +301,29 @@ public class HPCCDriverTest
         return success;
     }
 
+    public static boolean testClosePrepStatementUse(Properties conninfo)
+    {
+        boolean success = true;
+        try
+        {
+            HPCCConnection connectionprops = connectViaProps(conninfo);
+            if (connectionprops == null)
+                throw new Exception("Could not connect with properties object");
+
+            String SQL = "select * from tutorial::rp::tutorialperson persons where zip= ? limit 100";
+            HPCCPreparedStatement p = (HPCCPreparedStatement)createPrepStatement(connectionprops, SQL);
+
+            p.close();
+            p.execute();
+        }
+        catch (Exception e)
+        {
+            System.err.println(e.getMessage());
+            success = false;
+        }
+        return success;
+    }
+
     public static boolean testPrepStatementReuse(Properties conninfo)
     {
         boolean success = true;
@@ -321,6 +344,7 @@ public class HPCCDriverTest
             }
 
             SQL = "call myroxie::fetchpeoplebyzipservice(?)";
+
             p = (HPCCPreparedStatement)createPrepStatement(connectionprops, SQL);
 
             for (int i = 33445; i < 33448; i++)
@@ -337,6 +361,36 @@ public class HPCCDriverTest
         }
         return success;
 
+    }
+
+    public static boolean testPrepStatementReuseBadQuery(Properties conninfo)
+    {
+        boolean success = true;
+        try
+        {
+            HPCCConnection connectionprops = connectViaProps(conninfo);
+            if (connectionprops == null)
+                throw new Exception("Could not connect with properties object");
+
+            String SQL = "call bogusSPname()";
+            HPCCPreparedStatement p = null;
+            try
+            {
+                p = (HPCCPreparedStatement)createPrepStatement(connectionprops, SQL);
+            } catch (Exception e)
+            {
+                System.out.println("Ignoring expected exception: " + e.getLocalizedMessage());
+            }
+
+            p.executeQuery();
+
+        }
+        catch (Exception e)
+        {
+            System.err.println(e.getMessage());
+            success = false;
+        }
+        return success;
     }
 
     private static boolean executeFreeHandSQL(Properties conninfo, String SQL, List<String> params)
@@ -724,6 +778,10 @@ public class HPCCDriverTest
 
                 success &= testPrepStatementReuse(info);
 
+                expectedFailure |= testClosePrepStatementUse(info);
+
+                expectedFailure |= testPrepStatementReuseBadQuery(info);
+
                 success &= executeFreeHandSQL(
                         info,
                         "call myroxie::fetchpeoplebyzipservice(33488)",
@@ -738,7 +796,7 @@ public class HPCCDriverTest
                         params);
 
 
-                /*parametrized query with empty params */
+                /*parameterized query with empty params */
                 params.clear();
                 success &= !executeFreeHandSQL(
                         info,
@@ -749,6 +807,11 @@ public class HPCCDriverTest
                 success &= !executeFreeHandSQL(
                         info,
                         "call myroxie::fetchpeoplebyzipservice()",
+                        params);
+
+                expectedFailure |= executeFreeHandSQL(
+                        info,
+                        "call bogusSPName()",
                         params);
 
                 params.add("'33445'");

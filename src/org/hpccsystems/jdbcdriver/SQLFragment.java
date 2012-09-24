@@ -27,7 +27,7 @@ public class SQLFragment
         UNKNOWN_TYPE,
         NUMERIC_FRAGMENT_TYPE,
         LITERAL_STRING_TYPE,
-        PARAMETRIZED_TYPE,
+        PARAMETERIZED_TYPE,
         FIELD_TYPE;
     }
 
@@ -41,9 +41,9 @@ public class SQLFragment
         parseExpressionFragment(framentStr);
     }
 
-    public boolean isParametrized()
+    public boolean isParameterized()
     {
-        return type == FragmentType.PARAMETRIZED_TYPE;
+        return type == FragmentType.PARAMETERIZED_TYPE;
     }
     public String getParent()
     {
@@ -83,7 +83,7 @@ public class SQLFragment
         {
             case LITERAL_STRING_TYPE:
             case NUMERIC_FRAGMENT_TYPE:
-            case PARAMETRIZED_TYPE:
+            case PARAMETERIZED_TYPE:
                 setValue(fragment);
                 break;
             case FIELD_TYPE:
@@ -120,7 +120,7 @@ public class SQLFragment
         }
         else if (HPCCJDBCUtils.isParameterizedStr(fragStr))
         {
-            return FragmentType.PARAMETRIZED_TYPE;
+            return FragmentType.PARAMETERIZED_TYPE;
         }
         else if (HPCCJDBCUtils.isLiteralString(fragStr))
         {

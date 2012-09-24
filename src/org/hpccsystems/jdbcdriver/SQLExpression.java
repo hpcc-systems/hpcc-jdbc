@@ -156,14 +156,14 @@ public class SQLExpression
         postfix.parseExpressionFragment(postfixstr);
     }
 
-    public boolean isPrefixParametrized()
+    public boolean isPrefixParameterized()
     {
-        return prefix.isParametrized();
+        return prefix.isParameterized();
     }
 
-    public boolean isPostfixParametrized()
+    public boolean isPostfixParameterized()
     {
-        return postfix.isParametrized();
+        return postfix.isParameterized();
     }
 
     public FragmentType getPrefixType()
@@ -257,18 +257,18 @@ public class SQLExpression
     }
 
     /*
-     * Sets parametrized values based on index passed in.
+     * Sets parameterized values based on index passed in.
      * Expression could contain multiple parameters, returns
      * appropriately advanced index.
      */
 
-    public int setParametrizedNames(int currentIndex)
+    public int setParameterizedNames(int currentIndex)
     {
-        if (prefix.getType() == FragmentType.PARAMETRIZED_TYPE)
-            prefix.setValue(SQLParser.parametrizedPrefix + currentIndex++);
+        if (prefix.getType() == FragmentType.PARAMETERIZED_TYPE)
+            prefix.setValue(SQLParser.parameterizedPrefix + currentIndex++);
 
-        if (postfix.getType() == FragmentType.PARAMETRIZED_TYPE)
-            postfix.setValue(SQLParser.parametrizedPrefix + currentIndex++);
+        if (postfix.getType() == FragmentType.PARAMETERIZED_TYPE)
+            postfix.setValue(SQLParser.parameterizedPrefix + currentIndex++);
 
         return currentIndex;
     }

@@ -54,9 +54,9 @@ public class SQLParser
     private boolean                  selectColsContainWildcard = false;
     private String                   indexHint;
 
-    private int                      parametrizedCount = 0;
+    private int                      parameterizedCount = 0;
 
-    public final static String       parametrizedPrefix = "PARAM";
+    public final static String       parameterizedPrefix = "PARAM";
 
     public void process(String insql) throws SQLException
     {
@@ -584,7 +584,7 @@ public class SQLParser
         return selcols;
     }
 
-    public int getParametrizedCount() { return parametrizedCount;}
+    public int getParameterizedCount() { return parameterizedCount;}
 
     public void assignParameterIndexes() throws SQLException
     {
@@ -600,11 +600,11 @@ public class SQLParser
                     SQLExpression exp = expressionit.next();
                     if (exp.getExpressionType() == ExpressionType.LOGICAL_EXPRESSION_TYPE)
                     {
-                            paramIndex = exp.setParametrizedNames(paramIndex);
+                            paramIndex = exp.setParameterizedNames(paramIndex);
                     }
                 }
             }
-            parametrizedCount = paramIndex - 1;
+            parameterizedCount = paramIndex - 1;
         }
     }
 

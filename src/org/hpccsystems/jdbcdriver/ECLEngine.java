@@ -719,7 +719,7 @@ public class ECLEngine
 
                 }
                 else
-                    throw new SQLException("Invalid store procedure found, verify name and QuerySet: " + sqlParser.getStoredProcName());
+                    throw new SQLException("Invalid Stored Procedure found, verify name and QuerySet: " + sqlParser.getStoredProcName());
 
                 break;
             }
@@ -929,9 +929,9 @@ public class ECLEngine
 
             sb.append("&eclText=\n");
 
-            if (sqlParser.getParametrizedCount() > 0 && inParameters != null)
+            if (sqlParser.getParameterizedCount() > 0 && inParameters != null)
             {
-                if (sqlParser.getParametrizedCount() <= inParameters.size())
+                if (sqlParser.getParameterizedCount() <= inParameters.size())
                 {
                     for (int paramIndex = 1; paramIndex <= inParameters.size(); paramIndex++)
                     {
@@ -942,7 +942,7 @@ public class ECLEngine
                         else
                             sb.append("STRING ");
 
-                        sb.append(SQLParser.parametrizedPrefix).append(paramIndex).append(" := ").append(value).append(";\n");
+                        sb.append(SQLParser.parameterizedPrefix).append(paramIndex).append(" := ").append(value).append(";\n");
                     }
                 }
                 else

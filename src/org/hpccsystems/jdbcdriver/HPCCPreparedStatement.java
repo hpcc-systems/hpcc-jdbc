@@ -77,11 +77,19 @@ public class HPCCPreparedStatement implements PreparedStatement
     {
         try
         {
-            parser.process(sqlQuery);
+            if (!this.closed)
+            {
+                if (parser != null)
+                    parser.process(sqlQuery);
+                else
+                    throw new SQLException("Error parser is not ready, cannot execute query");
 
-            eclQuery = new ECLEngine(parser, dbMetadata, hpccConnection.getProperties());
+                eclQuery = new ECLEngine(parser, dbMetadata, hpccConnection.getProperties());
 
-            eclQuery.generateECL();
+                eclQuery.generateECL();
+            }
+            else
+                throw new SQLException("HPCCPreparedStatement closed, cannot execute query");
         }
         catch (SQLException e)
         {
@@ -101,27 +109,31 @@ public class HPCCPreparedStatement implements PreparedStatement
 
         try
         {
-            if (eclQuery == null)
+            if (!this.closed)
             {
-                String message = "HPCCPreparedStatement: Cannot execute SQL command";
-
-                if (warnings != null)
+                if (eclQuery == null)
                 {
-                    SQLException  w = warnings.getNextException();
-                    if(w != null)
+                    String message = "HPCCPreparedStatement: Cannot execute SQL command";
+
+                    if (warnings != null)
                     {
-                        message += "\n\t";
-                        message += w.getLocalizedMessage();
+                        SQLException  w = warnings.getNextException();
+                        if(w != null)
+                        {
+                            message += "\n\t";
+                            message += w.getLocalizedMessage();
+                        }
                     }
+                    throw new SQLException(message);
                 }
-                throw new SQLException(message);
+
+                ArrayList dsList = eclQuery.execute(parameters);
+
+                if (dsList != null)
+                    result = new HPCCResultSet(this, dsList, eclQuery.getExpectedRetCols(), "HPCC Result");
             }
-
-            ArrayList dsList = eclQuery.execute(parameters);
-
-            if (dsList != null)
-                result = new HPCCResultSet(this, dsList, eclQuery.getExpectedRetCols(), "HPCC Result");
-
+            else
+                throw new SQLException("HPCCPreparedStatement closed, cannot execute query");
         }
         catch (Exception e)
         {
@@ -246,9 +258,7 @@ public class HPCCPreparedStatement implements PreparedStatement
 
     public boolean execute() throws SQLException
     {
-        executeQuery();
-
-        return result != null;
+        return executeQuery() != null;
     }
 
     public void addBatch() throws SQLException
@@ -430,24 +440,17 @@ public class HPCCPreparedStatement implements PreparedStatement
 
     public void close() throws SQLException
     {
-        if (hpccConnection != null)
+        if (!closed)
         {
-            hpccConnection.close();
+            closed = true;
             hpccConnection = null;
-        }
-
-        if (result != null)
-        {
-            result.close();
             result = null;
+            sqlQuery = null;
+            dbMetadata = null;
+            parameters = null;
+            parser = null;
+            eclQuery = null;
         }
-
-        sqlQuery = "";
-        dbMetadata = null;
-        closed = true;
-        parameters = null;
-        parser = null;
-        eclQuery = null;
     }
 
     public int getMaxFieldSize() throws SQLException
@@ -508,8 +511,6 @@ public class HPCCPreparedStatement implements PreparedStatement
     public boolean execute(String sql) throws SQLException
     {
         sqlQuery = sql;
-
-        System.out.println("ECLPREPSTMT execute(" + sql + ")");
 
         processQuery();
 
