@@ -74,20 +74,22 @@ public class HPCCLogicalFiles
         for (int y = 0; y < subfiles.size(); y++)
         {
             DFUFile subfile = ((DFUFile) files.get(subfiles.get(y)));
-            if (subfile.hasFileRecDef())
+            if (subfile != null)
             {
-                eclrecdef = subfile.getFileRecDef("recdef");
-                System.out.println("\tUsing record definition from: " + subfile.getFullyQualifiedName());
-                break;
-            }
-            else if (subfile.isSuperFile())
-            {
-                eclrecdef = getSubfileRecDef(subfile);
-                if (!eclrecdef.equals(""))
+                if (subfile.hasFileRecDef())
+                {
+                    eclrecdef = subfile.getFileRecDef("recdef");
+                    System.out.println("\tUsing record definition from: " + subfile.getFullyQualifiedName());
                     break;
+                }
+                else if (subfile.isSuperFile())
+                {
+                    eclrecdef = getSubfileRecDef(subfile);
+                    if (!eclrecdef.equals(""))
+                        break;
+                }
             }
         }
-
         return eclrecdef;
     }
 
@@ -127,8 +129,7 @@ public class HPCCLogicalFiles
                 }
             }
         }
-        System.out.println("Update superfiles' record definition ( " + superfilesupdated + " out of " + superfilescount
-                + " )");
+        System.out.println("Update superfiles' record definition ( " + superfilesupdated + " out of " + superfilescount + " )");
     }
 
     public long getReportedFileCount()
