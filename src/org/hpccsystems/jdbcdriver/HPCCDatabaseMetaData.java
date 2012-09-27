@@ -61,7 +61,6 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
 {
     private HPCCQueries                 eclqueries;
     private HPCCLogicalFiles            dfufiles;
-    private static Map<Integer, String> SQLFieldMapping;
     private List<String>                targetclusters;
     private List<String>                querysets;
 
@@ -131,7 +130,6 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         querysets = new ArrayList<String>();
         dfufiles = new HPCCLogicalFiles();
         eclqueries = new HPCCQueries();
-        SQLFieldMapping = new HashMap<Integer, String>();
 
         dbf = DocumentBuilderFactory.newInstance();
 
@@ -154,40 +152,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                 this.queryset = querysets.get(0);
             }
         }
-
-        setSQLTypeNames();
-
         System.out.println("HPCCDatabaseMetaData initialized");
-    }
-
-    private static void setSQLTypeNames()
-    {
-        // TODO might want to just hardcode this list rather than creating at runtime...
-        if (SQLFieldMapping.isEmpty())
-        {
-            Field[] fields = java.sql.Types.class.getFields();
-
-            for (int i = 0; i < fields.length; i++)
-            {
-                try
-                {
-                    String name = fields[i].getName();
-                    Integer value = (Integer) fields[i].get(null);
-                    SQLFieldMapping.put(value, name);
-                }
-                catch (IllegalAccessException e)
-                {
-                }
-            }
-        }
-    }
-
-    public static String getFieldName(Integer type)
-    {
-        if (SQLFieldMapping.isEmpty())
-            setSQLTypeNames();
-
-        return SQLFieldMapping.get(type);
     }
 
     public boolean isDFUMetaDataCached()
@@ -1510,7 +1475,6 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
             rowValues.add(table.getFullyQualifiedName());
             rowValues.add("TABLE");
             rowValues.add(table.getDescription()
-                    //+ (!table.hasFileRecDef() ? "**HPCC FILE DOESNOT CONTAIN ECL RECORD LAYOUT**" : "")
                     + (table.hasRelatedIndexes() ? "Has " + table.getRelatedIndexesCount() + " related Indexes" : "")
                     + (table.isKeyFile() ? "-Keyed File " : "") + (table.isSuperFile() ? "-SuperFile " : "")
                     + (table.isFromRoxieCluster() ? "-FromRoxieCluster" : ""));
@@ -2109,7 +2073,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                     {
                         dfufiles.setReportedFileCount(NumFilesCount.item(0).getTextContent());
                         System.out.println("Fetching " + pageSize + " files (tables) out of "
-                                + dfufiles.getReportedFileCount() + " reported files in cluster:" + targetcluster +".");
+                                + dfufiles.getReportedFileCount() + " reported files.");
                     }
                 }
                 catch (Exception e)
@@ -2121,9 +2085,6 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
 
             if (querySetList.getLength() > 0)
             {
-                //TODO why a new one everytime?
-                NumberFormat format = NumberFormat.getInstance(Locale.US);
-
                 NodeList queryList = querySetList.item(0).getChildNodes();
                 for (int i = 0; i < queryList.getLength(); i++)
                 {
@@ -2159,15 +2120,15 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                                 }
                                 else if (NodeName.equals("Totalsize"))
                                 {
-                                    file.setTotalSize(format.parse(currentTextCont).longValue());
+                                    file.setTotalSize(HPCCJDBCUtils.format.parse(currentTextCont).longValue());
                                 }
                                 else if (NodeName.equals("RecordCount"))
                                 {
-                                    file.setRecordCount(format.parse(currentTextCont).longValue());
+                                    file.setRecordCount(HPCCJDBCUtils.format.parse(currentTextCont).longValue());
                                 }
                                 else if (NodeName.equals("LongSize"))
                                 {
-                                    file.setLongSize(format.parse(currentTextCont).longValue());
+                                    file.setLongSize(HPCCJDBCUtils.format.parse(currentTextCont).longValue());
                                 }
                                 else if (NodeName.equals("LongRecordCount"))
                                 {
@@ -2206,7 +2167,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
 
                         if (file.getFullyQualifiedName().length() > 0)
                         {
-                            if ((file.getRecordCount() > 0 || (file.isSuperFile())))
+                            if (file.getRecordCount() >= 0)
                             {
                                 if (fetchHPCCFileColumnInfo(file, db))
                                     dfuFileParsedCount++;
@@ -2303,7 +2264,9 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                 try
                 {
                     dfufiles.updateSuperFiles();
-                } catch (Exception e) {
+                }
+                catch (Exception e)
+                {
                     System.out.println("WARNING: updating superfiles failed.");
                 }
             }
@@ -2560,7 +2523,6 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
             DocumentBuilder db = dbf.newDocumentBuilder();
             Document dom = db.parse(xml);
 
-            boolean targetclusterfound = false;
             NodeList clusterList = dom.getElementsByTagName("TpTargetCluster");
             for (int i = 0; i < clusterList.getLength(); i++)
             {

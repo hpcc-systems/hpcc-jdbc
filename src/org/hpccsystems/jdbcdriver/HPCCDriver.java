@@ -42,7 +42,6 @@ public class HPCCDriver implements Driver
     public static final String   CONNECTTIMEOUTMILDEFAULT = "5000";
     public static final String   READTIMEOUTMILDEFAULT    = "15000";
     public static final String   JDBCURLPROTOCOL          = "jdbc:hpcc";
-    public static final String   DEBUGLOG                 = "false";
 
     private static DriverPropertyInfo[] infoArray;
 
