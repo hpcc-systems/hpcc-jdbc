@@ -146,7 +146,16 @@ public class HPCCResultSetMetadata implements ResultSetMetaData
     public String getColumnTypeName(int column) throws SQLException
     {
         if (column >= 1 && column <= columnList.size())
-            return HPCCDatabaseMetaData.getFieldName(columnList.get(column - 1).getSqlType());
+        {
+            try
+            {
+                return HPCCJDBCUtils.getSQLTypeName(columnList.get(column - 1).getSqlType());
+            }
+            catch (Exception e)
+            {
+                throw new SQLException(e.getLocalizedMessage());
+            }
+        }
         else
             throw new SQLException("Invalid Column Index = " + column);
     }

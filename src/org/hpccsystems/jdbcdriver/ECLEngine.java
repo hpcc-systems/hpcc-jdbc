@@ -821,7 +821,6 @@ public class ECLEngine
         {
             throw new SQLException(e.getMessage());
         }
-
     }
 
     public ArrayList execute(Map inParameters) throws Exception

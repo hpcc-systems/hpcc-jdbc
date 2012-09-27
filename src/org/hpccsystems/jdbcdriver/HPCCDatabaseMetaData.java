@@ -23,6 +23,7 @@ import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
+import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.sql.Connection;
@@ -58,10 +59,8 @@ import org.xml.sax.SAXException;
 
 public class HPCCDatabaseMetaData implements DatabaseMetaData
 {
-
     private HPCCQueries                 eclqueries;
     private HPCCLogicalFiles            dfufiles;
-    private static Map<Integer, String> SQLFieldMapping;
     private List<String>                targetclusters;
     private List<String>                querysets;
 
@@ -81,18 +80,24 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     private String                      serverAddress;
     private String                      targetcluster;
     private String                      queryset;
-    private String                      wseclwatchaddress;
-    private String                      wseclwatchport;
+    private String                      basewseclwatchurl;
     private String                      basicAuth;
     private String                      UserName;
     private boolean                     lazyLoad;
     private int                         pageSize;
+    private int                         pageOffset;
     private int                         connectTimoutMillis;
+    private int                         readTimoutMillis;
 
     private DocumentBuilderFactory      dbf;
 
     final static String                 PROCEDURE_NAME           = "PROCEDURE_NAME";
     final static String                 TABLE_NAME               = "TABLE_NAME";
+
+    private static final String         FILEFETCHTYPE_ALL             = "Logical Files and Superfiles";
+    private static final String         FILEFETCHTYPE_LOGICAL_ONLY    = "Logical Files Only";
+    private static final String         FILEFETCHTYPE_SUPER_ONLY      = "Superfiles Only";
+    private static final String         FILEFETCHTYPE_NOT_IN_SUPER    = "Not in Superfiles";
 
     public HPCCDatabaseMetaData(Properties props)
     {
@@ -100,8 +105,9 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         this.serverAddress = props.getProperty("ServerAddress", HPCCDriver.SERVERADDRESSDEFAULT);
         this.targetcluster = props.getProperty("TargetCluster", HPCCDriver.CLUSTERDEFAULT);
         this.queryset = props.getProperty("QuerySet", HPCCDriver.QUERYSETDEFAULT);
-        this.wseclwatchport = props.getProperty("WsECLWatchPort", HPCCDriver.WSECLWATCHPORTDEFAULT);
-        this.wseclwatchaddress = props.getProperty("WsECLWatchAddress", this.serverAddress);
+
+        this.basewseclwatchurl = "http://" + props.getProperty("WsECLWatchAddress", this.serverAddress) + ":" +
+                             props.getProperty("WsECLWatchPort", HPCCDriver.WSECLWATCHPORTDEFAULT);
         this.UserName = props.getProperty("username", "");
         this.basicAuth = props.getProperty("BasicAuth",
                 HPCCConnection.createBasicAuth(this.UserName, props.getProperty("password", "")));
@@ -109,17 +115,21 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         this.pageSize = HPCCJDBCUtils.stringToInt(
                 props.getProperty("PageSize"),
                 Integer.valueOf(HPCCDriver.FETCHPAGESIZEDEFAULT));
+        this.pageOffset = HPCCJDBCUtils.stringToInt(
+                props.getProperty("PageOffset"),
+                Integer.valueOf(HPCCDriver.FETCHPAGEOFFSETDEFAULT));
         this.connectTimoutMillis = HPCCJDBCUtils.stringToInt(props.getProperty("ConnectTimeoutMilli"),
                 Integer.valueOf(HPCCDriver.CONNECTTIMEOUTMILDEFAULT));
+        this.readTimoutMillis = HPCCJDBCUtils.stringToInt(props.getProperty("ReadTimeoutMilli"),
+                Integer.valueOf(HPCCDriver.READTIMEOUTMILDEFAULT));
 
         System.out.println("EclDatabaseMetaData ServerAddress: " + serverAddress + " TargetCluster: " + targetcluster
-                + " eclwatch: " + wseclwatchaddress + ":" + wseclwatchport);
+                + " eclwatch: " + basewseclwatchurl);
 
         targetclusters = new ArrayList<String>();
         querysets = new ArrayList<String>();
         dfufiles = new HPCCLogicalFiles();
         eclqueries = new HPCCQueries();
-        SQLFieldMapping = new HashMap<Integer, String>();
 
         dbf = DocumentBuilderFactory.newInstance();
 
@@ -142,40 +152,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                 this.queryset = querysets.get(0);
             }
         }
-
-        setSQLTypeNames();
-
-        System.out.println("EclDatabaseMetaData initialized");
-    }
-
-    private static void setSQLTypeNames()
-    {
-        // TODO might want to just hardcode this list rather than creating at runtime...
-        if (SQLFieldMapping.isEmpty())
-        {
-            Field[] fields = java.sql.Types.class.getFields();
-
-            for (int i = 0; i < fields.length; i++)
-            {
-                try
-                {
-                    String name = fields[i].getName();
-                    Integer value = (Integer) fields[i].get(null);
-                    SQLFieldMapping.put(value, name);
-                }
-                catch (IllegalAccessException e)
-                {
-                }
-            }
-        }
-    }
-
-    public static String getFieldName(Integer type)
-    {
-        if (SQLFieldMapping.isEmpty())
-            setSQLTypeNames();
-
-        return SQLFieldMapping.get(type);
+        System.out.println("HPCCDatabaseMetaData initialized");
     }
 
     public boolean isDFUMetaDataCached()
@@ -251,11 +228,11 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
             }
         }
         else
-            System.out.println("HPCC info not fetched (LazyLoad enabled)");
+            System.out.println("HPCC file and published query info not fetched (LazyLoad enabled)");
 
         if (!isSuccess)
-            System.out
-                    .println("Could not query DB metadata check server address, cluster name, wsecl, and wseclwatch ports");
+            System.out.println("Could not query HPCC metadata check server address, cluster name, wsecl, and wseclwatch configuration.");
+
         return isSuccess;
     }
 
@@ -265,6 +242,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
             System.out.println("Found super file: " + file.getFullyQualifiedName());
 
         NodeList fileDetail = node.getElementsByTagName("FileDetail");
+
         if (fileDetail.getLength() > 0)
         {
             NodeList resultslist = fileDetail.item(0).getChildNodes(); // ECLResult nodes
@@ -273,35 +251,25 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
             {
                 Node currentfiledetail = resultslist.item(i);
 
-                if (currentfiledetail.getNodeName().equals("Ecl"))
+                String nodename = currentfiledetail.getNodeName();
+
+                if (nodename.equals("Ecl"))
                 {
                     file.setFileRecDef(currentfiledetail.getTextContent());
                 }
-                else if (currentfiledetail.getNodeName().equals("Filename"))
+                else if (nodename.equals("Filename"))
                 {
                     file.setFileName(currentfiledetail.getTextContent());
                 }
-                else if (currentfiledetail.getNodeName().equals("Format"))
+                else if (nodename.equals("Format"))
                 {
                     file.setFormat(currentfiledetail.getTextContent());
                 }
-                else if (currentfiledetail.getNodeName().equals("CsvSeparate"))
-                {
-                    file.setCsvSeparate(currentfiledetail.getTextContent());
-                }
-                else if (currentfiledetail.getNodeName().equals("CsvQuote"))
-                {
-                    file.setCsvQuote(currentfiledetail.getTextContent());
-                }
-                else if (currentfiledetail.getNodeName().equals("CsvTerminate"))
-                {
-                    file.setCsvTerminate(currentfiledetail.getTextContent());
-                }
-                else if (currentfiledetail.getNodeName().equals("Description"))
+                else if (nodename.equals("Description"))
                 {
                     file.setDescription(currentfiledetail.getTextContent());
                 }
-                else if (file.isSuperFile() && currentfiledetail.getNodeName().equals("subfiles"))
+                else if (file.isSuperFile() && nodename.equals("subfiles"))
                 {
                     NodeList subfilelist = currentfiledetail.getChildNodes();
                     for (int y = 0; y < subfilelist.getLength(); y++)
@@ -1312,7 +1280,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
 
         boolean allprocsearch = procedureNamePattern == null || procedureNamePattern.length() == 0
                 || procedureNamePattern.trim().equals("*") || procedureNamePattern.trim().equals("%");
-        System.out.println("ECLDATABASEMETADATA GETPROCS catalog: " + catalog + ", schemaPattern: " + schemaPattern
+        System.out.println("HPCCDATABASEMETADATA GETPROCS catalog: " + catalog + ", schemaPattern: " + schemaPattern
                 + ", procedureNamePattern: " + procedureNamePattern);
 
         metacols.add(new HPCCColumnMetaData("PROCEDURE_CAT", 1, java.sql.Types.VARCHAR));
@@ -1367,7 +1335,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public ResultSet getProcedureColumns(String catalog, String schemaPattern, String procedureNamePattern,
             String columnNamePattern) throws SQLException
     {
-        System.out.println("ECLDATABASEMETADATA getProcedureColumns catalog: " + catalog + ", schemaPattern: "
+        System.out.println("HPCCDATABASEMETADATA getProcedureColumns catalog: " + catalog + ", schemaPattern: "
                 + schemaPattern + ", procedureNamePattern: " + procedureNamePattern + " columnanmepat: "
                 + columnNamePattern);
 
@@ -1454,7 +1422,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
          * created. Values are "SYSTEM", "USER", "DERIVED". (may be null)
          */
 
-        System.out.println("ECLDATABASEMETADATA GETTABLES catalog: " + catalog + ", schemaPattern: " + schemaPattern
+        System.out.println("HPCCDATABASEMETADATA GETTABLES catalog: " + catalog + ", schemaPattern: " + schemaPattern
                 + ", tableNamePattern: " + tableNamePattern);
 
         boolean alltablesearch = tableNamePattern == null || tableNamePattern.length() == 0
@@ -1484,16 +1452,17 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
             while (files.hasMoreElements())
             {
                 DFUFile file = (DFUFile) files.nextElement();
-                tables.add(populateTableInfo(file));
+                if (file.hasFileRecDef())
+                    tables.add(populateTableInfo(file));
             }
         }
         else
         {
             DFUFile file = getDFUFile(tableNamePattern);
-            if (file != null)
+            if (file != null && file.hasFileRecDef())
                 tables.add(populateTableInfo(file));
         }
-        return new HPCCResultSet(tables, metacols, "Tables");
+        return new HPCCResultSet(tables, metacols, "HPCC Tables");
     }
 
     private ArrayList<String> populateTableInfo(DFUFile table)
@@ -1506,7 +1475,6 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
             rowValues.add(table.getFullyQualifiedName());
             rowValues.add("TABLE");
             rowValues.add(table.getDescription()
-                    + (!table.hasFileRecDef() ? "**HPCC FILE DOESNOT CONTAIN ECL RECORD LAYOUT**" : "")
                     + (table.hasRelatedIndexes() ? "Has " + table.getRelatedIndexesCount() + " related Indexes" : "")
                     + (table.isKeyFile() ? "-Keyed File " : "") + (table.isSuperFile() ? "-SuperFile " : "")
                     + (table.isFromRoxieCluster() ? "-FromRoxieCluster" : ""));
@@ -1525,7 +1493,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         if (!isDFUMetaDataCached())
             setDFUMetaDataCached(fetchHPCCFilesInfo());
 
-        System.out.println("ECLDATABASEMETADATA GETSCHEMAS");
+        System.out.println("HPCCDATABASEMETADATA GETSCHEMAS");
 
         List<List<String>> tables = new ArrayList<List<String>>();
         ArrayList<HPCCColumnMetaData> metacols = new ArrayList<HPCCColumnMetaData>();
@@ -1551,7 +1519,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     @Override
     public ResultSet getCatalogs() throws SQLException
     {
-        System.out.println("ECLDATABASEMETADATA getCatalogs");
+        System.out.println("HPCCDATABASEMETADATA getCatalogs");
 
         List<List<String>> catalogs = new ArrayList<List<String>>();
         ArrayList<HPCCColumnMetaData> metacols = new ArrayList<HPCCColumnMetaData>();
@@ -1568,7 +1536,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     @Override
     public ResultSet getTableTypes() throws SQLException
     {
-        System.out.println("ECLDATABASEMETADATA getTableTypes");
+        System.out.println("HPCCDATABASEMETADATA getTableTypes");
 
         List<List<String>> tabletypes = new ArrayList<List<String>>();
         ArrayList<HPCCColumnMetaData> metacols = new ArrayList<HPCCColumnMetaData>();
@@ -1596,7 +1564,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public ResultSet getColumns(String catalog, String schemaPattern, String tableNamePattern, String columnNamePattern)
             throws SQLException
     {
-        System.out.println("ECLDATABASEMETADATA GETCOLUMNS catalog: " + catalog + ", schemaPattern: " + schemaPattern
+        System.out.println("HPCCDATABASEMETADATA GETCOLUMNS catalog: " + catalog + ", schemaPattern: " + schemaPattern
                 + ", tableNamePattern: " + tableNamePattern + ", columnNamePattern: " + columnNamePattern);
 
         boolean allfieldsearch = columnNamePattern == null || columnNamePattern.length() == 0
@@ -1679,53 +1647,85 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
             }
         }
 
-        return new HPCCResultSet(columns, metacols, tableNamePattern);
+        return new HPCCResultSet(columns, metacols, tableNamePattern +"'s columns");
     }
 
     @Override
     public ResultSet getColumnPrivileges(String catalog, String schema, String table, String columnNamePattern)
             throws SQLException
     {
-        throw new UnsupportedOperationException("EclDBMetaData:  getColumnPrivileges Not  supported yet.");
+        throw new UnsupportedOperationException("HPCCDBMetaData:  getColumnPrivileges Not  supported yet.");
     }
 
     @Override
     public ResultSet getTablePrivileges(String catalog, String schemaPattern, String tableNamePattern)
             throws SQLException
     {
-        throw new UnsupportedOperationException("EclDBMetaData: getTablePrivileges Not  supported yet.");
+        throw new UnsupportedOperationException("HPCCDBMetaData: getTablePrivileges Not  supported yet.");
     }
 
     @Override
     public ResultSet getBestRowIdentifier(String catalog, String schema, String table, int scope, boolean nullable)
             throws SQLException
     {
-        throw new UnsupportedOperationException("EclDBMetaData: getBestRowIdentifier Not  supported yet.");
+        throw new UnsupportedOperationException("HPCCDBMetaData: getBestRowIdentifier Not  supported yet.");
     }
 
     @Override
     public ResultSet getVersionColumns(String catalog, String schema, String table) throws SQLException
     {
-        throw new UnsupportedOperationException("EclDBMetaData: getVersionColumns Not  supported yet.");
+        throw new UnsupportedOperationException("HPCCDBMetaData: getVersionColumns Not  supported yet.");
     }
 
     @Override
     public ResultSet getPrimaryKeys(String catalog, String schema, String table) throws SQLException
     {
-        throw new UnsupportedOperationException("EclDBMetaData: getPrimaryKeys Not  supported yet.");
+        System.out.println("HPCCDATABASEMETADATA getPrimaryKeys catalog: " + catalog + ", schema: " + schema + ", table: " + table);
+
+        List<List<String>> importedkeys = new ArrayList<List<String>>();
+        ArrayList<HPCCColumnMetaData> metacols = new ArrayList<HPCCColumnMetaData>();
+
+        metacols.add(new HPCCColumnMetaData("TABLE_CAT", 1, java.sql.Types.VARCHAR));
+        metacols.add(new HPCCColumnMetaData("TABLE_SCHEM", 2, java.sql.Types.VARCHAR));
+        metacols.add(new HPCCColumnMetaData("TABLE_NAME", 3, java.sql.Types.VARCHAR));
+        metacols.add(new HPCCColumnMetaData("COLUMN_NAME", 4, java.sql.Types.VARCHAR));
+        metacols.add(new HPCCColumnMetaData("KEY_SEQ", 5, java.sql.Types.SMALLINT));
+        metacols.add(new HPCCColumnMetaData("PK_NAME", 6, java.sql.Types.VARCHAR));
+
+        return new HPCCResultSet(importedkeys, metacols, "PrimaryKeys");
     }
 
     @Override
     public ResultSet getImportedKeys(String catalog, String schema, String table) throws SQLException
     {
-        throw new UnsupportedOperationException("EclDBMetaData: getImportedKeys Not  supported yet.");
+
+        System.out.println("HPCCDATABASEMETADATA getImportedKeys catalog: " + catalog + ", schema: " + schema  + ", table: " + table);
+
+        List<List<String>> importedkeys = new ArrayList<List<String>>();
+        ArrayList<HPCCColumnMetaData> metacols = new ArrayList<HPCCColumnMetaData>();
+
+        metacols.add(new HPCCColumnMetaData("PKTABLE_CAT", 1, java.sql.Types.VARCHAR));
+        metacols.add(new HPCCColumnMetaData("PKTABLE_SCHEM", 2, java.sql.Types.VARCHAR));
+        metacols.add(new HPCCColumnMetaData("PKTABLE_NAME", 3, java.sql.Types.VARCHAR));
+        metacols.add(new HPCCColumnMetaData("PKCOLUMN_NAME", 4, java.sql.Types.VARCHAR));
+        metacols.add(new HPCCColumnMetaData("FKTABLE_CAT", 5, java.sql.Types.VARCHAR));
+        metacols.add(new HPCCColumnMetaData("FKTABLE_SCHEM", 6, java.sql.Types.VARCHAR));
+        metacols.add(new HPCCColumnMetaData("FKTABLE_NAME", 7, java.sql.Types.VARCHAR));
+        metacols.add(new HPCCColumnMetaData("FKCOLUMN_NAME", 8, java.sql.Types.VARCHAR));
+        metacols.add(new HPCCColumnMetaData("KEY_SEQ", 9, java.sql.Types.SMALLINT));
+        metacols.add(new HPCCColumnMetaData("UPDATE_RULE", 10, java.sql.Types.SMALLINT));
+        metacols.add(new HPCCColumnMetaData("DELETE_RULE", 11, java.sql.Types.SMALLINT));
+        metacols.add(new HPCCColumnMetaData("FK_NAME", 12, java.sql.Types.VARCHAR));
+        metacols.add(new HPCCColumnMetaData("PK_NAME", 13, java.sql.Types.VARCHAR));
+        metacols.add(new HPCCColumnMetaData("DEFERRABILITY", 14, java.sql.Types.SMALLINT));
+
+        return new HPCCResultSet(importedkeys, metacols, "ImportedKeys");
     }
 
     @Override
     public ResultSet getExportedKeys(String catalog, String schema, String table) throws SQLException
     {
-        System.out.println("ECLDATABASEMETADATA getExportedKeys catalog: " + catalog + ", schema: " + schema
-                + ", table: " + table);
+        System.out.println("HPCCDATABASEMETADATA getExportedKeys catalog: " + catalog + ", schema: " + schema + ", table: " + table);
 
         List<List<String>> exportedkeys = new ArrayList<List<String>>();
         ArrayList<HPCCColumnMetaData> metacols = new ArrayList<HPCCColumnMetaData>();
@@ -1745,33 +1745,6 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         metacols.add(new HPCCColumnMetaData("PK_NAME", 13, java.sql.Types.VARCHAR));
         metacols.add(new HPCCColumnMetaData("DEFERRABILITY", 14, java.sql.Types.SMALLINT));
 
-        DFUFile file = getDFUFile(table);
-        // if(file != null && file.getFileName().length()>0 && file.isKeyFile())
-        // {
-        // Enumeration<Object> e = file.getKeyedColumns().elements();
-        // while (e.hasMoreElements())
-        // {
-        // String fieldname = (String)e.nextElement();
-        //
-        // ArrayList rowValues = new ArrayList();
-        // exportedkeys.add(rowValues);
-        //
-        // /* 1*/rowValues.add(catalog);
-        // /* 2*/rowValues.add(schema);
-        // /* 3*/rowValues.add(file.getFullyQualifiedName());
-        // /* 4*/rowValues.add(fieldname);
-        // /* 5*/rowValues.add("null");
-        // /* 6*/rowValues.add("null");
-        // /* 7*/rowValues.add("");
-        // /* 8*/rowValues.add(fieldname);
-        // /* 9*/rowValues.add(file.getKeyColumnIndex(fieldname));
-        // /*10*/rowValues.add(importedKeyRestrict);
-        // /*11*/rowValues.add(importedKeyRestrict);
-        // /*12*/rowValues.add(0);
-        // /*13*/rowValues.add(0);
-        // /*14*/rowValues.add(importedKeyNotDeferrable);
-        // }
-        // }
         return new HPCCResultSet(exportedkeys, metacols, "ExportedKeys");
     }
 
@@ -1779,14 +1752,14 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public ResultSet getCrossReference(String parentCatalog, String parentSchema, String parentTable,
             String foreignCatalog, String foreignSchema, String foreignTable) throws SQLException
     {
-        throw new UnsupportedOperationException("EclDBMetaData: getCrossReference Not  supported yet.");
+        throw new UnsupportedOperationException("HPCCDBMetaData: getCrossReference Not  supported yet.");
     }
 
     @Override
     public ResultSet getTypeInfo() throws SQLException
     {
 
-        System.out.println("ECLDATABASEMETADATA GETTYPEINFO");
+        System.out.println("HPCCDATABASEMETADATA GETTYPEINFO");
 
         List<List<String>> types = new ArrayList<List<String>>();
         ArrayList<HPCCColumnMetaData> metacols = new ArrayList<HPCCColumnMetaData>();
@@ -1846,7 +1819,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public ResultSet getIndexInfo(String catalog, String schema, String table, boolean unique, boolean approximate)
             throws SQLException
     {
-        throw new UnsupportedOperationException("EclDBMetaData: Not  supported yet.");
+        throw new UnsupportedOperationException("HPCCDBMetaData: Not  supported yet.");
     }
 
     @Override
@@ -1940,7 +1913,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
          * Note: If the driver does not support UDTs, an empty result set is
          * returned.
          */
-        System.out.println("ECLDATABASEMETADATA GETTYPEINFO");
+        System.out.println("HPCCDATABASEMETADATA GETTYPEINFO");
 
         List<List<String>> udts = new ArrayList<List<String>>();
         ArrayList<HPCCColumnMetaData> metacols = new ArrayList<HPCCColumnMetaData>();
@@ -1970,63 +1943,63 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     @Override
     public Connection getConnection() throws SQLException
     {
-        throw new UnsupportedOperationException("EclDBMetaData: getConnection Not  supported yet.");
+        throw new UnsupportedOperationException("HPCCDBMetaData: getConnection Not  supported yet.");
     }
 
     @Override
     public boolean supportsSavepoints() throws SQLException
     {
-        throw new UnsupportedOperationException("EclDBMetaData: supportsSavepoints Not  supported yet.");
+        throw new UnsupportedOperationException("HPCCDBMetaData: supportsSavepoints Not  supported yet.");
     }
 
     @Override
     public boolean supportsNamedParameters() throws SQLException
     {
-        throw new UnsupportedOperationException("EclDBMetaData: supportsNamedParameters Not  supported yet.");
+        throw new UnsupportedOperationException("HPCCDBMetaData: supportsNamedParameters Not  supported yet.");
     }
 
     @Override
     public boolean supportsMultipleOpenResults() throws SQLException
     {
-        throw new UnsupportedOperationException("EclDBMetaData: supportsMultipleOpenResults Not  supported yet.");
+        throw new UnsupportedOperationException("HPCCDBMetaData: supportsMultipleOpenResults Not  supported yet.");
     }
 
     @Override
     public boolean supportsGetGeneratedKeys() throws SQLException
     {
-        throw new UnsupportedOperationException("EclDBMetaData: supportsGetGeneratedKeysNot  supported yet.");
+        throw new UnsupportedOperationException("HPCCDBMetaData: supportsGetGeneratedKeysNot  supported yet.");
     }
 
     @Override
     public ResultSet getSuperTypes(String catalog, String schemaPattern, String typeNamePattern) throws SQLException
     {
-        throw new UnsupportedOperationException("EclDBMetaData: getSuperTypes Not  supported yet.");
+        throw new UnsupportedOperationException("HPCCDBMetaData: getSuperTypes Not  supported yet.");
     }
 
     @Override
     public ResultSet getSuperTables(String catalog, String schemaPattern, String tableNamePattern) throws SQLException
     {
-        throw new UnsupportedOperationException("EclDBMetaData: getSuperTables Not  supported yet.");
+        throw new UnsupportedOperationException("HPCCDBMetaData: getSuperTables Not  supported yet.");
     }
 
     @Override
     public ResultSet getAttributes(String catalog, String schemaPattern, String typeNamePattern,
             String attributeNamePattern) throws SQLException
     {
-        throw new UnsupportedOperationException("EclDBMetaData: getAttributes Not  supported yet.");
+        throw new UnsupportedOperationException("HPCCDBMetaData: getAttributes Not  supported yet.");
     }
 
     @Override
     public boolean supportsResultSetHoldability(int holdability) throws SQLException
     {
         throw new UnsupportedOperationException(
-                "EclDBMetaData: supportsResultSetHoldability(int holdability) Not  supported yet.");
+                "HPCCDBMetaData: supportsResultSetHoldability(int holdability) Not  supported yet.");
     }
 
     @Override
     public int getResultSetHoldability() throws SQLException
     {
-        throw new UnsupportedOperationException("EclDBMetaData: getResultSetHoldability Not  supported yet.");
+        throw new UnsupportedOperationException("HPCCDBMetaData: getResultSetHoldability Not  supported yet.");
     }
 
     @Override
@@ -2045,99 +2018,32 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     {
         boolean isSuccess = true;
 
-        if (wseclwatchaddress == null || wseclwatchport == null)
+        if (basewseclwatchurl == null)
             return false;
 
         try
         {
             if (file.getFullyQualifiedName().length() > 0)
             {
-                String filedetailUrl = "http://" + wseclwatchaddress + ":" + wseclwatchport + "/WsDfu/DFUInfo?Name="
+                String filedetailUrl = basewseclwatchurl + "/WsDfu/DFUInfo?Name="
                         + URLEncoder.encode(file.getFullyQualifiedName(), "UTF-8") + "&rawxml_";
 
-                // now request the schema for each roxy query
+                // now request the schema for this file.
                 URL queryschema = new URL(filedetailUrl);
                 HttpURLConnection queryschemaconnection = createHPCCESPConnection(queryschema);
 
                 InputStream schema = queryschemaconnection.getInputStream();
                 Document dom2 = db.parse(schema);
-
                 Element docElement = dom2.getDocumentElement();
 
-                // Get all pertinent detail info regarding this file (files are
-                // being treated as DB tables)
+                // Get all pertinent detail info regarding this file
                 registerFileDetails(docElement, file);
 
-                // we might need more info if this file is actually an index:
-                if (file.isKeyFile())
-                {
-                    String openfiledetailUrl = "http://" + wseclwatchaddress + ":" + wseclwatchport
-                            + "/WsDfu/DFUSearchData?OpenLogicalName="
-                            + URLEncoder.encode(file.getFullyQualifiedName(), "UTF-8") + "&Cluster="
-                            + file.getClusterName() + "&RoxieSelections=0" + "&rawxml_";
-
-                    // now request the schema for each roxy query
-                    URL queryfiledata = new URL(openfiledetailUrl);
-                    HttpURLConnection queryfiledataconnection = createHPCCESPConnection(queryfiledata);
-
-                    InputStream filesearchinfo = queryfiledataconnection.getInputStream();
-                    Document dom3 = db.parse(filesearchinfo);
-
-                    Element docElement2 = dom3.getDocumentElement();
-
-                    NodeList keyfiledetail = docElement2.getChildNodes();
-                    if (keyfiledetail.getLength() > 0)
-                    {
-                        for (int k = 0; k < keyfiledetail.getLength(); k++)
-                        {
-                            Node currentnode = keyfiledetail.item(k);
-                            if (currentnode.getNodeName().startsWith("DFUDataKeyedColumns"))
-                            {
-                                NodeList keyedColumns = currentnode.getChildNodes();
-                                for (int fieldindex = 0; fieldindex < keyedColumns.getLength(); fieldindex++)
-                                {
-                                    Node KeyedColumn = keyedColumns.item(fieldindex);
-                                    NodeList KeyedColumnFields = KeyedColumn.getChildNodes();
-                                    for (int q = 0; q < KeyedColumnFields.getLength(); q++)
-                                    {
-                                        Node keyedcolumnfield = KeyedColumnFields.item(q);
-                                        if (keyedcolumnfield.getNodeName().equals("ColumnLabel"))
-                                        {
-                                            file.addKeyedColumnInOrder(keyedcolumnfield.getTextContent());
-                                            break;
-                                        }
-                                        // currently not interested in any other
-                                        // field, if we need other field values, remove above break;
-                                    }
-                                }
-                            }
-                            else if (currentnode.getNodeName().startsWith("DFUDataNonKeyedColumns"))
-                            {
-                                NodeList nonKeyedColumns = currentnode.getChildNodes();
-
-                                for (int fieldindex = 0; fieldindex < nonKeyedColumns.getLength(); fieldindex++)
-                                {
-                                    Node nonKeyedColumn = nonKeyedColumns.item(fieldindex);
-                                    NodeList nonKeyedColumnFields = nonKeyedColumn.getChildNodes();
-                                    for (int q = 0; q < nonKeyedColumnFields.getLength(); q++)
-                                    {
-                                        Node nonkeyedcolumnfield = nonKeyedColumnFields.item(q);
-                                        if (nonkeyedcolumnfield.getNodeName().equals("ColumnLabel"))
-                                        {
-                                            file.addNonKeyedColumnInOrder(nonkeyedcolumnfield.getTextContent());
-                                            break;
-                                        }
-                                        // currently not interested in any other
-                                        // field, if we need other field values, remove above break;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
                 // Add this file name to files structure
                 dfufiles.putFile(file.getFullyQualifiedName(), file);
             }
+            else
+                System.out.println("Not fetching info for: " + file.getFullyQualifiedName());
         }
         catch (Exception e)
         {
@@ -2179,8 +2085,6 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
 
             if (querySetList.getLength() > 0)
             {
-                NumberFormat format = NumberFormat.getInstance(Locale.US);
-
                 NodeList queryList = querySetList.item(0).getChildNodes();
                 for (int i = 0; i < queryList.getLength(); i++)
                 {
@@ -2190,108 +2094,86 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                         NodeList querysetquerychildren = currentNode.getChildNodes();
 
                         DFUFile file = new DFUFile();
+                        String currentTextCont = "";
+
                         for (int j = 0; j < querysetquerychildren.getLength(); j++)
                         {
-                            if (!querysetquerychildren.item(j).getTextContent().equals(""))
+                            currentTextCont = querysetquerychildren.item(j).getTextContent();
+                            if (!currentTextCont.equals(""))
                             {
                                 String NodeName = querysetquerychildren.item(j).getNodeName();
                                 if (NodeName.equals("Prefix"))
                                 {
-                                    file.setPrefix(querysetquerychildren.item(j).getTextContent());
+                                    file.setPrefix(currentTextCont);
                                 }
                                 else if (NodeName.equals("ClusterName"))
                                 {
-                                    file.setClusterName(querysetquerychildren.item(j).getTextContent());
-                                }
-                                else if (NodeName.equals("Directory"))
-                                {
-                                    file.setDirectory(querysetquerychildren.item(j).getTextContent());
-                                }
-                                // else if
-                                // (NodeName.equals("Description"))
-                                // {
-                                // file.setDescription((querysetquerychildren.item(j).getTextContent()));
-                                // }
-                                else if (NodeName.equals("Parts"))
-                                {
-                                    file.setParts((Integer.parseInt(querysetquerychildren.item(j).getTextContent())));
+                                    file.setClusterName(currentTextCont);
                                 }
                                 else if (NodeName.equals("Name"))
                                 {
-                                    file.setFullyQualifiedName(querysetquerychildren.item(j).getTextContent());
+                                    file.setFullyQualifiedName(currentTextCont);
                                 }
                                 else if (NodeName.equals("Owner"))
                                 {
-                                    file.setOwner(querysetquerychildren.item(j).getTextContent());
+                                    file.setOwner(currentTextCont);
                                 }
                                 else if (NodeName.equals("Totalsize"))
                                 {
-                                    file.setTotalSize(format.parse(querysetquerychildren.item(j).getTextContent())
-                                            .longValue());
+                                    file.setTotalSize(HPCCJDBCUtils.format.parse(currentTextCont).longValue());
                                 }
                                 else if (NodeName.equals("RecordCount"))
                                 {
-                                    file.setRecordCount(format.parse(querysetquerychildren.item(j).getTextContent())
-                                            .longValue());
-                                }
-                                else if (NodeName.equals("Modified"))
-                                {
-                                    file.setModified(querysetquerychildren.item(j).getTextContent());
+                                    file.setRecordCount(HPCCJDBCUtils.format.parse(currentTextCont).longValue());
                                 }
                                 else if (NodeName.equals("LongSize"))
                                 {
-                                    file.setLongSize(format.parse(querysetquerychildren.item(j).getTextContent())
-                                            .longValue());
+                                    file.setLongSize(HPCCJDBCUtils.format.parse(currentTextCont).longValue());
                                 }
                                 else if (NodeName.equals("LongRecordCount"))
                                 {
-                                    file.setLongRecordCount(Long.parseLong(querysetquerychildren.item(j)
-                                            .getTextContent()));
+                                    file.setLongRecordCount(Long.parseLong(currentTextCont));
                                 }
                                 else if (NodeName.equals("isSuperfile"))
                                 {
-                                    file.setSuperFile(querysetquerychildren.item(j).getTextContent().equals("1"));
+                                    file.setSuperFile(currentTextCont.equals("1"));
                                 }
                                 else if (NodeName.equals("isZipfile"))
                                 {
-                                    file.setZipFile(querysetquerychildren.item(j).getTextContent().equals("1"));
+                                    file.setZipFile(currentTextCont.equals("1"));
                                 }
                                 else if (NodeName.equals("isDirectory"))
                                 {
-                                    file.setDirectory(querysetquerychildren.item(j).getTextContent());
-                                }
-                                else if (NodeName.equals("Replicate"))
-                                {
-                                    file.setReplicate(Integer.parseInt(querysetquerychildren.item(j).getTextContent()));
+                                    file.setDirectory(currentTextCont);
                                 }
                                 else if (NodeName.equals("IntSize"))
                                 {
-                                    file.setIntSize(Integer.parseInt(querysetquerychildren.item(j).getTextContent()));
+                                    file.setIntSize(Integer.parseInt(currentTextCont));
                                 }
                                 else if (NodeName.equals("IntRecordCount"))
                                 {
-                                    file.setIntRecordCount(Integer.parseInt(querysetquerychildren.item(j)
-                                            .getTextContent()));
+                                    file.setIntRecordCount(Integer.parseInt(currentTextCont));
                                 }
                                 else if (NodeName.equals("FromRoxieCluster"))
                                 {
-                                    file.setFromRoxieCluster(querysetquerychildren.item(j).getTextContent().equals("1"));
-                                }
-                                else if (NodeName.equals("BrowseData"))
-                                {
-                                    file.setBrowseData(querysetquerychildren.item(j).getTextContent().equals("1"));
+                                    file.setFromRoxieCluster(currentTextCont.equals("1"));
                                 }
                                 else if (NodeName.equals("IsKeyFile"))
                                 {
-                                    file.setIsKeyFile(querysetquerychildren.item(j).getTextContent().equals("1"));
+                                    file.setIsKeyFile(currentTextCont.equals("1"));
                                 }
                             }
                         }
 
                         if (file.getFullyQualifiedName().length() > 0)
                         {
-                            if (fetchHPCCFileColumnInfo(file, db))
-                                dfuFileParsedCount++;
+                            if (file.getRecordCount() >= 0)
+                            {
+                                if (fetchHPCCFileColumnInfo(file, db))
+                                    dfuFileParsedCount++;
+                            }
+                            else
+                                System.out.println(file.getFullyQualifiedName() + " does not appear to contain a valid record definition.");
                         }
                         else
                             System.out.println("Found DFU file but could not determine name");
@@ -2321,34 +2203,34 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
 
     private boolean fetchHPCCFileInfo(String filename)
     {
-        boolean isSuccess = true;
+        boolean isSuccess = false;
 
-        if (wseclwatchaddress == null || wseclwatchport == null || filename.length() <= 0)
-            return false;
+        if (basewseclwatchurl == null || filename.length() <= 0)
+            return isSuccess;
 
+        String urlString = "";
         try
         {
-            String urlString = "http://" + wseclwatchaddress + ":" + wseclwatchport + "/WsDfu/DFUQuery?"
-                    + "LogicalName=" + filename + "&rawxml_";
-
+            urlString = basewseclwatchurl + "/WsDfu/DFUQuery?LogicalName=" + filename + "&rawxml_&filetype=" + FILEFETCHTYPE_ALL;
             URL dfuLogicalFilesURL = new URL(urlString);
             HttpURLConnection dfulogfilesConn = createHPCCESPConnection(dfuLogicalFilesURL);
 
             isSuccess = parseDFULogicalFiles(dfulogfilesConn.getInputStream(), false) > 0 ? true : false;
         }
+        catch (SocketTimeoutException e)
+        {
+            System.out.println("Warning: Connection to HPCC timed out while fetching: " + filename);
+        }
         catch (MalformedURLException e)
         {
-            isSuccess = false;
-            e.printStackTrace();
+            System.out.println("Error fetching HPCC File: " + urlString);
         }
         catch (IOException e)
         {
-            isSuccess = false;
             e.printStackTrace();
         }
         catch (Exception e)
         {
-            isSuccess = false;
             e.printStackTrace();
         }
 
@@ -2357,7 +2239,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
 
     private boolean fetchHPCCFilesInfo()
     {
-        boolean isSuccess = true;
+        boolean isSuccess = false;
 
         if (isDFUMetaDataCached())
         {
@@ -2365,30 +2247,40 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
             return true;
         }
 
-        if (wseclwatchaddress == null || wseclwatchport == null)
+        if (basewseclwatchurl == null)
             return false;
 
+        String urlString = "";
         try
         {
-            String urlString = "http://" + wseclwatchaddress + ":" + wseclwatchport + "/WsDfu/DFUQuery" + "?rawxml_"
-                    + "&FirstN=" + pageSize;
-
+            urlString = basewseclwatchurl + "/WsDfu/DFUQuery?LogicalName=*&PageSize=" + pageSize + "&PageStartFrom=" + pageOffset + "&rawxml_&filetype=" + FILEFETCHTYPE_ALL;
             URL dfuLogicalFilesURL = new URL(urlString);
             HttpURLConnection dfulogfilesConn = createHPCCESPConnection(dfuLogicalFilesURL);
 
             isSuccess = parseDFULogicalFiles(dfulogfilesConn.getInputStream(), true) > 0 ? true : false;
 
             if (isSuccess)
-                dfufiles.updateSuperFiles();
+            {
+                try
+                {
+                    dfufiles.updateSuperFiles();
+                }
+                catch (Exception e)
+                {
+                    System.out.println("WARNING: updating superfiles failed.");
+                }
+            }
+        }
+        catch (SocketTimeoutException e)
+        {
+            System.out.println("Warning: Connection to HPCC timed out while fetching HPCC Files");
         }
         catch (MalformedURLException e)
         {
-            isSuccess = false;
-            e.printStackTrace();
+            System.out.println("Error fetching HPCC Files: " + urlString);
         }
         catch (IOException e)
         {
-            isSuccess = false;
             e.printStackTrace();
         }
 
@@ -2446,7 +2338,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                     }
                 }
                 // for each QuerySetQuery found above, get all schema related info:
-                String queryinfourl = "http://" + wseclwatchaddress + ":" + wseclwatchport
+                String queryinfourl = basewseclwatchurl
                         + "/WsWorkunits/WUInfo/WUInfoRequest?Wuid=" + query.getWUID() + "&IncludeExceptions=1"
                         + "&IncludeGraphs=0" + "&IncludeSourceFiles=0" + "&IncludeTimers=0" + "&IncludeDebugValues=0"
                         + "&IncludeApplicationValues=0" + "&IncludeWorkflows=0" + "&IncludeHelpers=0" + "&rawxml_";
@@ -2500,12 +2392,12 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     {
         boolean isSuccess = false;
 
-        if (wseclwatchaddress == null || wseclwatchport == null)
+        if (basewseclwatchurl == null)
             return false;
 
         try
         {
-            String urlString = "http://" + wseclwatchaddress + ":" + wseclwatchport
+            String urlString = basewseclwatchurl
                     + "/WsWorkunits/WUQuerysetDetails?QuerySetName=" + queryset + "&Filter=" + eclqueryname
                     + "&FilterType=Name" + "&rawxml_";
 
@@ -2535,7 +2427,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
             return true;
         }
 
-        if (wseclwatchaddress == null || wseclwatchport == null)
+        if (basewseclwatchurl == null)
             return false;
 
         if (querysets.size() == 0)
@@ -2548,7 +2440,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                 System.out.println("Fetching up to " + pageSize + " Stored Procedures' Metadata from QuerySet "
                         + querysets.get(z));
 
-                String urlString = "http://" + wseclwatchaddress + ":" + wseclwatchport
+                String urlString = basewseclwatchurl
                         + "/WsWorkunits/WUQuerysetDetails?QuerySetName=" + querysets.get(z) + "&rawxml_";
 
                 URL querysetURL = new URL(urlString);
@@ -2569,7 +2461,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
 
     private boolean fetchQuerysetsInfo()
     {
-        if (wseclwatchaddress == null || wseclwatchport == null)
+        if (basewseclwatchurl == null)
             return false;
 
         if (querysets.size() > 0)
@@ -2580,8 +2472,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
 
         try
         {
-            String urlString = "http://" + wseclwatchaddress + ":" + wseclwatchport
-                    + "/WsWorkunits/WUQuerysets?rawxml_";
+            String urlString = basewseclwatchurl + "/WsWorkunits/WUQuerysets?rawxml_";
 
             URL cluserInfoURL = new URL(urlString);
             HttpURLConnection clusterInfoConnection = createHPCCESPConnection(cluserInfoURL);
@@ -2610,7 +2501,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
 
     private boolean fetchClusterInfo()
     {
-        if (wseclwatchaddress == null || wseclwatchport == null)
+        if (basewseclwatchurl == null)
             return false;
 
         if (targetclusters.size() > 0)
@@ -2621,7 +2512,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
 
         try
         {
-            String urlString = "http://" + wseclwatchaddress + ":" + wseclwatchport
+            String urlString = basewseclwatchurl
                     + "/WsTopology/TpTargetClusterQuery?Type=ROOT&rawxml_&ShowDetails=0";
 
             URL cluserInfoURL = new URL(urlString);
@@ -2638,9 +2529,10 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                 NodeList clusterElements = clusterList.item(i).getChildNodes();
                 for (int y = 0; y < clusterElements.getLength(); y++)
                 {
-                    if (clusterElements.item(y).getNodeName().equals("Name"))
+                    Node currNode = clusterElements.item(y);
+                    if (currNode.getNodeName().equals("Name"))
                     {
-                        targetclusters.add(clusterElements.item(y).getTextContent());
+                        targetclusters.add(currNode.getTextContent());
                         break;
                     }
                 }
@@ -2657,12 +2549,12 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
 
     private boolean fetchHPCCInfo()
     {
-        if (wseclwatchaddress == null || wseclwatchport == null)
+        if (basewseclwatchurl == null)
             return false;
 
         try
         {
-            String urlString = "http://" + wseclwatchaddress + ":" + wseclwatchport + "/WsSMC/Activity?rawxml_";
+            String urlString = basewseclwatchurl + "/WsSMC/Activity?rawxml_";
 
             URL querysetURL = new URL(urlString);
             HttpURLConnection querysetconnection = createHPCCESPConnection(querysetURL);
@@ -2744,59 +2636,58 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     @Override
     public int getSQLStateType() throws SQLException
     {
-        throw new UnsupportedOperationException("EclDBMetaData: getSQLStateType Not  supported yet.");
+        throw new UnsupportedOperationException("HPCCDBMetaData: getSQLStateType Not  supported yet.");
     }
 
     @Override
     public boolean locatorsUpdateCopy() throws SQLException
     {
-        throw new UnsupportedOperationException("EclDBMetaData: locatorsUpdateCopy Not  supported yet.");
+        throw new UnsupportedOperationException("HPCCDBMetaData: locatorsUpdateCopy Not  supported yet.");
     }
 
     @Override
     public boolean supportsStatementPooling() throws SQLException
     {
-        throw new UnsupportedOperationException("EclDBMetaData: supportsStatementPooling Not  supported yet.");
+        throw new UnsupportedOperationException("HPCCDBMetaData: supportsStatementPooling Not  supported yet.");
     }
 
     @Override
     public RowIdLifetime getRowIdLifetime() throws SQLException
     {
-        throw new UnsupportedOperationException("EclDBMetaData: getRowIdLifetime Not  supported yet.");
+        throw new UnsupportedOperationException("HPCCDBMetaData: getRowIdLifetime Not  supported yet.");
     }
 
     @Override
     public ResultSet getSchemas(String catalog, String schemaPattern) throws SQLException
     {
-        throw new UnsupportedOperationException("EclDBMetaData: getSchemas Not supported yet.");
+        throw new UnsupportedOperationException("HPCCDBMetaData: getSchemas Not supported yet.");
     }
 
     @Override
     public boolean supportsStoredFunctionsUsingCallSyntax() throws SQLException
     {
         throw new UnsupportedOperationException(
-                "EclDBMetaData:  supportsStoredFunctionsUsingCallSyntax Not supported yet.");
+                "HPCCDBMetaData:  supportsStoredFunctionsUsingCallSyntax Not supported yet.");
     }
 
     @Override
     public boolean autoCommitFailureClosesAllResultSets() throws SQLException
     {
         throw new UnsupportedOperationException(
-                "EclDBMetaData: autoCommitFailureClosesAllResultSets Not  supported yet.");
+                "HPCCDBMetaData: autoCommitFailureClosesAllResultSets Not  supported yet.");
     }
 
     @Override
     public ResultSet getClientInfoProperties() throws SQLException
     {
-        // System.out.println("EclDBMetaData: getClientInfoProperties");
-        throw new UnsupportedOperationException("EclDBMetaData: getClientInfoProperties Not  supported yet.");
+        throw new UnsupportedOperationException("HPCCDBMetaData: getClientInfoProperties Not  supported yet.");
     }
 
     @Override
     public ResultSet getFunctions(String catalog, String schemaPattern, String functionNamePattern) throws SQLException
     {
         throw new UnsupportedOperationException(
-                "EclDBMetaData: getFunctions(String catalog, String schemaPattern, String functionNamePattern) Not  supported yet.");
+                "HPCCDBMetaData: getFunctions(String catalog, String schemaPattern, String functionNamePattern) Not  supported yet.");
     }
 
     @Override
@@ -2804,19 +2695,19 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
             String columnNamePattern) throws SQLException
     {
         throw new UnsupportedOperationException(
-                "EclDBMetaData: getFunctionColumns(String catalog, String schemaPattern, String functionNamePattern, String columnNamePattern) Not  supported yet.");
+                "HPCCDBMetaData: getFunctionColumns(String catalog, String schemaPattern, String functionNamePattern, String columnNamePattern) Not  supported yet.");
     }
 
     @Override
     public <T> T unwrap(Class<T> iface) throws SQLException
     {
-        throw new UnsupportedOperationException("EclDBMetaData: unwrap(Class<T> iface) Not  supported yet.");
+        throw new UnsupportedOperationException("HPCCDBMetaData: unwrap(Class<T> iface) Not  supported yet.");
     }
 
     @Override
     public boolean isWrapperFor(Class<?> iface) throws SQLException
     {
-        throw new UnsupportedOperationException("EclDBMetaData: isWrapperFor(Class<?> iface) Not  supported yet.");
+        throw new UnsupportedOperationException("HPCCDBMetaData: isWrapperFor(Class<?> iface) Not  supported yet.");
     }
 
     public String getBasicAuth()
@@ -3024,9 +2915,88 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                         dfufiles.updateSuperFile(hpccfilename);
                 }
             }
+            if (file.isKeyFile() && !file.hasKeyedFieldInfoBeenSet())
+            {
+                getKeyedFieldInfo(file);
+            }
         }
 
         return file;
+    }
+
+    private void getKeyedFieldInfo(DFUFile file)
+    {
+        String openfiledetailUrl;
+        try
+        {
+            openfiledetailUrl = basewseclwatchurl
+                    + "/WsDfu/DFUSearchData?OpenLogicalName="
+                    + URLEncoder.encode(file.getFullyQualifiedName(), "UTF-8") + "&Cluster="
+                    + file.getClusterName() + "&RoxieSelections=0" + "&rawxml_";
+            DocumentBuilder db = dbf.newDocumentBuilder();
+
+            URL queryfiledata = new URL(openfiledetailUrl);
+            HttpURLConnection queryfiledataconnection = createHPCCESPConnection(queryfiledata);
+
+            InputStream filesearchinfo = queryfiledataconnection.getInputStream();
+            Document dom3 = db.parse(filesearchinfo);
+
+            Element docElement2 = dom3.getDocumentElement();
+
+            NodeList keyfiledetail = docElement2.getChildNodes();
+            if (keyfiledetail.getLength() > 0)
+            {
+                for (int k = 0; k < keyfiledetail.getLength(); k++)
+                {
+                    Node currentnode = keyfiledetail.item(k);
+                    if (currentnode.getNodeName().startsWith("DFUDataKeyedColumns"))
+                    {
+                        NodeList keyedColumns = currentnode.getChildNodes();
+                        for (int fieldindex = 0; fieldindex < keyedColumns.getLength(); fieldindex++)
+                        {
+                            Node KeyedColumn = keyedColumns.item(fieldindex);
+                            NodeList KeyedColumnFields = KeyedColumn.getChildNodes();
+                            for (int q = 0; q < KeyedColumnFields.getLength(); q++)
+                            {
+                                Node keyedcolumnfield = KeyedColumnFields.item(q);
+                                if (keyedcolumnfield.getNodeName().equals("ColumnLabel"))
+                                {
+                                    file.addKeyedColumnInOrder(keyedcolumnfield.getTextContent());
+                                    break;
+                                }
+                                // currently not interested in any other
+                                // field, if we need other field values, remove above break;
+                            }
+                        }
+                    }
+                    else if (currentnode.getNodeName().startsWith("DFUDataNonKeyedColumns"))
+                    {
+                        NodeList nonKeyedColumns = currentnode.getChildNodes();
+
+                        for (int fieldindex = 0; fieldindex < nonKeyedColumns.getLength(); fieldindex++)
+                        {
+                            Node nonKeyedColumn = nonKeyedColumns.item(fieldindex);
+                            NodeList nonKeyedColumnFields = nonKeyedColumn.getChildNodes();
+                            for (int q = 0; q < nonKeyedColumnFields.getLength(); q++)
+                            {
+                                Node nonkeyedcolumnfield = nonKeyedColumnFields.item(q);
+                                if (nonkeyedcolumnfield.getNodeName().equals("ColumnLabel"))
+                                {
+                                    file.addNonKeyedColumnInOrder(nonkeyedcolumnfield.getTextContent());
+                                    break;
+                                }
+                                // currently not interested in any other
+                                // field, if we need other field values, remove above break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            System.out.println("Error fetching Index file info: " + file.getFullyQualifiedName());
+        }
     }
 
     protected HttpURLConnection createHPCCESPConnection(URL theurl) throws IOException
@@ -3038,6 +3008,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         conn.setDoOutput(true);
         conn.setDoInput(true);
         conn.setConnectTimeout(connectTimoutMillis);
+        conn.setReadTimeout(readTimoutMillis);
 
         return conn;
     }
