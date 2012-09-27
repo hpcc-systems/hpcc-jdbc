@@ -1,5 +1,7 @@
 package org.hpccsystems.jdbcdriver.tests;
 
+import java.math.BigDecimal;
+import java.sql.Date;
 import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.DriverPropertyInfo;
@@ -11,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
+import org.hpccsystems.jdbcdriver.HPCCColumnMetaData;
 import org.hpccsystems.jdbcdriver.HPCCConnection;
 import org.hpccsystems.jdbcdriver.HPCCDatabaseMetaData;
 import org.hpccsystems.jdbcdriver.HPCCDriver;
@@ -277,7 +280,8 @@ public class HPCCDriverTest
             ResultSetMetaData meta = qrs.getMetaData();
             System.out.println();
 
-            for (int i = 1; i <= meta.getColumnCount(); i++)
+            int colcount = meta.getColumnCount();
+            for (int i = 1; i <= colcount; i++)
             {
                 System.out.print("[*****" + meta.getColumnName(i) + "*****]");
             }
@@ -286,7 +290,7 @@ public class HPCCDriverTest
             while (qrs.next())
             {
                 System.out.println();
-                for (int i = 1; i <= meta.getColumnCount(); i++)
+                for (int i = 1; i <= colcount; i++)
                 {
                     System.out.print("[ " + qrs.getObject(i) + " ]");
                 }
@@ -414,18 +418,18 @@ public class HPCCDriverTest
 
             ResultSetMetaData meta = qrs.getMetaData();
             System.out.println();
-
-            for (int i = 1; i <= meta.getColumnCount(); i++)
+            int colcount = meta.getColumnCount();
+            for (int i = 1; i <= colcount; i++)
             {
                 System.out.print("[*****" + meta.getColumnName(i) + "*****]");
             }
             System.out.println("");
-            for (int i = 1; i <= meta.getColumnCount(); i++)
+            for (int i = 1; i <= colcount; i++)
             {
                 System.out.print("[^^^^^" + meta.getColumnLabel(i) + "^^^^^]");
             }
             System.out.println();
-            for (int i = 1; i <= meta.getColumnCount(); i++)
+            for (int i = 1; i <= colcount; i++)
             {
                 System.out.print("[+++++" + HPCCDatabaseMetaData.convertSQLtype2JavaClassName(meta.getColumnType(i))
                         + "+++++]");
@@ -434,7 +438,7 @@ public class HPCCDriverTest
             while (qrs.next())
             {
                 System.out.println();
-                for (int i = 1; i <= meta.getColumnCount(); i++)
+                for (int i = 1; i <= colcount; i++)
                 {
                     System.out.print("[ " + qrs.getObject(i) + " ]");
                 }
@@ -529,8 +533,8 @@ public class HPCCDriverTest
             ResultSetMetaData meta = resultset.getMetaData();
 
             System.out.println();
-
-            for (int i = 1; i <= meta.getColumnCount(); i++)
+            int colcount = meta.getColumnCount();
+            for (int i = 1; i <= colcount; i++)
             {
                 String colname = meta.getColumnName(i);
                 System.out.print("[");
@@ -546,7 +550,7 @@ public class HPCCDriverTest
             }
             System.out.println("");
 
-            for (int i = 1; i <= meta.getColumnCount(); i++)
+            for (int i = 1; i <= colcount; i++)
             {
                 String collabel = meta.getColumnLabel(i);
                 System.out.print("[");
@@ -562,7 +566,7 @@ public class HPCCDriverTest
             }
             System.out.println();
 
-            for (int i = 1; i <= meta.getColumnCount(); i++)
+            for (int i = 1; i <= colcount; i++)
             {
                 String coltype = HPCCDatabaseMetaData.convertSQLtype2JavaClassName(meta.getColumnType(i));
                 System.out.print("[");
@@ -580,7 +584,7 @@ public class HPCCDriverTest
             while (resultset.next())
             {
                 System.out.println();
-                for (int i = 1; i <= meta.getColumnCount(); i++)
+                for (int i = 1; i <= colcount; i++)
                 {
                     String result = (String) resultset.getObject(i);
                     System.out.print("[");
@@ -771,11 +775,13 @@ public class HPCCDriverTest
                 info.put("WsECLDirectPort", "8008"); //Target HPCC configured to run WsECLDirect on this port
                 info.put("EclResultLimit", "ALL"); //I want all records returned
                 info.put("PageSize", "20"); //GetTables and GetProcs will only return 20 entries
+                info.put("LogDebug", "false");
 
                 infourl = "jdbc:hpcc;ServerAddress=192.168.124.128;TargetCluster=myroxie;EclResultLimit=8";
 
                 // success &= runFullTest(info, infourl);
 
+                //success &= printoutalltablescols(connectViaProps(info));
                 success &= testPrepStatementReuse(info);
 
                 expectedFailure |= testClosePrepStatementUse(info);
@@ -831,6 +837,36 @@ public class HPCCDriverTest
                         info,
                         "select '1a'",
                         params);
+
+                success &= executeFreeHandSQL(
+                        info,
+                        "call 'myroxie::fetchpeoplebyzipservice'(33445)",
+                        params);
+
+                expectedFailure |= executeFreeHandSQL(
+                        info,
+                        "call 'myroxie::fetchpeoplebyzipservice(33445)'",
+                        params);
+
+                success &= executeFreeHandSQL(
+                        info,
+                        "call \"myroxie::fetchpeoplebyzipservice\"(33445)",
+                        params);
+
+                success &= executeFreeHandSQL(
+                        info,
+                        "select * from 'tutorial::rp::tutorialperson' persons  limit 100",
+                        params);
+                success &= executeFreeHandSQL(
+                        info,
+                        "select * from \"tutorial::rp::tutorialperson\" persons limit 100",
+                        params);
+
+                expectedFailure |= executeFreeHandSQL(
+                        info,
+                        "select * from \"\" persons",
+                        params);
+
 
                 success &= executeFreeHandSQL(
                         info,
@@ -1019,7 +1055,10 @@ public class HPCCDriverTest
                         else
                         {
                             info.put(propsplit[0], propsplit[1]);
-                            System.out.println("added prop: " + propsplit[0] + " = " + propsplit[1]);
+                            if (!propsplit[0].equalsIgnoreCase("password"))
+                                System.out.println("added prop: " + propsplit[0] + " = " + propsplit[1]);
+                            else
+                                System.out.println("added prop: password");
                         }
                     }
                     else

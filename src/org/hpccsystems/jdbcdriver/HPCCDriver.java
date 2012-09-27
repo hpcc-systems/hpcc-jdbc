@@ -66,6 +66,8 @@ public class HPCCDriver implements Driver
 
     public Connection connect(String url, Properties info) throws SQLException
     {
+        HPCCJDBCUtils.traceoutln("HPCCConntion jdbc url: " + url);
+
         Properties connprops = new Properties();
 
         if (info != null && info.size() > 0)
@@ -193,6 +195,9 @@ public class HPCCDriver implements Driver
 
             if (!connprops.containsKey("LazyLoad"))
                 connprops.setProperty("LazyLoad", LAZYLOADDEFAULT);
+
+            if (connprops.containsKey("LogDebug") && Boolean.parseBoolean(connprops.getProperty("LogDebug")))
+                HPCCJDBCUtils.enableTraceLogging();
         }
         catch (Exception e)
         {
@@ -211,7 +216,7 @@ public class HPCCDriver implements Driver
 
     private static void initializePropInfo()
     {
-        infoArray = new DriverPropertyInfo[17];
+        infoArray = new DriverPropertyInfo[18];
 
         infoArray[0] = new DriverPropertyInfo("ServerAddress", "myHPCCAddress");
         infoArray[0].description = "Target HPCC ESP Address (used to contact WsECLWatch, WsECLDirect, or WsECL if override not specified).";
@@ -278,10 +283,15 @@ public class HPCCDriver implements Driver
         infoArray[15].required = false;
 
         infoArray[16] = new DriverPropertyInfo("LazyLoad", LAZYLOADDEFAULT);
-        String [] choices = {"true", "false"};
-        infoArray[16].choices = choices;
+        String [] boolchoices = {"true", "false"};
+        infoArray[16].choices = boolchoices;
         infoArray[16].description = "If disabled, all HPCC metada loaded and cached at connect time, otherwise HPCC file, and published query info is loaded on-demand.";
         infoArray[16].required = false;
+
+        infoArray[17] = new DriverPropertyInfo("LogDebug", "false");
+        infoArray[17].choices = boolchoices;
+        infoArray[17].description = "Trace logging switch.";
+        infoArray[17].required = false;
     }
 
     public DriverPropertyInfo[] getPropertyInfo(String url, Properties info) throws SQLException

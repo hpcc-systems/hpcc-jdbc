@@ -239,7 +239,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     private int registerFileDetails(Element node, DFUFile file)
     {
         if (file.isSuperFile())
-            System.out.println("Found super file: " + file.getFullyQualifiedName());
+            HPCCJDBCUtils.traceoutln("Found super file: " + file.getFullyQualifiedName());
 
         NodeList fileDetail = node.getElementsByTagName("FileDetail");
 
@@ -1422,7 +1422,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
          * created. Values are "SYSTEM", "USER", "DERIVED". (may be null)
          */
 
-        System.out.println("HPCCDATABASEMETADATA GETTABLES catalog: " + catalog + ", schemaPattern: " + schemaPattern
+        HPCCJDBCUtils.traceoutln("HPCCDATABASEMETADATA GETTABLES catalog: " + catalog + ", schemaPattern: " + schemaPattern
                 + ", tableNamePattern: " + tableNamePattern);
 
         boolean alltablesearch = tableNamePattern == null || tableNamePattern.length() == 0
@@ -1493,7 +1493,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         if (!isDFUMetaDataCached())
             setDFUMetaDataCached(fetchHPCCFilesInfo());
 
-        System.out.println("HPCCDATABASEMETADATA GETSCHEMAS");
+        HPCCJDBCUtils.traceoutln("HPCCDATABASEMETADATA GETSCHEMAS");
 
         List<List<String>> tables = new ArrayList<List<String>>();
         ArrayList<HPCCColumnMetaData> metacols = new ArrayList<HPCCColumnMetaData>();
@@ -1519,7 +1519,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     @Override
     public ResultSet getCatalogs() throws SQLException
     {
-        System.out.println("HPCCDATABASEMETADATA getCatalogs");
+        HPCCJDBCUtils.traceoutln("HPCCDATABASEMETADATA getCatalogs");
 
         List<List<String>> catalogs = new ArrayList<List<String>>();
         ArrayList<HPCCColumnMetaData> metacols = new ArrayList<HPCCColumnMetaData>();
@@ -1536,7 +1536,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     @Override
     public ResultSet getTableTypes() throws SQLException
     {
-        System.out.println("HPCCDATABASEMETADATA getTableTypes");
+        HPCCJDBCUtils.traceoutln("HPCCDATABASEMETADATA getTableTypes");
 
         List<List<String>> tabletypes = new ArrayList<List<String>>();
         ArrayList<HPCCColumnMetaData> metacols = new ArrayList<HPCCColumnMetaData>();
@@ -1564,7 +1564,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public ResultSet getColumns(String catalog, String schemaPattern, String tableNamePattern, String columnNamePattern)
             throws SQLException
     {
-        System.out.println("HPCCDATABASEMETADATA GETCOLUMNS catalog: " + catalog + ", schemaPattern: " + schemaPattern
+        HPCCJDBCUtils.traceoutln("HPCCDATABASEMETADATA GETCOLUMNS catalog: " + catalog + ", schemaPattern: " + schemaPattern
                 + ", tableNamePattern: " + tableNamePattern + ", columnNamePattern: " + columnNamePattern);
 
         boolean allfieldsearch = columnNamePattern == null || columnNamePattern.length() == 0
@@ -1613,7 +1613,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                 int coltype = java.sql.Types.NULL;
                 coltype = field.getSqlType();
 
-                System.out.println("Table col found: " + file.getFileName() + "." + fieldname + " of type: " + coltype
+                HPCCJDBCUtils.traceoutln("Table col found: " + file.getFileName() + "." + fieldname + " of type: " + coltype
                         + "(" + convertSQLtype2JavaClassName(coltype) + ")");
 
                 ArrayList rowValues = new ArrayList();
@@ -1680,7 +1680,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     @Override
     public ResultSet getPrimaryKeys(String catalog, String schema, String table) throws SQLException
     {
-        System.out.println("HPCCDATABASEMETADATA getPrimaryKeys catalog: " + catalog + ", schema: " + schema + ", table: " + table);
+        HPCCJDBCUtils.traceoutln("HPCCDATABASEMETADATA getPrimaryKeys catalog: " + catalog + ", schema: " + schema + ", table: " + table);
 
         List<List<String>> importedkeys = new ArrayList<List<String>>();
         ArrayList<HPCCColumnMetaData> metacols = new ArrayList<HPCCColumnMetaData>();
@@ -1699,7 +1699,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public ResultSet getImportedKeys(String catalog, String schema, String table) throws SQLException
     {
 
-        System.out.println("HPCCDATABASEMETADATA getImportedKeys catalog: " + catalog + ", schema: " + schema  + ", table: " + table);
+        HPCCJDBCUtils.traceoutln("HPCCDATABASEMETADATA getImportedKeys catalog: " + catalog + ", schema: " + schema  + ", table: " + table);
 
         List<List<String>> importedkeys = new ArrayList<List<String>>();
         ArrayList<HPCCColumnMetaData> metacols = new ArrayList<HPCCColumnMetaData>();
@@ -1725,7 +1725,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     @Override
     public ResultSet getExportedKeys(String catalog, String schema, String table) throws SQLException
     {
-        System.out.println("HPCCDATABASEMETADATA getExportedKeys catalog: " + catalog + ", schema: " + schema + ", table: " + table);
+        HPCCJDBCUtils.traceoutln("HPCCDATABASEMETADATA getExportedKeys catalog: " + catalog + ", schema: " + schema + ", table: " + table);
 
         List<List<String>> exportedkeys = new ArrayList<List<String>>();
         ArrayList<HPCCColumnMetaData> metacols = new ArrayList<HPCCColumnMetaData>();
@@ -1758,8 +1758,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     @Override
     public ResultSet getTypeInfo() throws SQLException
     {
-
-        System.out.println("HPCCDATABASEMETADATA GETTYPEINFO");
+        HPCCJDBCUtils.traceoutln("HPCCDATABASEMETADATA GETTYPEINFO");
 
         List<List<String>> types = new ArrayList<List<String>>();
         ArrayList<HPCCColumnMetaData> metacols = new ArrayList<HPCCColumnMetaData>();
@@ -1771,10 +1770,6 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         metacols.add(new HPCCColumnMetaData("LITERAL_SUFFIX", 5, java.sql.Types.VARCHAR));// suffix used to quote a literal (may be null)
         metacols.add(new HPCCColumnMetaData("CREATE_PARAMS", 6, java.sql.Types.VARCHAR));// parameters  used  in  creating the  type (may be null)
         metacols.add(new HPCCColumnMetaData("NULLABLE", 7, java.sql.Types.SMALLINT));// can you use NULL for this type.
-                                                                                     // typeNoNulls -  does not allow NULL values
-                                                                                     // typeNullable  - allows NUL values
-                                                                                     // typeNullableUnknown  - nullability
-                                                                                     // unknown
         metacols.add(new HPCCColumnMetaData("CASE_SENSITIVE", 8, java.sql.Types.BOOLEAN));
         metacols.add(new HPCCColumnMetaData("SEARCHABLE", 9, java.sql.Types.SMALLINT));
         metacols.add(new HPCCColumnMetaData("UNSIGNED_ATTRIBUTE", 10, java.sql.Types.BOOLEAN));
@@ -1913,7 +1908,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
          * Note: If the driver does not support UDTs, an empty result set is
          * returned.
          */
-        System.out.println("HPCCDATABASEMETADATA GETTYPEINFO");
+        HPCCJDBCUtils.traceoutln("HPCCDATABASEMETADATA GETTYPEINFO");
 
         List<List<String>> udts = new ArrayList<List<String>>();
         ArrayList<HPCCColumnMetaData> metacols = new ArrayList<HPCCColumnMetaData>();
@@ -2043,7 +2038,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                 dfufiles.putFile(file.getFullyQualifiedName(), file);
             }
             else
-                System.out.println("Not fetching info for: " + file.getFullyQualifiedName());
+                HPCCJDBCUtils.traceoutln("Not fetching info for HPCC file: " + file.getFullyQualifiedName());
         }
         catch (Exception e)
         {
@@ -2215,6 +2210,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
             URL dfuLogicalFilesURL = new URL(urlString);
             HttpURLConnection dfulogfilesConn = createHPCCESPConnection(dfuLogicalFilesURL);
 
+            System.out.println("Fetching file information: " + urlString);
             isSuccess = parseDFULogicalFiles(dfulogfilesConn.getInputStream(), false) > 0 ? true : false;
         }
         catch (SocketTimeoutException e)
@@ -2362,16 +2358,6 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                     // Add this query name to queries structure
                     eclqueries.put(query);
                     hpccQueryParsedCount++;
-                }
-                catch (java.util.NoSuchElementException e)
-                {
-                    System.out.println("Could not retreive Query info for: " + query.getName()
-                            + "(" + query.getWUID() + ")");
-                }
-                catch (SAXException e)
-                {
-                    System.out.println("Could not retreive Query info for: " + query.getName()
-                            + "(" + query.getWUID()+ ")");
                 }
                 catch (Exception e)
                 {
