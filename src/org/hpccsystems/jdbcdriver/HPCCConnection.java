@@ -124,7 +124,7 @@ public class HPCCConnection implements Connection
 
     public void setAutoCommit(boolean autoCommit) throws SQLException
     {
-        throw new UnsupportedOperationException("EclConnection: setAutoCommit(boolean autoCommit) Not supported yet.");
+        System.out.println("EclConnection: setAutoCommit(boolean autoCommit) Not supported yet.");
     }
 
     public boolean getAutoCommit() throws SQLException

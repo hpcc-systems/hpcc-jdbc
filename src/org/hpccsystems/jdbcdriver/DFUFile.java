@@ -63,6 +63,7 @@ public class DFUFile
     private List<String>        subFiles = null;
     private String              IdxFilePosField = null;
     private boolean             HasPayLoad = false;
+    private boolean             hasKeyedFieldInfoBeenSet = false;
 
     private final static String RELATEDINDEXKEYWORD = "XDBC:RelIndexes";
     private final static Pattern RELINDEXPATTERN = Pattern.compile(
@@ -452,8 +453,7 @@ public class DFUFile
             }
             catch (Exception e)
             {
-                System.out.println("Invalid ECL Record definition found in " + this.getFullyQualifiedName()
-                        + " details.");
+                System.out.println("Invalid ECL Record definition found in " + this.getFullyQualifiedName()                        + " details.");
                 return;
             }
         }
@@ -566,11 +566,13 @@ public class DFUFile
 
     public void setKeyedColumns(Properties KeyFields)
     {
+        hasKeyedFieldInfoBeenSet = true;
         KeyedColumns = KeyFields;
     }
 
     public void setNonKeyedColumns(Properties NonKeyFields)
     {
+        hasKeyedFieldInfoBeenSet = true;
         NonKeyedColumns = NonKeyFields;
         if (NonKeyFields != null && NonKeyFields.size() > 0)
             HasPayLoad = true;
@@ -578,6 +580,7 @@ public class DFUFile
 
     public void addKeyedColumnInOrder(String KeyLabel)
     {
+        hasKeyedFieldInfoBeenSet = true;
         KeyedColumns.put(KeyedColumns.size() + 1, KeyLabel);
     }
 
@@ -589,6 +592,7 @@ public class DFUFile
 
     public void addNonKeyedColumnInOrder(String KeyLabel)
     {
+        hasKeyedFieldInfoBeenSet = true;
         if (KeyLabel.startsWith("__internal_fpos__"))
         {
             // IndexPositionField = KeyLabel;
@@ -599,6 +603,7 @@ public class DFUFile
 
     public void addNonKeyedColumn(int NonKeyIndex, String NonKeyLabel)
     {
+        hasKeyedFieldInfoBeenSet = true;
         if (!NonKeyedColumns.containsKey(NonKeyIndex))
         {
             NonKeyedColumns.put(NonKeyIndex, NonKeyLabel);
@@ -843,5 +848,10 @@ public class DFUFile
         }
 
         return isSuccess;
+    }
+
+    public boolean hasKeyedFieldInfoBeenSet()
+    {
+        return hasKeyedFieldInfoBeenSet;
     }
 }

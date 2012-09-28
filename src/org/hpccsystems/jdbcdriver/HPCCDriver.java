@@ -23,6 +23,7 @@ import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.DriverPropertyInfo;
 import java.sql.SQLException;
+import java.util.Enumeration;
 import java.util.Properties;
 import java.util.StringTokenizer;
 
@@ -36,8 +37,10 @@ public class HPCCDriver implements Driver
     public static final String   WSECLPORTDEFAULT         = "8002";
     public static final String   WSECLDIRECTPORTDEFAULT   = "8010";
     public static final String   FETCHPAGESIZEDEFAULT     = "100";
+    public static final String   FETCHPAGEOFFSETDEFAULT   = "0";
     public static final String   LAZYLOADDEFAULT          = "true";
-    public static final String   CONNECTTIMEOUTMILDEFAULT = "10000";
+    public static final String   CONNECTTIMEOUTMILDEFAULT = "5000";
+    public static final String   READTIMEOUTMILDEFAULT    = "15000";
     public static final String   JDBCURLPROTOCOL          = "jdbc:hpcc";
 
     private static DriverPropertyInfo[] infoArray;
@@ -87,8 +90,7 @@ public class HPCCDriver implements Driver
                             if (!connprops.containsKey(key))
                                 connprops.put(key, value);
                             else
-                                System.out.println("Connection property: " + key
-                                        + " found in info properties and URL, ignoring URL value");
+                                System.out.println("Connection property: " + key + " found in info properties and URL, ignoring URL value");
                         }
                     }
                 }
@@ -130,6 +132,9 @@ public class HPCCDriver implements Driver
             if (!connprops.containsKey("WsECLDirectPort"))
                 connprops.setProperty("WsECLDirectPort", WSECLDIRECTPORTDEFAULT);
 
+            if (connprops.containsKey("user"))
+                connprops.setProperty("username", connprops.getProperty("user"));
+
             if (!connprops.containsKey("username"))
                 connprops.setProperty("username", "");
 
@@ -139,9 +144,16 @@ public class HPCCDriver implements Driver
             if (!connprops.containsKey("PageSize") || !HPCCJDBCUtils.isNumeric(connprops.getProperty("PageSize")))
                 connprops.setProperty("PageSize", String.valueOf(FETCHPAGESIZEDEFAULT));
 
+            if (!connprops.containsKey("PageOffset") || !HPCCJDBCUtils.isNumeric(connprops.getProperty("PageOffset")))
+                connprops.setProperty("PageOffset", String.valueOf(FETCHPAGEOFFSETDEFAULT));
+
             if (!connprops.containsKey("ConnectTimeoutMilli")
                     || !HPCCJDBCUtils.isNumeric(connprops.getProperty("ConnectTimeoutMilli")))
                 connprops.setProperty("ConnectTimeoutMilli", String.valueOf(CONNECTTIMEOUTMILDEFAULT));
+
+            if (!connprops.containsKey("ReadTimeoutMilli")
+                    || !HPCCJDBCUtils.isNumeric(connprops.getProperty("ReadTimeoutMilli")))
+                connprops.setProperty("ReadTimeoutMilli", String.valueOf(READTIMEOUTMILDEFAULT));
 
             boolean setdefaultreslim = false;
             if (connprops.containsKey("EclResultLimit"))
@@ -187,7 +199,7 @@ public class HPCCDriver implements Driver
             System.out.println("Issue detected while setting connection properties!");
         }
 
-        System.out.println("EclDriver::connect" + connprops.getProperty("ServerAddress"));
+        System.out.println("HPCCDriver::connect" + connprops.getProperty("ServerAddress"));
 
         return new HPCCConnection(connprops);
     }
@@ -199,7 +211,7 @@ public class HPCCDriver implements Driver
 
     private static void initializePropInfo()
     {
-        infoArray = new DriverPropertyInfo[15];
+        infoArray = new DriverPropertyInfo[17];
 
         infoArray[0] = new DriverPropertyInfo("ServerAddress", "myHPCCAddress");
         infoArray[0].description = "Target HPCC ESP Address (used to contact WsECLWatch, WsECLDirect, or WsECL if override not specified).";
@@ -249,19 +261,27 @@ public class HPCCDriver implements Driver
         infoArray[11].description = "Number of HPCC data files (DB tables) or HPCC published queries (DB Stored Procs) displayed.";
         infoArray[11].required = false;
 
-        infoArray[12] = new DriverPropertyInfo("ConnectTimeoutMilli", CONNECTTIMEOUTMILDEFAULT);
-        infoArray[12].description = "Connection time out value in milliseconds.";
+        infoArray[12] = new DriverPropertyInfo("PageOffset", FETCHPAGEOFFSETDEFAULT);
+        infoArray[12].description = "Starting HPCC data file or HPCC published queries displayed.";
         infoArray[12].required = false;
 
-        infoArray[13] = new DriverPropertyInfo("EclResultLimit", ECLRESULTLIMDEFAULT);
-        infoArray[13].description = "Default limit on number of result records returned.";
+        infoArray[13] = new DriverPropertyInfo("ConnectTimeoutMilli", CONNECTTIMEOUTMILDEFAULT);
+        infoArray[13].description = "HPCC requests connection time out value in milliseconds.";
         infoArray[13].required = false;
 
-        infoArray[14] = new DriverPropertyInfo("LazyLoad", LAZYLOADDEFAULT);
-        String [] choices = {"true", "false"};
-        infoArray[14].choices = choices;
-        infoArray[14].description = "If disabled, all HPCC metada loaded and cached at connect time, otherwise HPCC file, and published query info is loaded on-demand.";
+        infoArray[14] = new DriverPropertyInfo("ReadTimeoutMilli", READTIMEOUTMILDEFAULT);
+        infoArray[14].description = "HPCC requests connection read time out value in milliseconds.";
         infoArray[14].required = false;
+
+        infoArray[15] = new DriverPropertyInfo("EclResultLimit", ECLRESULTLIMDEFAULT);
+        infoArray[15].description = "Default limit on number of result records returned.";
+        infoArray[15].required = false;
+
+        infoArray[16] = new DriverPropertyInfo("LazyLoad", LAZYLOADDEFAULT);
+        String [] choices = {"true", "false"};
+        infoArray[16].choices = choices;
+        infoArray[16].description = "If disabled, all HPCC metada loaded and cached at connect time, otherwise HPCC file, and published query info is loaded on-demand.";
+        infoArray[16].required = false;
     }
 
     public DriverPropertyInfo[] getPropertyInfo(String url, Properties info) throws SQLException

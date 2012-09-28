@@ -18,9 +18,15 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package org.hpccsystems.jdbcdriver;
 
+import java.lang.reflect.Field;
 import java.text.NumberFormat;
 import java.text.ParseException;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
+import java.util.StringTokenizer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class HPCCJDBCUtils
 {
@@ -260,5 +266,31 @@ public class HPCCJDBCUtils
     public static boolean isParameterizedStr(String value)
     {
         return  (value.contains("${") || value.equals("?"));
+    }
+
+    private static Map<Integer, String> SQLFieldMapping = new HashMap<Integer, String>();;
+
+    static
+    {
+        Field[] fields = java.sql.Types.class.getFields();
+
+        for (int i = 0; i < fields.length; i++)
+        {
+            try
+            {
+                String name = fields[i].getName();
+                Integer value = (Integer) fields[i].get(null);
+                SQLFieldMapping.put(value, name);
+            }
+            catch (IllegalAccessException e) {}
+        }
+    }
+
+    public static String getSQLTypeName(Integer sqltypecode) throws Exception
+    {
+        if (SQLFieldMapping.size() <= 0)
+            throw new Exception("java.sql.Types.class.getFields were not feched, cannot get SQL Type name");
+
+        return SQLFieldMapping.get(sqltypecode);
     }
 }
