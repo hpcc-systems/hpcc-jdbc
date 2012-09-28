@@ -321,13 +321,13 @@ public class HPCCConnection implements Connection
 
     public void setClientInfo(String name, String value) throws SQLClientInfoException
     {
-        HPCCJDBCUtils.traceoutln("HPCCCONNECTION SETCLIENTINFO");
+        HPCCJDBCUtils.traceoutln("HPCCCONNECTION SETCLIENTINFO(" + name + ", " + value + ")");
         clientInfo.put(name, value);
     }
 
     public void setClientInfo(Properties properties) throws SQLClientInfoException
     {
-        HPCCJDBCUtils.traceoutln("HPCCCONNECTION SETCLIENTINFO");
+        HPCCJDBCUtils.traceoutln("HPCCCONNECTION SETCLIENTINFO (properties)");
         clientInfo = properties;
     }
 

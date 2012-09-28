@@ -2210,7 +2210,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
             URL dfuLogicalFilesURL = new URL(urlString);
             HttpURLConnection dfulogfilesConn = createHPCCESPConnection(dfuLogicalFilesURL);
 
-            System.out.println("Fetching file information: " + urlString);
+            HPCCJDBCUtils.traceoutln("Fetching file information: " + urlString);
             isSuccess = parseDFULogicalFiles(dfulogfilesConn.getInputStream(), false) > 0 ? true : false;
         }
         catch (SocketTimeoutException e)

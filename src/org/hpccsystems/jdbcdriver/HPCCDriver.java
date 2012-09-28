@@ -66,7 +66,7 @@ public class HPCCDriver implements Driver
 
     public Connection connect(String url, Properties info) throws SQLException
     {
-        HPCCJDBCUtils.traceoutln("HPCCConntion jdbc url: " + url);
+        HPCCJDBCUtils.traceoutln("HPCCConnection jdbc url: " + url);
 
         Properties connprops = new Properties();
 
@@ -285,7 +285,7 @@ public class HPCCDriver implements Driver
         infoArray[16] = new DriverPropertyInfo("LazyLoad", LAZYLOADDEFAULT);
         String [] boolchoices = {"true", "false"};
         infoArray[16].choices = boolchoices;
-        infoArray[16].description = "If disabled, all HPCC metada loaded and cached at connect time, otherwise HPCC file, and published query info is loaded on-demand.";
+        infoArray[16].description = "If disabled, all HPCC metadata is loaded and cached at connect time, otherwise HPCC file & published query info is loaded on-demand.";
         infoArray[16].required = false;
 
         infoArray[17] = new DriverPropertyInfo("LogDebug", "false");
