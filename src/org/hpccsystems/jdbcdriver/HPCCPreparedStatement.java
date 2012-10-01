@@ -39,9 +39,10 @@ import java.sql.SQLWarning;
 import java.sql.SQLXML;
 import java.sql.Time;
 import java.sql.Timestamp;
-import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
+
+import org.w3c.dom.NodeList;
 
 /**
  *
@@ -57,6 +58,7 @@ public class HPCCPreparedStatement implements PreparedStatement
     private HashMap<Integer, Object> parameters    = new HashMap<Integer, Object>();
     private SQLWarning               warnings;
     private HPCCResultSet            result        = null;
+    private HPCCResultSetMetadata    resultMetadata = null;
 
     private HPCCDatabaseMetaData                dbMetadata;
     private ECLEngine                           eclQuery = null;
@@ -88,6 +90,7 @@ public class HPCCPreparedStatement implements PreparedStatement
                 eclQuery = new ECLEngine(parser, dbMetadata, hpccConnection.getProperties());
 
                 eclQuery.generateECL();
+                resultMetadata = new HPCCResultSetMetadata(eclQuery.getExpectedRetCols(), "HPCC Result");
             }
             else
                 throw new SQLException("HPCCPreparedStatement closed, cannot execute query");
@@ -120,20 +123,17 @@ public class HPCCPreparedStatement implements PreparedStatement
 
                     if (warnings != null)
                     {
-                        SQLException  w = warnings.getNextException();
-                        if(w != null)
-                        {
-                            message += "\n\t";
-                            message += w.getLocalizedMessage();
-                        }
+                        SQLException  we = warnings.getNextException();
+                        if(we != null)
+                            message += "\n\t" + we.getLocalizedMessage();
                     }
                     throw new SQLException(message);
                 }
 
-                ArrayList dsList = eclQuery.execute(parameters);
+                NodeList rowList = eclQuery.execute(parameters);
 
-                if (dsList != null)
-                    result = new HPCCResultSet(this, dsList, eclQuery.getExpectedRetCols(), "HPCC Result");
+                if (rowList != null)
+                    result = new HPCCResultSet(this, rowList, resultMetadata);
             }
             else
                 throw new SQLException("HPCCPreparedStatement closed, cannot execute query");
