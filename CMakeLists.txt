@@ -3,6 +3,12 @@ project(jdbcdriver Java)
 
 include(version.cmake)
 
+    OPTION(MAKE_TEST_PACKAGE "Create test package." OFF)
+
+    IF ( MAKE_TEST_PACKAGE )
+        SET ( MAKE_TEST_PACKAGE ON )
+    ENDIF()
+
     SET ( PRODUCT_PREFIX "hpccsystems" )
     SET ( HPCC_JDBC_PAC_PATH org/hpccsystems/jdbcdriver)
     SET ( HPCC_JDBC_REL_PATH src/${HPCC_JDBC_PAC_PATH})
