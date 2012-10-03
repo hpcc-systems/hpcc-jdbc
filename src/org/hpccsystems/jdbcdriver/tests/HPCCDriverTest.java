@@ -11,8 +11,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
-import javax.management.RuntimeErrorException;
-
 import org.hpccsystems.jdbcdriver.HPCCConnection;
 import org.hpccsystems.jdbcdriver.HPCCDatabaseMetaData;
 import org.hpccsystems.jdbcdriver.HPCCDriver;
@@ -42,7 +40,6 @@ public class HPCCDriverTest
         }
     }
 
-    @SuppressWarnings("unused")
     private static boolean testLazyLoading(Properties conninfo)
     {
         boolean success = true;
@@ -670,66 +667,6 @@ public class HPCCDriverTest
         return success;
     }
 
-    private static boolean runParralellStmtReuseTest(Properties propsinfo)
-    {
-        List<HPCCDriverPrepStmtReuseThread> runnables = new ArrayList<HPCCDriverPrepStmtReuseThread>();
-
-        boolean success = true;
-        try
-        {
-            HPCCConnection connectionprops = connectViaProps(propsinfo);
-            if (connectionprops == null)
-                throw new Exception("Could not connect with properties object");
-
-            HPCCPreparedStatement p = (HPCCPreparedStatement)createPrepStatement(connectionprops,
-                    "select * from tutorial::rp::tutorialperson persons where zip= ? limit 100");
-
-            Properties params = new Properties();
-            params.put("1", "'90210'");
-            HPCCDriverPrepStmtReuseThread workThread1 = new HPCCDriverPrepStmtReuseThread(p, params);
-            runnables.add(workThread1);
-
-            Properties params2 = new Properties();
-            params2.put("1", "'33445'");
-            HPCCDriverPrepStmtReuseThread workThread2 = new HPCCDriverPrepStmtReuseThread(p, params2);
-            runnables.add(workThread2);
-
-            Properties params3 = new Properties();
-            params3.put("1", "'33487'");
-            HPCCDriverPrepStmtReuseThread workThread3 = new HPCCDriverPrepStmtReuseThread(p, params3);
-            runnables.add(workThread3);
-
-            for (HPCCDriverPrepStmtReuseThread thrd : runnables)
-            {
-                thrd.start();
-            }
-
-            boolean threadsrunning;
-            do
-            {
-                threadsrunning = false;
-                for (HPCCDriverPrepStmtReuseThread thrd : runnables)
-                {
-                    threadsrunning = thrd.isRunning() || threadsrunning;
-                }
-                Thread.sleep(250);
-            } while (threadsrunning);
-
-            for (HPCCDriverPrepStmtReuseThread thrd : runnables)
-            {
-                success &= thrd.isSuccess();
-            }
-
-        }
-        catch (Exception e)
-        {
-            e.printStackTrace();
-            System.out.println(e.getMessage());
-            success = false;
-        }
-        return success;
-    }
-
     private static boolean runFullTest(Properties propsinfo)
     {
 
@@ -778,8 +715,6 @@ public class HPCCDriverTest
                 throw new RuntimeException("testClosePrepStatementUse passed");
             if (testPrepStatementReuseBadQuery(propsinfo)) 
                 throw new RuntimeException("testPrepStatementReuseBadQuery passed");
-            if (! runParralellStmtReuseTest(propsinfo) ) 
-                throw new RuntimeException("Parrallel PrepStmt reuse test failed.");
             if (! runParralellTest(connectionprops) ) 
                 throw new RuntimeException("Parrallel Connection reuse test failed");
 

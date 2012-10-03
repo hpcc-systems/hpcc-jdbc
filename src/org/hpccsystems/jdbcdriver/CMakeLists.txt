@@ -5,7 +5,7 @@ SET (TEST_PACKAGE_LOCATION tests)
 SET (TEST_PACKAGE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/${TEST_PACKAGE_LOCATION})
 
 #Dynamically generate java class with build-time version information
-CONFIGURE_FILE("HPCCVersionTracker.java.in" "${HPCC_ECLJDBC_SOURCE_DIR}/HPCCVersionTracker.java")
+CONFIGURE_FILE("HPCCVersionTracker.java.in" "${CMAKE_CURRENT_SOURCE_DIR}/HPCCVersionTracker.java")
 
 #Setup the jar file name
 SET (JAR_FILE "${PRODUCT_PREFIX}-${PROJECT_NAME}-${HPCC_MAJOR}.${HPCC_MINOR}.${HPCC_POINT}${HPCC_MATURITY}")
