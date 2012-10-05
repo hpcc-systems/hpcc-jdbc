@@ -64,7 +64,7 @@ public class HPCCPreparedStatement implements PreparedStatement
 
     public HPCCPreparedStatement(Connection connection, String query)
     {
-        System.out.println("ECLPreparedStatement::ECLPreparedStatement: " + query);
+        HPCCJDBCUtils.traceoutln("HPCCPreparedStatement Constructor: Sqlquery: " + query);
         this.sqlQuery = query;
         this.hpccConnection = (HPCCConnection)connection;
         this.dbMetadata = hpccConnection.getDatabaseMetaData();
@@ -77,6 +77,7 @@ public class HPCCPreparedStatement implements PreparedStatement
     {
         try
         {
+            HPCCJDBCUtils.traceoutln("Attempting to process sql query: " + sqlQuery); 
             if (!this.closed)
             {
                 if (parser != null)
@@ -105,6 +106,8 @@ public class HPCCPreparedStatement implements PreparedStatement
 
     public ResultSet executeQuery() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln("HPCCPreparedStatement:executeQuery()");
+        HPCCJDBCUtils.traceoutln("Attempting to process sql query: " + sqlQuery);
         result = null;
 
         try
@@ -153,7 +156,7 @@ public class HPCCPreparedStatement implements PreparedStatement
 
     public int executeUpdate() throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT: executeUpdate Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT: executeUpdate Not supported yet.");
     }
 
     public void setNull(int parameterIndex, int sqlType) throws SQLException
@@ -228,17 +231,17 @@ public class HPCCPreparedStatement implements PreparedStatement
 
     public void setAsciiStream(int parameterIndex, InputStream x, int length) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT: setAsciiStream Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT: setAsciiStream Not supported yet.");
     }
 
     public void setUnicodeStream(int parameterIndex, InputStream x, int length) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT: setUnicodeStream Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT: setUnicodeStream Not supported yet.");
     }
 
     public void setBinaryStream(int parameterIndex, InputStream x, int length) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT: setBinaryStream Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT: setBinaryStream Not supported yet.");
     }
 
     public void clearParameters() throws SQLException
@@ -258,17 +261,19 @@ public class HPCCPreparedStatement implements PreparedStatement
 
     public boolean execute() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln("HPCCPreparedStatement:execute()");
+        HPCCJDBCUtils.traceoutln("Attempting to process sql query: " + sqlQuery);
         return executeQuery() != null;
     }
 
     public void addBatch() throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT: addBatch Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT: addBatch Not supported yet.");
     }
 
     public void setCharacterStream(int parameterIndex, Reader reader, int length) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:setCharacterStream Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:setCharacterStream Not supported yet.");
     }
 
     public void setRef(int parameterIndex, Ref x) throws SQLException
@@ -298,22 +303,22 @@ public class HPCCPreparedStatement implements PreparedStatement
 
     public void setDate(int parameterIndex, Date x, Calendar cal) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:setDate Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:setDate Not supported yet.");
     }
 
     public void setTime(int parameterIndex, Time x, Calendar cal) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:setTime Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:setTime Not supported yet.");
     }
 
     public void setTimestamp(int parameterIndex, Timestamp x, Calendar cal) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:setTimestamp Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:setTimestamp Not supported yet.");
     }
 
     public void setNull(int parameterIndex, int sqlType, String typeName) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:setNull Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:setNull Not supported yet.");
     }
 
     public void setURL(int parameterIndex, URL x) throws SQLException
@@ -323,13 +328,13 @@ public class HPCCPreparedStatement implements PreparedStatement
 
     public ParameterMetaData getParameterMetaData() throws SQLException
     {
-        System.out.println("ECLPREPSTATEMENT getParameterMetaData");
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:getParameterMetaData Not supported yet.");
+        HPCCJDBCUtils.traceoutln("HPCCPREPSTATEMENT getParameterMetaData");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:getParameterMetaData Not supported yet.");
     }
 
     public void setRowId(int parameterIndex, RowId x) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:setRowId Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:setRowId Not supported yet.");
     }
 
     public void setNString(int parameterIndex, String value) throws SQLException
@@ -339,7 +344,7 @@ public class HPCCPreparedStatement implements PreparedStatement
 
     public void setNCharacterStream(int parameterIndex, Reader value, long length) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:setNCharacterStream Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:setNCharacterStream Not supported yet.");
     }
 
     public void setNClob(int parameterIndex, NClob value) throws SQLException
@@ -349,17 +354,17 @@ public class HPCCPreparedStatement implements PreparedStatement
 
     public void setClob(int parameterIndex, Reader reader, long length) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:setClob Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:setClob Not supported yet.");
     }
 
     public void setBlob(int parameterIndex, InputStream inputStream, long length) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:setBlob Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:setBlob Not supported yet.");
     }
 
     public void setNClob(int parameterIndex, Reader reader, long length) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:setNClob Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:setNClob Not supported yet.");
     }
 
     public void setSQLXML(int parameterIndex, SQLXML xmlObject) throws SQLException
@@ -374,59 +379,59 @@ public class HPCCPreparedStatement implements PreparedStatement
 
     public void setAsciiStream(int parameterIndex, InputStream x, long length) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:setAsciiStream Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:setAsciiStream Not supported yet.");
     }
 
     public void setBinaryStream(int parameterIndex, InputStream x, long length) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:setBinaryStream Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:setBinaryStream Not supported yet.");
     }
 
     public void setCharacterStream(int parameterIndex, Reader reader, long length) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:setCharacterStream Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:setCharacterStream Not supported yet.");
     }
 
     public void setAsciiStream(int parameterIndex, InputStream x) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:setAsciiStream Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:setAsciiStream Not supported yet.");
     }
 
     public void setBinaryStream(int parameterIndex, InputStream x) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:setBinaryStream Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:setBinaryStream Not supported yet.");
     }
 
     public void setCharacterStream(int parameterIndex, Reader reader) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:setCharacterStream Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:setCharacterStream Not supported yet.");
     }
 
     public void setNCharacterStream(int parameterIndex, Reader value) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:setNCharacterStream Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:setNCharacterStream Not supported yet.");
     }
 
     public void setClob(int parameterIndex, Reader reader) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:setClob Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:setClob Not supported yet.");
     }
 
     public void setBlob(int parameterIndex, InputStream inputStream) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:setBlob Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:setBlob Not supported yet.");
     }
 
     public void setNClob(int parameterIndex, Reader reader) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:setNClob Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:setNClob Not supported yet.");
     }
 
     public ResultSet executeQuery(String query) throws SQLException
     {
         sqlQuery = query;
 
-        System.out.println("ECLPreparedStatement: executeQuery(" + query + ")");
+        HPCCJDBCUtils.traceoutln("ECLPreparedStatement: executeQuery(" + query + ")");
 
         processQuery();
 
@@ -435,7 +440,7 @@ public class HPCCPreparedStatement implements PreparedStatement
 
     public int executeUpdate(String sql) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:executeUpdate Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:executeUpdate Not supported yet.");
     }
 
     public void close() throws SQLException
@@ -455,12 +460,12 @@ public class HPCCPreparedStatement implements PreparedStatement
 
     public int getMaxFieldSize() throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT: getMaxFieldSizeNot supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT: getMaxFieldSizeNot supported yet.");
     }
 
     public void setMaxFieldSize(int max) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:setMaxFieldSize Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:setMaxFieldSize Not supported yet.");
     }
 
     public int getMaxRows() throws SQLException
@@ -475,12 +480,12 @@ public class HPCCPreparedStatement implements PreparedStatement
 
     public void setEscapeProcessing(boolean enable) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:setEscapeProcessing Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:setEscapeProcessing Not supported yet.");
     }
 
     public int getQueryTimeout() throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:getQueryTimeout Not supported yet.");
+        return -1;
     }
 
     public void setQueryTimeout(int seconds) throws SQLException
@@ -490,7 +495,7 @@ public class HPCCPreparedStatement implements PreparedStatement
 
     public void cancel() throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:cancel Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:cancel Not supported yet.");
     }
 
     public SQLWarning getWarnings() throws SQLException
@@ -505,11 +510,12 @@ public class HPCCPreparedStatement implements PreparedStatement
 
     public void setCursorName(String name) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:setCursorName Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:setCursorName Not supported yet.");
     }
 
     public boolean execute(String sql) throws SQLException
     {
+        HPCCJDBCUtils.traceoutln("HPCCPreparedStatement:execute(" + sql + ")");
         sqlQuery = sql;
 
         processQuery();
@@ -529,32 +535,32 @@ public class HPCCPreparedStatement implements PreparedStatement
 
     public boolean getMoreResults() throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:getMoreResults Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:getMoreResults Not supported yet.");
     }
 
     public void setFetchDirection(int direction) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:setFetchDirection Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:setFetchDirection Not supported yet.");
     }
 
     public int getFetchDirection() throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:getFetchDirection Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:getFetchDirection Not supported yet.");
     }
 
     public void setFetchSize(int rows) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:setFetchSize Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:setFetchSize Not supported yet.");
     }
 
     public int getFetchSize() throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:getFetchSize Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:getFetchSize Not supported yet.");
     }
 
     public int getResultSetConcurrency() throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:getResultSetConcurrency Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:getResultSetConcurrency Not supported yet.");
     }
 
     public int getResultSetType() throws SQLException
@@ -564,17 +570,17 @@ public class HPCCPreparedStatement implements PreparedStatement
 
     public void addBatch(String sql) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:addBatch Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:addBatch Not supported yet.");
     }
 
     public void clearBatch() throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:clearBatch Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:clearBatch Not supported yet.");
     }
 
     public int[] executeBatch() throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:executeBatch Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:executeBatch Not supported yet.");
     }
 
     public Connection getConnection() throws SQLException
@@ -584,7 +590,7 @@ public class HPCCPreparedStatement implements PreparedStatement
 
     public boolean getMoreResults(int current) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:getMoreResults Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:getMoreResults Not supported yet.");
     }
 
     public ResultSet getGeneratedKeys() throws SQLException
@@ -594,40 +600,40 @@ public class HPCCPreparedStatement implements PreparedStatement
 
     public int executeUpdate(String sql, int autoGeneratedKeys) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:executeUpdate Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:executeUpdate Not supported yet.");
     }
 
     public int executeUpdate(String sql, int[] columnIndexes) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:executeUpdate Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:executeUpdate Not supported yet.");
     }
 
     public int executeUpdate(String sql, String[] columnNames) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:executeUpdate Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:executeUpdate Not supported yet.");
     }
 
     public boolean execute(String sql, int autoGeneratedKeys) throws SQLException
     {
         throw new UnsupportedOperationException(
-                "ECLPREPSTATEMNT:execute(String sql, int autoGeneratedKeys) Not supported yet.");
+                "HPCCPREPSTATEMNT:execute(String sql, int autoGeneratedKeys) Not supported yet.");
     }
 
     public boolean execute(String sql, int[] columnIndexes) throws SQLException
     {
         throw new UnsupportedOperationException(
-                "ECLPREPSTATEMNT:execute(String sql, int[] columnIndexes) Not supported yet.");
+                "HPCCPREPSTATEMNT:execute(String sql, int[] columnIndexes) Not supported yet.");
     }
 
     public boolean execute(String sql, String[] columnNames) throws SQLException
     {
         throw new UnsupportedOperationException(
-                "ECLPREPSTATEMNT:execute(String sql, String[] columnNames) Not supported yet.");
+                "HPCCPREPSTATEMNT:execute(String sql, String[] columnNames) Not supported yet.");
     }
 
     public int getResultSetHoldability() throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:getResultSetHoldability Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:getResultSetHoldability Not supported yet.");
     }
 
     public boolean isClosed() throws SQLException
@@ -637,21 +643,21 @@ public class HPCCPreparedStatement implements PreparedStatement
 
     public void setPoolable(boolean poolable) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:setPoolable Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:setPoolable Not supported yet.");
     }
 
     public boolean isPoolable() throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:isPoolable Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:isPoolable Not supported yet.");
     }
 
     public <T> T unwrap(Class<T> iface) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:unwrap Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:unwrap Not supported yet.");
     }
 
     public boolean isWrapperFor(Class<?> iface) throws SQLException
     {
-        throw new UnsupportedOperationException("ECLPREPSTATEMNT:isWrapperFor Not supported yet.");
+        throw new UnsupportedOperationException("HPCCPREPSTATEMNT:isWrapperFor Not supported yet.");
     }
 }

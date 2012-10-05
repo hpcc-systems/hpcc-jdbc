@@ -24,12 +24,39 @@ import java.text.ParseException;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
-import java.util.StringTokenizer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class HPCCJDBCUtils
 {
+    private static boolean trace_enabled = false;
+
+    public static void enableTraceLogging()
+    {
+        trace_enabled = true;
+    }
+
+    public static void disableTraceLogging()
+    {
+        trace_enabled = false;
+    }
+
+    public static void traceout(String tracestmt)
+    {
+        if (trace_enabled)
+        {
+            System.out.print("HPCCJDBC-TRACE: " + tracestmt);
+        }
+    }
+
+    public static void traceoutln(String tracestmt)
+    {
+        if (trace_enabled)
+        {
+            System.out.println("HPCCJDBC-TRACE: " + tracestmt);
+        }
+    }
+
     public static NumberFormat format       = NumberFormat.getInstance(Locale.US);
     static final char          pad          = '=';
     static final char          BASE64_enc[] =
@@ -246,21 +273,20 @@ public class HPCCJDBCUtils
             return result.toString();
     }
 
+    private final static Pattern QUOTEDSTRPATTERN = Pattern.compile(
+            "\\s*(\"|\')(.*?)(\"|\')\\s*",Pattern.DOTALL);
+
     public static String handleQuotedString(String quotedString)
     {
         if (quotedString == null)
-            return "null";
-        String retVal = quotedString;
-        if ((retVal.startsWith("'") && retVal.endsWith("'")))
-        {
-            if (!retVal.equals("''"))
-            {
-                retVal = retVal.substring(retVal.indexOf("'") + 1, retVal.lastIndexOf("'"));
-            }
-            else
-                retVal = "";
-        }
-        return retVal;
+            return "";
+
+        Matcher matcher = QUOTEDSTRPATTERN.matcher(quotedString);
+
+        if(matcher.matches() && matcher.groupCount() >= 3)
+            return matcher.group(2).trim();
+        else
+            return quotedString;
     }
 
     public static boolean isParameterizedStr(String value)

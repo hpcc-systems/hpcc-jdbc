@@ -144,13 +144,14 @@ public class HPCCResultSet implements ResultSet
 
     public String getString(int columnIndex) throws SQLException
     {
+        HPCCJDBCUtils.traceoutln("HPCCResultSet:getString(" + columnIndex + ")");
         if (index >= 0 && index <= rows.size())
             if (columnIndex >= 1 && columnIndex <= rows.get(index).size())
             {
                 lastResult = rows.get(index).get(columnIndex - 1);
                 if (lastResult == null)
                     return null;
-                return (String) lastResult;
+                return lastResult.toString();
             }
             else
                 throw new SQLException("Invalid Column Index");
@@ -432,7 +433,8 @@ public class HPCCResultSet implements ResultSet
                 lastResult = row.get(column - 1);
                 if (lastResult == null)
                     return null;
-                return (String) lastResult;
+
+                return lastResult.toString();
             }
             else
                 throw new SQLException("Null Row found");
