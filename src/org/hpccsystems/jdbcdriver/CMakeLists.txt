@@ -7,7 +7,7 @@ SET ( EXECUTABLE_OUTPUT_PATH "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/bin" )
 SET (CLASS_DIR "class")
 FILE(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${CLASS_DIR})
 SET (JAR_FILE "${PRODUCT_PREFIX}-${PROJECT_NAME}-${HPCC_MAJOR}.${HPCC_MINOR}.${HPCC_POINT}${HPCC_MATURITY}.jar")
-SET (JAVA_FILES HPCCDatabaseMetaData.java HPCCQuery.java SQLExpression.java SQLFragment.java DFUFile.java HPCCDriver.java HPCCResultSet.java SQLOperator.java HPCCColumn.java ECLEngine.java HPCCResultSetMetadata.java SQLParser.java HPCCColumnMetaData.java HPCCPreparedStatement.java HPCCStatement.java SQLWhereClause.java HPCCConnection.java HPCCQueries.java SQLColumn.java HPCCJDBCUtils.java ECLFunction.java ECLFunctions.java HPCCVersionTracker.java)
+SET (JAVA_FILES HPCCDatabaseMetaData.java HPCCQuery.java SQLExpression.java SQLFragment.java DFUFile.java HPCCDriver.java HPCCResultSet.java SQLOperator.java ECLEngine.java HPCCResultSetMetadata.java SQLParser.java HPCCColumnMetaData.java HPCCPreparedStatement.java HPCCStatement.java SQLWhereClause.java HPCCConnection.java HPCCQueries.java SQLColumn.java HPCCJDBCUtils.java ECLFunction.java ECLFunctions.java HPCCVersionTracker.java)
 
 # compile all .java files with javac to .class
 ADD_CUSTOM_COMMAND(

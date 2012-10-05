@@ -1,7 +1,5 @@
 package org.hpccsystems.jdbcdriver.tests;
 
-import java.math.BigDecimal;
-import java.sql.Date;
 import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.DriverPropertyInfo;
@@ -13,7 +11,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
-import org.hpccsystems.jdbcdriver.HPCCColumnMetaData;
 import org.hpccsystems.jdbcdriver.HPCCConnection;
 import org.hpccsystems.jdbcdriver.HPCCDatabaseMetaData;
 import org.hpccsystems.jdbcdriver.HPCCDriver;
