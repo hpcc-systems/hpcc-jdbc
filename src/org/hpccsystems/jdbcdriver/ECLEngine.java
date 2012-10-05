@@ -124,7 +124,7 @@ public class ECLEngine
         //Currently, query table is always 0th index.
         String queryFileName = HPCCJDBCUtils.handleQuotedString(sqlParser.getTableName(0));
         if (!dbMetadata.tableExists("", queryFileName))
-            throw new SQLException("Invalid table found: " + queryFileName);
+            throw new SQLException("Invalid or forbidden table found: " + queryFileName);
 
         DFUFile hpccQueryFile = dbMetadata.getDFUFile(queryFileName);
 
@@ -140,7 +140,7 @@ public class ECLEngine
         {
             String joinTableName = sqlParser.getJoinClause().getJoinTableName();
             if (!dbMetadata.tableExists("", joinTableName))
-                throw new SQLException("Invalid Join table found: " + joinTableName);
+                throw new SQLException("Invalid or forbidden Join table found: " + joinTableName);
 
             DFUFile joinTableFile = dbMetadata.getDFUFile(joinTableName);
             if (!hpccQueryFile.hasFileRecDef())
@@ -746,7 +746,7 @@ public class ECLEngine
             throw new SQLException(e.getMessage());
         }
 
-        System.out.println("HPCC URL created: " + urlString);
+        HPCCJDBCUtils.traceoutln("HPCC URL created: " + urlString);
     }
 
     private void generateConstSelectURL() throws SQLException
