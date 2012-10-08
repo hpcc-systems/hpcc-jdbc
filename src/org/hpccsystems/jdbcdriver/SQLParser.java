@@ -348,7 +348,7 @@ public class SQLParser
                 colmetadata.setTableName(queryTable.getName());
 
                 if (colassplit.length > 1)
-                    colmetadata.setAlias(colassplit[1]);
+                    colmetadata.setAlias(colassplit[1].trim());
 
                 selectColumns.add(colmetadata);
             }

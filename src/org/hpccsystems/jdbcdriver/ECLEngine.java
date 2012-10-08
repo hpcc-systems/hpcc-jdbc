@@ -18,10 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package org.hpccsystems.jdbcdriver;
 
-import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -71,6 +68,8 @@ public class ECLEngine
 
     private static final String         SELECTOUTPUTNAME = "JDBCSelectQueryResult";
 
+    private DocumentBuilderFactory      dbf = DocumentBuilderFactory.newInstance();
+
     public ECLEngine(SQLParser parser, HPCCDatabaseMetaData dbmetadata, Properties props)
     {
         this.hpccConnProps = props;
@@ -78,7 +77,7 @@ public class ECLEngine
         this.sqlParser = parser;
     }
 
-    public List<HPCCColumnMetaData> getExpectedRetCols ()
+    public List<HPCCColumnMetaData> getExpectedRetCols()
     {
         return expectedretcolumns;
     }
@@ -93,7 +92,7 @@ public class ECLEngine
         }
     }
 
-    public ArrayList executeSelectConstant()
+    public NodeList executeSelectConstant()
     {
         try
         {
@@ -101,7 +100,7 @@ public class ECLEngine
 
             HttpURLConnection conn = dbMetadata.createHPCCESPConnection(hpccRequestUrl);
 
-            return parse(conn.getInputStream(), startTime);
+            return parseDataset(conn.getInputStream(), startTime);
         }
         catch (Exception e)
         {
@@ -143,7 +142,7 @@ public class ECLEngine
                 throw new SQLException("Invalid or forbidden Join table found: " + joinTableName);
 
             DFUFile joinTableFile = dbMetadata.getDFUFile(joinTableName);
-            if (!hpccQueryFile.hasFileRecDef())
+            if (!joinTableFile.hasFileRecDef())
                 throw new SQLException("Cannot query: " + joinTableName
                         + " because it does not contain an ECL record definition.");
 
@@ -389,7 +388,7 @@ public class ECLEngine
                     {
                         selectStructSB.append("MAX( ").append(datasource);
                         if (eclEntities.size() > 0)
-                            addFilterClause(selectStructSB, eclEntities);
+                            addFilterClause(selectStructSB);
                     }
 
                     List<HPCCColumnMetaData> funccols = col.getFunccols();
@@ -421,7 +420,7 @@ public class ECLEngine
                     {
                         selectStructSB.append("MIN( ").append(datasource);
                         if (eclEntities.size() > 0)
-                            addFilterClause(selectStructSB, eclEntities);
+                            addFilterClause(selectStructSB);
                     }
 
                     List<HPCCColumnMetaData> funccols = col.getFunccols();
@@ -454,7 +453,7 @@ public class ECLEngine
                     {
                         selectStructSB.append(datasource);
                         if (eclEntities.size() > 0)
-                            addFilterClause(selectStructSB, eclEntities);
+                            addFilterClause(selectStructSB);
                     }
 
                     List<HPCCColumnMetaData> funccols = col.getFunccols();
@@ -499,7 +498,7 @@ public class ECLEngine
                     eclCode.append("ScalarOut := COUNT( ").append(eclEntities.get("SourceDS"));
 
                     if (eclEntities.size() > 0)
-                        addFilterClause(eclCode, eclEntities);
+                        addFilterClause(eclCode);
                     eclCode.append(");");
                     eclCode.append("\n");
                 }
@@ -507,7 +506,7 @@ public class ECLEngine
                 {
                     eclCode.append("ScalarOut := SUM( ").append(eclEntities.get("SourceDS"));
                     if (eclEntities.size() > 0)
-                        addFilterClause(eclCode, eclEntities);
+                        addFilterClause(eclCode);
 
                     eclCode.append(" , ");
                     eclCode.append(eclEntities.get("SourceDS"));
@@ -520,7 +519,7 @@ public class ECLEngine
                 {
                     eclCode.append("ScalarOut := MAX( ").append(eclEntities.get("SourceDS"));
                     if (eclEntities.size() > 0)
-                        addFilterClause(eclCode, eclEntities);
+                        addFilterClause(eclCode);
 
                     eclCode.append(" , ");
                     eclCode.append(eclEntities.get("SourceDS"));
@@ -533,7 +532,7 @@ public class ECLEngine
                 {
                     eclCode.append("ScalarOut := MIN( ").append(eclEntities.get("SourceDS"));
                     if (eclEntities.size() > 0)
-                        addFilterClause(eclCode, eclEntities);
+                        addFilterClause(eclCode);
 
                     eclCode.append(" , ");
                     eclCode.append(eclEntities.get("SourceDS"));
@@ -562,7 +561,7 @@ public class ECLEngine
                 eclCode.append(eclEntities.get("SourceDS"));
 
                 if (eclEntities.size() > 0 && !eclEntities.containsKey("JoinQuery"))
-                    addFilterClause(eclCode, eclEntities);
+                    addFilterClause(eclCode);
 
                 eclCode.append(", SelectStruct");
                 if (eclEntities.containsKey("GROUPBY"))
@@ -823,7 +822,7 @@ public class ECLEngine
         }
     }
 
-    public ArrayList execute(Map inParameters) throws Exception
+    public NodeList execute(Map inParameters) throws Exception
     {
         switch (sqlParser.getSqlType())
         {
@@ -918,7 +917,7 @@ public class ECLEngine
         return true;
     }
 
-    public ArrayList executeSelect(Map inParameters)
+    public NodeList executeSelect(Map inParameters)
     {
         int responseCode = -1;
 
@@ -962,7 +961,7 @@ public class ECLEngine
 
             responseCode = conn.getResponseCode();
 
-            return parse(conn.getInputStream(), startTime);
+            return parseDataset(conn.getInputStream(), startTime);
         }
         catch (Exception e)
         {
@@ -976,7 +975,7 @@ public class ECLEngine
         }
     }
 
-    private void addFilterClause(StringBuilder sb, HashMap parameters)
+    private void addFilterClause(StringBuilder sb)
     {
         String whereclause = sqlParser.getWhereClauseString();
         if (whereclause != null && whereclause.length() > 0)
@@ -987,7 +986,7 @@ public class ECLEngine
         }
     }
 
-    public ArrayList executeCall( Map inParameters)
+    public NodeList executeCall( Map inParameters)
     {
         StringBuilder sb = new StringBuilder();
         try
@@ -1020,7 +1019,7 @@ public class ECLEngine
 
             System.out.println("Executing: " + hpccRequestUrl + " : " + sb.toString());
 
-            return parse(conn.getInputStream(), startTime);
+            return parseDataset(conn.getInputStream(), startTime);
         }
         catch (Exception e)
         {
@@ -1028,15 +1027,13 @@ public class ECLEngine
         }
     }
 
-    public ArrayList parse(InputStream xml, long startTime) throws Exception
+    public NodeList parseDataset(InputStream xml, long startTime) throws Exception
     {
-        ArrayList results = null;
+        NodeList rowList = null;
 
         try
         {
-            DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
             DocumentBuilder db = dbf.newDocumentBuilder();
-
             Document dom = db.parse(xml);
 
             long elapsedTime = System.currentTimeMillis() - startTime;
@@ -1046,54 +1043,30 @@ public class ECLEngine
 
             NodeList dsList = docElement.getElementsByTagName("Dataset");
 
-            if (dsList != null && dsList.getLength() > 0)
+            System.out.println("Parsing results...");
+
+            int dsCount = 0;
+            if (dsList != null && (dsCount = dsList.getLength()) > 0)
             {
+                System.out.println("Results datsets found: " + dsList.getLength());
+
                 // The dataset element is encapsulated within a Result element
-                // need to fetch appropriate resulst dataset ie map eclqueryname
-                // to dataset name
+                // need to fetch appropriate resulst dataset
 
-                ArrayList dsArray = new ArrayList();
-
-                results = dsArray;
-
-                for (int i = 0; i < dsList.getLength(); i++)
+                for (int i = 0; i < dsCount; i++)
                 {
                     Element ds = (Element) dsList.item(i);
                     String currentdatsetname = ds.getAttribute("name");
                     if (expectedDSName == null || expectedDSName.length() == 0
                             || currentdatsetname.equalsIgnoreCase(expectedDSName))
                     {
-                        NodeList rowList = ds.getElementsByTagName("Row");
-
-                        if (rowList != null && rowList.getLength() > 0)
-                        {
-
-                            ArrayList rowArray = new ArrayList();
-
-                            dsArray.add(rowArray);
-
-                            for (int j = 0; j < rowList.getLength(); j++)
-                            {
-                                Element row = (Element) rowList.item(j);
-
-                                NodeList columnList = row.getChildNodes();
-
-                                ArrayList columnsArray = new ArrayList();
-                                rowArray.add(columnsArray);
-
-                                for (int k = 0; k < columnList.getLength(); k++)
-                                {
-                                    columnsArray.add(new HPCCColumn(columnList.item(k).getNodeName(), columnList.item(k).getTextContent()));
-                                }
-                            }
-                        }
+                        rowList = ds.getElementsByTagName("Row");
                         break;
                     }
                 }
             }
             else if (docElement.getElementsByTagName("Exception").getLength() > 0)
             {
-                Exception xmlexception = new Exception();
                 NodeList exceptionlist = docElement.getElementsByTagName("Exception");
 
                 if (exceptionlist.getLength() > 0)
@@ -1117,95 +1090,21 @@ public class ECLEngine
             else
             {
                 // The root element is itself the Dataset element
-                if (dsList.getLength() == 0)
+                if (dsCount == 0)
                 {
-                    ArrayList dsArray = new ArrayList();
-                    results = dsArray;
-                    NodeList rowList = docElement.getElementsByTagName("Row");
-
-                    if (rowList != null && rowList.getLength() > 0)
-                    {
-                        ArrayList rowArray = new ArrayList();
-                        dsArray.add(rowArray);
-
-                        for (int j = 0; j < rowList.getLength(); j++)
-                        {
-                            Element row = (Element) rowList.item(j);
-                            NodeList columnList = row.getChildNodes();
-
-                            ArrayList columnsArray = new ArrayList();
-                            rowArray.add(columnsArray);
-
-                            for (int k = 0; k < columnList.getLength(); k++)
-                            {
-                                columnsArray.add(new HPCCColumn(columnList.item(k).getNodeName(), columnList.item(k)
-                                        .getTextContent()));
-                            }
-                        }
-                    }
+                    rowList = docElement.getElementsByTagName("Row");
                 }
             }
 
-            /*
-             * not being used right not
-             * setResultschema( docElement.getElementsByTagName("XmlSchema"));
-             */
-
-            System.out.println("Parsing results...");
-            Iterator itr = results.iterator();
-            System.out.println("Results datsets found: " + results.size());
-            while (itr.hasNext())
-            {
-                ArrayList rows = (ArrayList) itr.next();
-                System.out.println("Results rows found: " + rows.size());
-                Iterator itr2 = rows.iterator();
-                while (itr2.hasNext())
-                {
-                    ArrayList cols = (ArrayList) itr2.next();
-                    Iterator itr3 = cols.iterator();
-                    while (itr3.hasNext())
-                    {
-                        HPCCColumn element = (HPCCColumn) itr3.next();
-                    }
-                }
-            }
             System.out.println("Finished Parsing results.");
         }
         catch (Exception e)
         {
             throw new Exception(
-                    "Invalid response received, verify serveraddress and cluster name and HPCC query/file name:\n"
-                            + e.getMessage());
+                    "Invalid response received, verify ServerAddress, TargetCluster, and SQL query:\n" + e.getMessage());
         }
 
-        return results;
-    }
-
-    public String convertInputStreamToString(InputStream ists) throws IOException
-    {
-        if (ists != null)
-        {
-            StringBuilder sb = new StringBuilder();
-            String line;
-
-            try
-            {
-                BufferedReader r1 = new BufferedReader(new InputStreamReader(ists, "UTF-8"));
-                while ((line = r1.readLine()) != null)
-                {
-                    sb.append(line).append("\n");
-                }
-            }
-            finally
-            {
-                ists.close();
-            }
-            return sb.toString();
-        }
-        else
-        {
-            return "";
-        }
+        return rowList;
     }
 
     public boolean hasResultSchema()

@@ -21,6 +21,7 @@ package org.hpccsystems.jdbcdriver;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 public class HPCCResultSetMetadata implements ResultSetMetaData
@@ -30,11 +31,49 @@ public class HPCCResultSetMetadata implements ResultSetMetaData
     private String                   tableName;
     private String                   schemaName  = "HPCC";
     private String                   catalogName = "roxie";
+    private HashMap<String, HPCCColumnMetaData> columnListHash = null;
+
+    private void generateExpectedRetColsHash()
+    {
+        columnListHash = new HashMap<String, HPCCColumnMetaData>();
+
+        int colIndex = 0;
+        for (HPCCColumnMetaData col : columnList)
+        {
+            col.setIndex(colIndex++);
+
+            columnListHash.put(col.getColumnName().toUpperCase(), col);
+
+            if (!columnListHash.containsKey(col.getColumnNameOrAlias()))
+            {
+                columnListHash.put(col.getColumnNameOrAlias().toUpperCase(), col);
+            }
+        }
+    }
 
     public HPCCResultSetMetadata(List<HPCCColumnMetaData> columnList, String tableName)
     {
         this.columnList = columnList;
         this.tableName = tableName;
+
+        try
+        {
+            generateExpectedRetColsHash();
+        }
+        catch (Exception e)
+        {
+            System.err.println("ERROR CREATING HPCCResultSetMetadata Object");
+        }
+    }
+
+    public boolean containsColByNameOrAlias(String nameOrAlias)
+    {
+       return  columnListHash.containsKey(nameOrAlias.toUpperCase());
+    }
+
+    public HPCCColumnMetaData getColByNameOrAlias(String nameOrAlias)
+    {
+       return  columnListHash.get(nameOrAlias.toUpperCase());
     }
 
     @SuppressWarnings("rawtypes")

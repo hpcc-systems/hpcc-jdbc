@@ -44,6 +44,10 @@ import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
 
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+
 /**
  *
  * @author rpastrana
@@ -66,43 +70,42 @@ public class HPCCResultSet implements ResultSet
         lastResult = new Object();
     }
 
-    public HPCCResultSet(Statement statement, ArrayList dsList, List<HPCCColumnMetaData> expectedretcolumns, String resultname)
+    public HPCCResultSet(Statement statement, NodeList rowList, HPCCResultSetMetadata resultMetadata)
     {
-        resultMetadata = new HPCCResultSetMetadata(expectedretcolumns, resultname);
+        this.resultMetadata = resultMetadata;
         rows = new ArrayList();
         lastResult = new Object();
 
         this.statement = statement;
 
-        encapsulateDataSet(dsList,expectedretcolumns);
+        encapsulateDataSet(rowList);
     }
 
-    public void encapsulateDataSet(ArrayList dsList, List<HPCCColumnMetaData> expectedretcolumns)
+    public void encapsulateDataSet(NodeList rowList)
     {
-        // Get the data
-        // Iterate the Datasets - need to find the appropriate result dataset
-        for (int i = 0; i < dsList.size(); i++)
+        int rowCount = 0;
+        if (rowList != null && (rowCount = rowList.getLength()) > 0)
         {
-            // Iterate the rows
-            ArrayList inRowList = (ArrayList) dsList.get(i);
-            for (int j = 0; j < inRowList.size(); j++)
+            System.out.println("Results rows found: " + rowCount);
+
+            for (int j = 0; j < rowCount; j++)
             {
-                // create row with default values b/c HPCC will not return a
-                // column for empty fields
                 ArrayList rowValues = resultMetadata.createDefaultResultRow();
                 rows.add(rowValues);
-                // Iterate the columns and add values
-                ArrayList inColumnList = (ArrayList) inRowList.get(j);
-                for (int m = 0; m < expectedretcolumns.size(); m++)
+
+                Element row = (Element) rowList.item(j);
+
+                NodeList columnList = row.getChildNodes();
+
+                for (int k = 0; k < columnList.getLength(); k++)
                 {
-                    for (int k = 0; k < inColumnList.size(); k++)
+                    Node resultRowElement = columnList.item(k);
+                    String resultRowElementName = resultRowElement.getNodeName();
+
+                    if (resultMetadata.containsColByNameOrAlias(resultRowElementName))
                     {
-                        HPCCColumn inColumn = (HPCCColumn) inColumnList.get(k);
-                        HPCCColumnMetaData mthexpectedcol = expectedretcolumns.get(m);
-                        if (mthexpectedcol.getColumnName().equalsIgnoreCase(inColumn.getName())
-                                || mthexpectedcol.getAlias() != null
-                                && mthexpectedcol.getAlias().equalsIgnoreCase(inColumn.getName()))
-                            rowValues.set(m, inColumn.getValue());
+                        HPCCColumnMetaData col = resultMetadata.getColByNameOrAlias(resultRowElementName);
+                        rowValues.set(col.getIndex(), resultRowElement.getTextContent());
                     }
                 }
             }
