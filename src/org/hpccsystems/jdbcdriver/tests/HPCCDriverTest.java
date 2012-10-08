@@ -556,7 +556,7 @@ public class HPCCDriverTest
             }
             System.out.println("");
 
-            for (int i = 1; i <= meta.getColumnCount(); i++)
+            for (int i = 1; i <= colcount; i++)
             {
                 String collabel = meta.getColumnLabel(i);
                 System.out.print("[");
@@ -931,8 +931,6 @@ public class HPCCDriverTest
             System.out.println("  freehandsql==<SQL STATEMENT>");
             System.out.println("  eg. freehandsql==\"select * from tablename where zip=? limit 100\"");
             System.out.println();
-            System.out.println("!!ASSERTS MUST BE ENABLED!!");
-            System.out.println("The vmarg -ea enables asserts");
             System.out.println("********************************************************************\n");
 
             Properties info = new Properties();
