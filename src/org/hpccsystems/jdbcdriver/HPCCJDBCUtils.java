@@ -211,7 +211,7 @@ public class HPCCJDBCUtils
         {
             format.parse(str);
         }
-        catch (ParseException e)
+        catch (Exception e)
         {
             return false;
         }
@@ -226,7 +226,7 @@ public class HPCCJDBCUtils
             Number num = format.parse(str);
             return num.longValue();
         }
-        catch (ParseException e)
+        catch (Exception e)
         {
             return uponError;
         }
@@ -239,7 +239,7 @@ public class HPCCJDBCUtils
             Number num = format.parse(str);
             return num.intValue();
         }
-        catch (ParseException e)
+        catch (Exception e)
         {
             return uponError;
         }
