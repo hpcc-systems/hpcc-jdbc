@@ -25,5 +25,10 @@ To build for Linux:
 3. cd to the build directory
 4. To create makefiles to build native release version for local machine, run cmake ~/hpcc-jdbc
 5. To build the makefiles just created above, run make
-6. class files will be built in <builddir>src/com/hpccsystems/jdbcdriver/class/
-7. Jar file will be created in <builddir>/src/com/hpccsystems/jdbcdriver/hpccsystems-jdbcdriver-MAJOR.MINOR.POINT.jar
+6. Jar file will be created in <builddir>/src/com/hpccsystems/jdbcdriver/hpccsystems-jdbcdriver-MAJOR.MINOR.POINT.jar
+
+A Test version can be built by augmenting the cmake command with the "MAKE_TEST_PACKAGE" flag turned on.
+1. From build directory, run cmake -DMAKE_TEST_PACKAGE=ON ~/hpcc-jdbc
+2. Jar file will be created in <builddir>/src/com/hpccsystems/jdbcdriver/hpccsystems-jdbcdriver-MAJOR.MINOR.POINT-TEST.jar
+3. Run test: java -cp <jarfile> org.hpccsystems.jdbcdriver.tests.HPCCDriverTest <param==value>...
+   If no parameters are passed in, a "full test" will execute (values in code should be altered to match your environment).

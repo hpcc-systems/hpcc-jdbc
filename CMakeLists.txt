@@ -3,10 +3,11 @@ project(jdbcdriver Java)
 
 include(version.cmake)
 
+    OPTION(MAKE_TEST_PACKAGE "Create test package." OFF)
+
     SET ( PRODUCT_PREFIX "hpccsystems" )
     SET ( HPCC_JDBC_PAC_PATH org/hpccsystems/jdbcdriver)
     SET ( HPCC_JDBC_REL_PATH src/${HPCC_JDBC_PAC_PATH})
-    SET ( HPCC_ECLJDBC_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/${HPCC_JDBC_REL_PATH})
 
     MESSAGE ("-- JAVA Development components are required.")
     FIND_PACKAGE (Java REQUIRED COMPONENTS Development)

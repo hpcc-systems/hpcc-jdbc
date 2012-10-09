@@ -1,33 +1,24 @@
-cmake_minimum_required(VERSION 2.8)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 
-configure_file("HPCCVersionTracker.java.in" "${HPCC_ECLJDBC_SOURCE_DIR}/HPCCVersionTracker.java")
+INCLUDE(UseJava)
+SET (TEST_PACKAGE_LOCATION tests)
+SET (TEST_PACKAGE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/${TEST_PACKAGE_LOCATION})
 
-SET ( EXECUTABLE_OUTPUT_PATH "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/bin" )
+#Dynamically generate java class with build-time version information
+CONFIGURE_FILE("HPCCVersionTracker.java.in" "${CMAKE_CURRENT_SOURCE_DIR}/HPCCVersionTracker.java")
 
-SET (CLASS_DIR "class")
-FILE(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${CLASS_DIR})
-SET (JAR_FILE "${PRODUCT_PREFIX}-${PROJECT_NAME}-${HPCC_MAJOR}.${HPCC_MINOR}.${HPCC_POINT}${HPCC_MATURITY}.jar")
-SET (JAVA_FILES HPCCDatabaseMetaData.java HPCCQuery.java SQLExpression.java SQLFragment.java DFUFile.java HPCCDriver.java HPCCResultSet.java SQLOperator.java ECLEngine.java HPCCResultSetMetadata.java SQLParser.java HPCCColumnMetaData.java HPCCPreparedStatement.java HPCCStatement.java SQLWhereClause.java HPCCConnection.java HPCCQueries.java SQLColumn.java HPCCJDBCUtils.java ECLFunction.java ECLFunctions.java HPCCVersionTracker.java)
+#Setup the jar file name
+SET (JAR_FILE "${PRODUCT_PREFIX}-${PROJECT_NAME}-${HPCC_MAJOR}.${HPCC_MINOR}.${HPCC_POINT}${HPCC_MATURITY}")
 
-# compile all .java files with javac to .class
-ADD_CUSTOM_COMMAND(
-    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${JAVA_FILES}.class
-    COMMAND ${CMAKE_Java_COMPILER}
-    ARGS -d ${CMAKE_CURRENT_BINARY_DIR}/${CLASS_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/*.java
-)
+#list of java files to build
+FILE( GLOB JAVA_SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/*.java" )
 
-# build .jar file from .class files
-ADD_CUSTOM_COMMAND(
-    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${JAR_FILE}
-    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${JAVA_FILES}.class
-    COMMAND ${CMAKE_COMMAND}
-    ARGS -E chdir ${CMAKE_CURRENT_BINARY_DIR}/${CLASS_DIR}
-    ${CMAKE_Java_ARCHIVE} -cfv ${CMAKE_CURRENT_BINARY_DIR}/${JAR_FILE} ${HPCC_JDBC_PAC_PATH}
-)
+IF ( MAKE_TEST_PACKAGE )
+    #list of java test files to build
+    FILE ( GLOB JAVA_SOURCE_TEST_FILES "${TEST_PACKAGE_SOURCE_DIR}/*.java" )
+    #Append "TEST" postfix to target jar file.
+    SET (JAR_FILE "${JAR_FILE}-TEST")
+ENDIF()
 
-# the target
-ADD_CUSTOM_TARGET(
-    ${JAR_FILE}
-    ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${JAR_FILE}
-)
+#Compile the source files, create target jar file
+ADD_JAR(${JAR_FILE} ${JAVA_SOURCE_FILES} ${JAVA_SOURCE_TEST_FILES})
