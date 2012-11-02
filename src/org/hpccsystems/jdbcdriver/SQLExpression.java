@@ -28,8 +28,8 @@ public class SQLExpression
 {
     public enum ExpressionType
     {
-        LOGICAL_OPERATOR_TYPE,
-        LOGICAL_EXPRESSION_TYPE;
+        LOGICAL_OPERATOR,
+        LOGICAL_EXPRESSION;
     }
 
     private SQLFragment        prefix;
@@ -41,7 +41,7 @@ public class SQLExpression
     public SQLExpression(String operator)
     {
         this.operator = new SQLOperator(operator);
-        type = ExpressionType.LOGICAL_OPERATOR_TYPE;
+        type = ExpressionType.LOGICAL_OPERATOR;
         prefix = null;
         postfix = null;
     }
@@ -57,48 +57,30 @@ public class SQLExpression
     public void ParseExpression(String expression) throws SQLException
     {
         String trimmedExpression = expression.trim();
-        String operator = null;
 
-        // order matters here!
-        if (trimmedExpression.indexOf(SQLOperator.gte) != -1)
-            operator = SQLOperator.gte;
-        else if (trimmedExpression.indexOf(SQLOperator.lte) != -1)
-            operator = SQLOperator.lte;
-        else if (trimmedExpression.indexOf(SQLOperator.neq) != -1)
-            operator = SQLOperator.neq;
-        else if (trimmedExpression.indexOf(SQLOperator.neq2) != -1)
-            operator = SQLOperator.neq2;
-        else if (trimmedExpression.indexOf(SQLOperator.eq) != -1)
-            operator = SQLOperator.eq;
-        else if (trimmedExpression.indexOf(SQLOperator.gt) != -1)
-            operator = SQLOperator.gt;
-        else if (trimmedExpression.indexOf(SQLOperator.lt) != -1)
-            operator = SQLOperator.lt;
-        else
+        SQLOperator operator = new SQLOperator(trimmedExpression);
+
+        if (operator == null || operator.getValue() == null || !operator.isValid())
             throw new SQLException("Invalid logical operator found: " + trimmedExpression);
 
-        String splitedsqlexp[] = trimmedExpression.split(operator);
-
-        if (splitedsqlexp.length != 2) // something went wrong, only the operator was found?
-            throw new SQLException("Invalid SQL Where clause found around: " + expression);
+        String splitedsqlexp[] = operator.splitExpressionFragment(trimmedExpression);
 
         setPrefix(splitedsqlexp[0].trim());
 
         setOperator(operator);
-        if (!isOperatorValid())
-            throw new SQLException("Error: Invalid operator found: ");
 
-        setPostfix(splitedsqlexp[1].trim());
+        if (operator.isBinary())
+        {
+            if (splitedsqlexp.length == 2)
+                setPostfix(splitedsqlexp[1].trim());
+            else
+                throw new SQLException("Invalid SQL Where clause found around: " + expression);
+        }
     }
 
     public ExpressionType getExpressionType()
     {
         return type;
-    }
-
-    public String getPrefixParent()
-    {
-        return prefix.getParent();
     }
 
     public String getPrefixValue()
@@ -146,11 +128,6 @@ public class SQLExpression
         return postfix.getValue();
     }
 
-    public String getPostfixParent()
-    {
-        return postfix.getParent();
-    }
-
     public void setPostfix(String postfixstr)
     {
         postfix.parseExpressionFragment(postfixstr);
@@ -179,9 +156,26 @@ public class SQLExpression
     @Override
     public String toString()
     {
-        if (type == ExpressionType.LOGICAL_EXPRESSION_TYPE)
-            return prefix.getValue() + " " + operator.toString() + " " + postfix.getValue();
-        else if (type == ExpressionType.LOGICAL_OPERATOR_TYPE)
+        if (type == ExpressionType.LOGICAL_EXPRESSION)
+        {
+            switch (operator.getType())
+            {
+                case BINARY:
+                    return prefix.getValue() + " " + operator.toString() + " " + postfix.getValue();
+                case PRE_UNARY:
+                    return " " + operator.toString() + " " + prefix.getValue() + " ";
+                case POST_UNARY:
+                    return " " + prefix.getValue() + " "+ operator.toString() + " ";
+                case NOOPFALSE:
+                    return " false ";
+                case NOOPTRUE:
+                    return " true ";
+                case UNKNOWN:
+                default:
+                    return "";
+            }
+        }
+        else if (type == ExpressionType.LOGICAL_OPERATOR)
             return " " + operator.toString() + " ";
         else
             return "";
@@ -189,44 +183,102 @@ public class SQLExpression
 
     public String fullToString()
     {
-        if (type == ExpressionType.LOGICAL_EXPRESSION_TYPE)
-            return getFullPrefix() + " " + operator.toString() + " " + getFullPostfix();
+        if (type == ExpressionType.LOGICAL_EXPRESSION)
+        {
+            switch (operator.getType())
+            {
+                case BINARY:
+                    return getFullPrefix() + " " + operator.toString() + " " + getFullPostfix();
+                case PRE_UNARY:
+                    return " " + operator.toString() + " " + getFullPrefix() + " ";
+                case POST_UNARY:
+                    return " " + getFullPrefix() + " "+ operator.toString() + " ";
+                case NOOPFALSE:
+                    return " false ";
+                case NOOPTRUE:
+                    return " true ";
+                case UNKNOWN:
+                default:
+                    return this.toString();
+            }
+        }
         else
             return this.toString();
     }
 
     public String toStringTranslateSource(HashMap<String, String> map)
     {
-        if (type == ExpressionType.LOGICAL_EXPRESSION_TYPE)
+        if (type == ExpressionType.LOGICAL_EXPRESSION)
         {
             StringBuffer tmpsb = new StringBuffer();
 
             String prefixtranslate = map.get(prefix.getParent());
-            String postfixtranslate = map.get(postfix.getParent());
 
-            if (prefixtranslate != null)
+            switch (operator.getType())
             {
-                tmpsb.append(prefixtranslate);
-                tmpsb.append(".");
-            }
-            else if (prefix.getParent() != null && prefix.getParent().length() > 0)
-            {
-                tmpsb.append(prefix.getParent());
-                tmpsb.append(".");
-            }
+                case BINARY:
+                    String postfixtranslate = map.get(postfix.getParent());
+                    if (prefixtranslate != null)
+                    {
+                        tmpsb.append(prefixtranslate);
+                        tmpsb.append(".");
+                    }
+                    else if (prefix.getParent() != null && prefix.getParent().length() > 0)
+                    {
+                        tmpsb.append(prefix.getParent());
+                        tmpsb.append(".");
+                    }
 
-            tmpsb.append(prefix.getValue()).append(" ").append(operator.toString()).append(" ");
-            if (postfixtranslate != null)
-            {
-                tmpsb.append(postfixtranslate);
-                tmpsb.append(".");
+                    tmpsb.append(prefix.getValue()).append(" ").append(operator.toString()).append(" ");
+                    if (postfixtranslate != null)
+                    {
+                        tmpsb.append(postfixtranslate);
+                        tmpsb.append(".");
+                    }
+                    else if (postfix.getParent() != null && postfix.getParent().length() > 0)
+                    {
+                        tmpsb.append(postfix.getParent());
+                        tmpsb.append(".");
+                    }
+                    tmpsb.append(postfix.getValue());
+                    break;
+                case PRE_UNARY:
+                    tmpsb.append(" ").append(operator.toString()).append(" ");
+                    if (prefixtranslate != null)
+                    {
+                        tmpsb.append(prefixtranslate);
+                        tmpsb.append(".");
+                    }
+                    else if (prefix.getParent() != null && prefix.getParent().length() > 0)
+                    {
+                        tmpsb.append(prefix.getParent());
+                        tmpsb.append(".");
+                    }
+                    tmpsb.append(prefix.getValue()).append(" ");
+                    break;
+                case POST_UNARY:
+                    if (prefixtranslate != null)
+                    {
+                        tmpsb.append(prefixtranslate);
+                        tmpsb.append(".");
+                    }
+                    else if (prefix.getParent() != null && prefix.getParent().length() > 0)
+                    {
+                        tmpsb.append(prefix.getParent());
+                        tmpsb.append(".");
+                    }
+
+                    tmpsb.append(prefix.getValue()).append(" ");
+                    tmpsb.append(operator.toString()).append(" ");
+
+                    break;
+                case NOOPFALSE:
+                    tmpsb.append(" false ");
+                    break;
+                case NOOPTRUE:
+                    tmpsb.append(" true ");
+                    break;
             }
-            else if (postfix.getParent() != null && postfix.getParent().length() > 0)
-            {
-                tmpsb.append(postfix.getParent());
-                tmpsb.append(".");
-            }
-            tmpsb.append(postfix.getValue());
 
             return tmpsb.toString();
         }
@@ -246,12 +298,12 @@ public class SQLExpression
 
     public void updateFragmentTables(List<SQLTable> sqlTables) throws Exception
     {
-        if (type == ExpressionType.LOGICAL_EXPRESSION_TYPE)
+        if (type == ExpressionType.LOGICAL_EXPRESSION)
         {
-            if (postfix.getType() == FragmentType.FIELD_TYPE)
+            if (postfix.getType() == FragmentType.FIELD || postfix.getType() == FragmentType.FIELD_CONTENT_MODIFIER || postfix.getType() == FragmentType.AGGREGATE_FUNCTION)
                 postfix.updateFragmentColumParent(sqlTables);
 
-            if (prefix.getType() == FragmentType.FIELD_TYPE)
+            if (prefix.getType() == FragmentType.FIELD || prefix.getType() == FragmentType.FIELD_CONTENT_MODIFIER)
                 prefix.updateFragmentColumParent(sqlTables);
         }
     }
@@ -264,12 +316,25 @@ public class SQLExpression
 
     public int setParameterizedNames(int currentIndex)
     {
-        if (prefix.getType() == FragmentType.PARAMETERIZED_TYPE)
+        if (prefix.getType() == FragmentType.PARAMETERIZED)
             prefix.setValue(SQLParser.parameterizedPrefix + currentIndex++);
 
-        if (postfix.getType() == FragmentType.PARAMETERIZED_TYPE)
+        if (postfix.getType() == FragmentType.PARAMETERIZED)
             postfix.setValue(SQLParser.parameterizedPrefix + currentIndex++);
 
         return currentIndex;
+    }
+
+    public boolean containsKey(String colname)
+    {
+        if (getExpressionType() == ExpressionType.LOGICAL_EXPRESSION)
+        {
+            if(getPrefixType() == FragmentType.FIELD && getPrefixValue().equals(colname) ||
+               getPostfixType() == FragmentType.FIELD && getPostfixValue().equals(colname))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 }

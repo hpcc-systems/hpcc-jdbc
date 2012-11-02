@@ -119,7 +119,8 @@ public class HPCCConnection implements Connection
 
     public String nativeSQL(String sql) throws SQLException
     {
-        throw new UnsupportedOperationException("HPCCConnection: nativeSQL(string sql) Not supported yet.");
+        HPCCJDBCUtils.traceoutln("HPCCConnection: nativeSQL(string sql) Not supported yet.");
+        return sql;
     }
 
     public void setAutoCommit(boolean autoCommit) throws SQLException
@@ -159,7 +160,7 @@ public class HPCCConnection implements Connection
 
     public void setReadOnly(boolean readOnly) throws SQLException
     {
-        throw new UnsupportedOperationException("HPCCConnection: setReadOnly Not supported yet.");
+        HPCCJDBCUtils.traceoutln("HPCCConnection: setReadOnly");
     }
 
     public boolean isReadOnly() throws SQLException
@@ -169,12 +170,12 @@ public class HPCCConnection implements Connection
 
     public void setCatalog(String catalog) throws SQLException
     {
-        throw new UnsupportedOperationException("HPCCConnection: setCatalog Not supported yet.");
+        HPCCJDBCUtils.traceoutln("HPCCConnection: setCatalog Not supported yet.");
     }
 
     public String getCatalog() throws SQLException
     {
-        return connectionProps.getProperty("TargetCluster");
+        return "HPCC Catalog";
     }
 
     public void setTransactionIsolation(int level) throws SQLException
@@ -184,12 +185,14 @@ public class HPCCConnection implements Connection
 
     public int getTransactionIsolation() throws SQLException
     {
-        throw new UnsupportedOperationException("HPCCConnection: getTransactionIsolation Not supported yet.");
+        HPCCJDBCUtils.traceoutln("HPCCConnection: getTransactionIsolation Not supported yet.");
+        return 0;
     }
 
     public SQLWarning getWarnings() throws SQLException
     {
-        throw new UnsupportedOperationException("HPCCConnection: getWarnings Not supported yet.");
+        HPCCJDBCUtils.traceoutln("HPCCConnection: getWarnings Not supported yet.");
+        return null;
     }
 
     public void clearWarnings() throws SQLException
@@ -199,14 +202,14 @@ public class HPCCConnection implements Connection
 
     public Statement createStatement(int resultSetType, int resultSetConcurrency) throws SQLException
     {
-        HPCCJDBCUtils.traceoutln("##Statement HPCCConnection::createStatement(resulttype, resultsetcon)##");
+        HPCCJDBCUtils.traceoutln("HPCCConnection: createStatement(resulttype, resultsetcon)##");
         return new HPCCPreparedStatement(this, null);
     }
 
     public PreparedStatement prepareStatement(String query, int resultSetType, int resultSetConcurrency)
             throws SQLException
     {
-        HPCCJDBCUtils.traceoutln("##HPCCConnection::createStatement(" + query + ", resultsetype, resultsetcon)##");
+        HPCCJDBCUtils.traceoutln("HPCCConnection: prepareStatement(" + query + ", resultsetype, resultsetcon)##");
         return new HPCCPreparedStatement(this, query);
     }
 
@@ -316,7 +319,8 @@ public class HPCCConnection implements Connection
 
     public boolean isValid(int timeout) throws SQLException
     {
-        throw new UnsupportedOperationException("HPCCConnection: isValid Not supported yet.");
+        HPCCJDBCUtils.traceoutln("HPCCConnection: isValid Not supported yet.");
+        return timeout >= 0;
     }
 
     public void setClientInfo(String name, String value) throws SQLClientInfoException

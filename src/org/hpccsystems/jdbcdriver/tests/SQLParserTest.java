@@ -59,13 +59,11 @@ public class SQLParserTest
         {
             parser.process(sql);
 
-            int sqltype = parser.getSqlType();
-
             System.out.print("SQL request type: ");
             List<HPCCColumnMetaData> cols = parser.getSelectColumns();
-            switch (sqltype)
+            switch (parser.getSqlType())
             {
-                case SQLParser.SQL_TYPE_SELECT:
+                case SELECT:
                     System.out.println("SELECT");
                     System.out.print("Select Columns: [ ");
                     for (int i = 0; i < cols.size(); i++)
@@ -86,7 +84,7 @@ public class SQLParserTest
                     if (parser.hasOrderByColumns())
                         System.out.println("Group By: " + parser.getOrderByString(','));
                     break;
-                case SQLParser.SQL_TYPE_SELECTCONST:
+                case SELECTCONST:
                     System.out.println("SELECT CONSTANT");
                     System.out.println("Select Columns: [ ");
                     for (int i = 0; i < cols.size(); i++)
@@ -95,7 +93,7 @@ public class SQLParserTest
                     }
                     System.out.println(" ] ");
                     break;
-                case SQLParser.SQL_TYPE_CALL:
+                case CALL:
                     System.out.println("CALL");
                     System.out.println("Stored Procedure name: " + parser.getStoredProcName());
                     String spvals[] = parser.getStoredProcInParamVals();
@@ -106,7 +104,7 @@ public class SQLParserTest
                     }
                     System.out.println(")");
                     break;
-                case SQLParser.SQL_TYPE_UNKNOWN:
+                case UNKNOWN:
                 default:
                     System.out.print("not detected");
                     break;
@@ -132,13 +130,12 @@ public class SQLParserTest
 
         try
         {
-            success &= testSelectALL("mytablename");
-            success &= testTableAlias("mytablename", "mytablealias");
-            success &= testFreeHandSQL("select city as mycity, persons.zip, count(*) from tutorial::rp::tutorialperson as persons USE INDEX(myindex) where zip ='33445' limit 1000");
-            success &= testFreeHandSQL("call peoplebyzip(33445) limit 1000");
-            success &= testFreeHandSQL("select * from tablename1 JOIN tablename2 tablealias2 On tablealias2.a = tablename.a limit 1000");
-            success &= testFreeHandSQL("select col1 as colONE, col2 as colTWO from tablename1 t1 JOIN tablename2 tablealias2 On tablealias2.a = t1.a where t1.a > 300 limit 1000");
-            success &= testFreeHandSQL("select col1 as colONE, col2 as colTWO from tablename1 t1 JOIN tablename2 tablealias2 On tablealias2.a = a limit 1000");
+            if (args.length > 0)
+            {
+                testFreeHandSQL(args[0]);
+            }
+            else
+                throw new RuntimeException("No input SQL detected.");
         }
         catch (Exception e)
         {

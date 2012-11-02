@@ -26,6 +26,14 @@ import java.util.List;
 
 public class HPCCColumnMetaData
 {
+    public enum ColumnType
+    {
+        FIELD,
+        CONSTANT,
+        FNCTION,
+        CONTENTMODIFIER;
+    }
+
     private String                   columnName;
     private int                      index;
     private int                      sqlType;
@@ -40,14 +48,12 @@ public class HPCCColumnMetaData
     private String                   columnDefault;
     private int                      paramType;
     private String                   javaClassName;
-    private String                   constantValue;
-    private int                      columnType;
-    private String                   alias;
-    private List<HPCCColumnMetaData> funccols;
-
-    final static int                 COLUMN_TYPE_DATA     = 1;
-    final static int                 COLUMN_TYPE_CONSTANT = 2;
-    final static int                 COLUMN_TYPE_FNCTION  = 3;
+    private String                   constantValue = null;
+    private ColumnType              columnType;
+    private String                   alias = null;
+    private List<HPCCColumnMetaData> funccols = null;
+    private boolean                  isDistinct = false;
+    private ECLFunction              contentModifier = null;
 
     public HPCCColumnMetaData(String columnName, int index, int sqlType, String constant, String eclType)
     {
@@ -56,11 +62,9 @@ public class HPCCColumnMetaData
         this.index = index;
         this.sqlType = sqlType;
         this.paramType = HPCCDatabaseMetaData.procedureColumnUnknown;
-        javaClassName = HPCCDatabaseMetaData.convertSQLtype2JavaClassName(this.sqlType);
+        javaClassName = HPCCJDBCUtils.convertSQLtype2JavaClassName(this.sqlType);
         this.eclType = eclType;
-        columnType = COLUMN_TYPE_CONSTANT;
-        funccols = null;
-        alias = null;
+        columnType = ColumnType.CONSTANT;
     }
 
     public HPCCColumnMetaData(String columnName, int index, int sqlType)
@@ -69,11 +73,8 @@ public class HPCCColumnMetaData
         this.index = index;
         this.sqlType = sqlType;
         this.paramType = HPCCDatabaseMetaData.procedureColumnUnknown;
-        javaClassName = HPCCDatabaseMetaData.convertSQLtype2JavaClassName(this.sqlType);
-        constantValue = null;
-        columnType = COLUMN_TYPE_DATA;
-        funccols = null;
-        alias = null;
+        javaClassName = HPCCJDBCUtils.convertSQLtype2JavaClassName(this.sqlType);
+        columnType = ColumnType.FIELD;
     }
 
     public HPCCColumnMetaData(String columnName, int index, List<HPCCColumnMetaData> columns)
@@ -82,11 +83,9 @@ public class HPCCColumnMetaData
         this.index = index;
         this.sqlType = java.sql.Types.OTHER;
         this.paramType = HPCCDatabaseMetaData.procedureColumnUnknown;
-        javaClassName = HPCCDatabaseMetaData.convertSQLtype2JavaClassName(this.sqlType);
-        constantValue = null;
-        columnType = COLUMN_TYPE_FNCTION;
+        javaClassName = HPCCJDBCUtils.convertSQLtype2JavaClassName(this.sqlType);
+        columnType = ColumnType.FNCTION;
         funccols = columns;
-        alias = null;
     }
 
     public void setConstantValue(String value)
@@ -142,23 +141,6 @@ public class HPCCColumnMetaData
         this.paramType = paramType;
     }
 
-    // public Properties getRestrictions() {
-    // return restrictions;
-    // }
-    //
-    // public void addRestriction(String restriction, String value)
-    // {
-    // if (restrictions == null)
-    // restrictions = new Properties();
-    //
-    // this.restrictions.put(restriction, value);
-    // }
-    //
-    // public String getRestrictionStringValue(String restriction)
-    // {
-    // return (String)this.restrictions.get(restriction);
-    // }
-
     public void setSqlType(int type)
     {
         sqlType = type;
@@ -177,7 +159,7 @@ public class HPCCColumnMetaData
     public void setEclType(String eclType)
     {
         this.eclType = eclType;
-        this.sqlType = HPCCDatabaseMetaData.convertECLtype2SQLtype(eclType.toUpperCase());
+        this.sqlType = HPCCJDBCUtils.mapECLtype2SQLtype(eclType);
     }
 
     public String getTableName()
@@ -255,12 +237,12 @@ public class HPCCColumnMetaData
         return javaClassName;
     }
 
-    public int getColumnType()
+    public ColumnType getColumnType()
     {
         return columnType;
     }
 
-    public void setColumnType(int columnType)
+    public void setColumnType(ColumnType columnType)
     {
         this.columnType = columnType;
     }
@@ -278,6 +260,36 @@ public class HPCCColumnMetaData
     public void setAlias(String alias)
     {
         this.alias = alias;
+    }
+
+    public boolean isDistinct()
+    {
+        return isDistinct;
+    }
+
+    public void setDistinct(boolean isDistinct)
+    {
+        this.isDistinct = isDistinct;
+    }
+
+    public ECLFunction getContentModifier()
+    {
+        return contentModifier;
+    }
+
+    public String getContentModifierStr()
+    {
+        return contentModifier != null ? contentModifier.getEclFunction() : null;
+    }
+
+    public boolean hasContentModifier()
+    {
+        return contentModifier != null;
+    }
+
+    public void setContentModifier(ECLFunction contentModifier)
+    {
+        this.contentModifier = contentModifier;
     }
 
     @Override
