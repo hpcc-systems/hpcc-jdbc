@@ -79,7 +79,7 @@ public class HPCCPreparedStatement implements PreparedStatement
     {
         try
         {
-            HPCCJDBCUtils.traceoutln("Attempting to process sql query: " + sqlQuery); 
+            HPCCJDBCUtils.traceoutln("Attempting to process sql query: " + sqlQuery);
             if (!this.closed)
             {
                 if (parser != null)

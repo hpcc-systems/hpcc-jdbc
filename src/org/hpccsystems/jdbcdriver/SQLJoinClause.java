@@ -190,4 +190,9 @@ public class SQLJoinClause
     {
         OnClause.parseWhereClause(clause);
     }
+
+    public void setOnClause(SQLWhereClause in)
+    {
+        this.OnClause = in;
+    }
 }

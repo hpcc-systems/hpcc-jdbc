@@ -26,7 +26,11 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.StringTokenizer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+import org.hpccsystems.jdbcdriver.ECLFunction.FunctionType;
+import org.hpccsystems.jdbcdriver.HPCCColumnMetaData.ColumnType;
 import org.hpccsystems.jdbcdriver.SQLExpression.ExpressionType;
 
 /**
@@ -35,16 +39,20 @@ import org.hpccsystems.jdbcdriver.SQLExpression.ExpressionType;
  */
 public class SQLParser
 {
-    public final static short        SQL_TYPE_UNKNOWN     = -1;
-    public final static short        SQL_TYPE_SELECT      = 1;
-    public final static short        SQL_TYPE_SELECTCONST = 2;
-    public final static short        SQL_TYPE_CALL        = 3;
+    public enum SQLType
+    {
+        UNKNOWN,
+        SELECT,
+        SELECTCONST,
+        CALL;
+    }
 
     private List<SQLTable>           sqlTables;
-    private int                      sqlType;
+    private SQLType                 sqlType;
     private LinkedList<HPCCColumnMetaData> selectColumns;
     private SQLWhereClause           whereClause;
     private SQLJoinClause            joinClause = null;
+    private SQLWhereClause           havingClause = null;
     private SQLFragment[]            groupByFragments;
     private SQLFragment[]            orderByFragments;
     private String[]                 procInParamValues = null;
@@ -53,10 +61,16 @@ public class SQLParser
     private boolean                  columnsVerified = false;
     private boolean                  selectColsContainWildcard = false;
     private String                   indexHint;
+    private boolean                  isSelectDistinct = false;
 
     private int                      parameterizedCount = 0;
 
     public final static String       parameterizedPrefix = "PARAM";
+    public final static Pattern HAVINGPATTERN = Pattern.compile(
+            "\\s*(.*?)\\s*(?i)having\\s+(.*?)",Pattern.DOTALL);
+
+    public final static Pattern DISTINCTPATTERN = Pattern.compile(
+            "\\s*(?i)distinct\\s+(.*?)",Pattern.DOTALL);
 
     public void process(String insql) throws SQLException
     {
@@ -66,7 +80,7 @@ public class SQLParser
         selectColumns = new LinkedList<HPCCColumnMetaData>();
         whereClause = new SQLWhereClause();
         storedProcName = null;
-        sqlType = SQL_TYPE_UNKNOWN;
+        sqlType = SQLType.UNKNOWN;
         indexHint = null;
 
         insql = HPCCJDBCUtils.removeAllNewLines(insql);
@@ -90,7 +104,7 @@ public class SQLParser
         }
         else if (insql.matches("^(?i)call\\s+(.*?)"))
         {
-            sqlType = SQL_TYPE_CALL;
+            sqlType = SQLType.CALL;
             int callstrpos = insqlupcase.lastIndexOf("CALL ");
             int storedprocstrpos = insql.lastIndexOf("(");
             int paramlistend = insql.lastIndexOf(")");
@@ -122,7 +136,7 @@ public class SQLParser
             if (insql.matches("^(?i)select(.*?)\\s+(?i)union\\s+.*"))
                 throw new SQLException("SELECT UNIONS are not supported.");
 
-            sqlType = SQL_TYPE_SELECT;
+            sqlType = SQLType.SELECT;
             int fromstrpos = insqlupcase.lastIndexOf(" FROM ");
 
             if (fromstrpos == -1)
@@ -130,7 +144,7 @@ public class SQLParser
                 if (parseConstantSelect(insql))
                 {
                     System.out.println("Found Select <constant>");
-                    sqlType = SQL_TYPE_SELECTCONST;
+                    sqlType = SQLType.SELECTCONST;
                     return;
                 }
                 else
@@ -141,6 +155,7 @@ public class SQLParser
             int joinPos = insqlupcase.lastIndexOf(" JOIN ");
             int wherePos = insqlupcase.lastIndexOf(" WHERE ");
             int groupPos = insqlupcase.lastIndexOf(" GROUP BY ");
+            int havingPos = insqlupcase.lastIndexOf(" HAVING ");
             int orderPos = insqlupcase.lastIndexOf(" ORDER BY ");
             int limitPos = insqlupcase.lastIndexOf(" LIMIT ");
 
@@ -152,6 +167,9 @@ public class SQLParser
 
             if (wherePos != -1 && wherePos < fromstrpos)
                 throw new SQLException("Malformed SQL: WHERE clause placement.");
+
+            if (havingPos != -1 && (groupPos <= -1 || havingPos <= groupPos))
+                throw new SQLException("Malformed SQL: HAVING clause without GROUP BY placement.");
 
             try
             {
@@ -232,6 +250,15 @@ public class SQLParser
 
             if (groupByToken.length() > 0)
             {
+
+                Matcher matcher = HAVINGPATTERN.matcher(groupByToken);
+
+                if (matcher.matches())
+                {
+                    groupByToken = matcher.group(1).trim();
+                    parseHavingClause(matcher.group(2));
+                }
+
                 StringTokenizer tokenizer = new StringTokenizer(groupByToken, ",");
                 groupByFragments = new SQLFragment[tokenizer.countTokens()];
                 int i = 0;
@@ -263,30 +290,46 @@ public class SQLParser
             }
 
             SQLTable queryTable;
-            String splittablefromalias[] = fullTableName.trim().split("\\s+(?i)as(\\s+|$)");
-            if (splittablefromalias.length == 1)
+            StringTokenizer selTables = new StringTokenizer(fullTableName.trim(), ",");
+            while (selTables.hasMoreTokens())
             {
-                String splittablebyblank[] = splittablefromalias[0].trim().split("\\s+");
-                queryTable = new SQLTable(splittablebyblank[0].trim());
-                if (splittablebyblank.length == 2)
-                    queryTable.setAlias(splittablebyblank[1].trim());
-                else if (splittablebyblank.length > 2)
-                    throw new SQLException("Invalid SQL: " + splittablefromalias[0]);
-            }
-            else if (splittablefromalias.length == 2)
-            {
-                queryTable = new SQLTable(splittablefromalias[0].trim());
-                queryTable.setAlias(splittablefromalias[1].trim());
-            }
-            else
-                throw new SQLException("Invalid SQL: " + fullTableName);
+                queryTable = null;
 
-            sqlTables.add(queryTable);
+                String splittablefromalias[] = selTables.nextToken().trim().split("\\s+(?i)as(\\s+|$)");
+                if (splittablefromalias.length == 1)
+                {
+                    String splittablebyblank[] = splittablefromalias[0].trim().split("\\s+");
+                    queryTable = new SQLTable(splittablebyblank[0].trim());
+                    if (splittablebyblank.length == 2)
+                        queryTable.setAlias(splittablebyblank[1].trim());
+                    else if (splittablebyblank.length > 2)
+                        throw new SQLException("Invalid SQL: " + splittablefromalias[0]);
+                }
+                else if (splittablefromalias.length == 2)
+                {
+                    queryTable = new SQLTable(splittablefromalias[0].trim());
+                    queryTable.setAlias(splittablefromalias[1].trim());
+                }
+                else
+                    throw new SQLException("Invalid SQL: " + fullTableName);
+
+                sqlTables.add(queryTable);
+            }
 
             if (fromstrpos <= 7)
                 throw new SQLException("Invalid SQL: Missing select column(s).");
 
-            StringTokenizer comatokens = new StringTokenizer(insql.substring(7, fromstrpos), ",");
+            String seltoken = insql.substring(7, fromstrpos);
+
+            Matcher matcher = DISTINCTPATTERN.matcher(seltoken);
+
+            if (matcher.matches())
+            {
+                isSelectDistinct = true;
+                seltoken = matcher.group(1).trim();
+            }
+
+            StringTokenizer comatokens = new StringTokenizer(seltoken, ",");
 
             for (int sqlcolpos = 1; comatokens.hasMoreTokens();)
             {
@@ -303,49 +346,77 @@ public class SQLParser
                     List<HPCCColumnMetaData> funccols = new ArrayList<HPCCColumnMetaData>();
 
                     String funcname = col.substring(0, col.indexOf('('));
-                    ECLFunction func = ECLFunctions.getEclFunction(funcname.toUpperCase());
 
-                    if (func == null)
-                        throw new SQLException("ECL Function " + funcname + "is not currently supported");
+                    ECLFunction func = ECLFunctions.getEclFunction(funcname);
 
-                    col = col.substring(col.indexOf('(') + 1).trim();
-
-                    if (col.contains(")"))
+                    if (func != null)
                     {
-                        col = col.substring(0, col.indexOf(")")).trim();
-                        if (col.length() > 0)
+                        col = col.substring(col.indexOf('(') + 1).trim();
+
+                        if (func.getFunctionType() == FunctionType.CONTENT_MODIFIER)
                         {
-                            funccols.add(new HPCCColumnMetaData(col, funcparampos++, java.sql.Types.OTHER));
-                        }
-                    }
-                    else
-                    {
-                        funccols.add(new HPCCColumnMetaData(col, funcparampos++, java.sql.Types.OTHER));
-                        while (comatokens.hasMoreTokens())
-                        {
-                            col = comatokens.nextToken().trim();
                             if (col.contains(")"))
                             {
-                                col = col.substring(0, col.indexOf(")"));
-                                funccols.add(new HPCCColumnMetaData(col, funcparampos++, java.sql.Types.OTHER));
-                                break;
+                                col = col.substring(0, col.indexOf(")")).trim();
+                                colmetadata = new HPCCColumnMetaData(col, sqlcolpos++, java.sql.Types.OTHER);
+                                colmetadata.setContentModifier(func);
                             }
-                            funccols.add(new HPCCColumnMetaData(col, funcparampos++, java.sql.Types.OTHER));
+                            else
+                                throw new SQLException("Error while parsing function: " + col);
+                        }
+                        else
+                        {
+
+                            matcher = DISTINCTPATTERN.matcher(col);
+                            boolean isDistinctFuncCall = false;
+                            if (matcher.matches())
+                            {
+                                isDistinctFuncCall = true;
+                                col = matcher.group(1).trim();
+                            }
+
+                            if (col.contains(")"))
+                            {
+                                col = col.substring(0, col.indexOf(")")).trim();
+                                if (col.length() > 0)
+                                {
+                                    funccols.add(new HPCCColumnMetaData(col, funcparampos++, java.sql.Types.OTHER));
+                                }
+                            }
+                            else
+                            {
+                                funccols.add(new HPCCColumnMetaData(col, funcparampos++, java.sql.Types.OTHER));
+                                while (comatokens.hasMoreTokens())
+                                {
+                                    col = comatokens.nextToken().trim();
+                                    if (col.contains(")"))
+                                    {
+                                        col = col.substring(0, col.indexOf(")"));
+                                        funccols.add(new HPCCColumnMetaData(col, funcparampos++, java.sql.Types.OTHER));
+                                        break;
+                                    }
+                                    funccols.add(new HPCCColumnMetaData(col, funcparampos++, java.sql.Types.OTHER));
+                                }
+                            }
+
+                            if (ECLFunctions.verifyEclFunction(funcname, funccols))
+                                colmetadata = new HPCCColumnMetaData(funcname, sqlcolpos++, funccols);//, func);
+                            else
+                                throw new SQLException("Function " + funcname + " does not map to ECL as written");
+
+                            colmetadata.setDistinct(isDistinctFuncCall);
+                            colmetadata.setSqlType(func.getReturnType().getSqlType());
                         }
                     }
-
-                    if (ECLFunctions.verifyEclFunction(funcname, funccols))
-                        colmetadata = new HPCCColumnMetaData(funcname, sqlcolpos++, funccols);
                     else
-                        throw new SQLException("Function " + funcname + " does not map to ECL as written");
-
-                    colmetadata.setSqlType(func.getReturnType().getSqlType());
+                        throw new SQLException("ECL Function " + funcname + " is not currently supported");
                 }
 
                 if (colmetadata == null)
                     colmetadata = new HPCCColumnMetaData(col, sqlcolpos++, java.sql.Types.OTHER);
 
-                colmetadata.setTableName(queryTable.getName());
+                //TODO this has to change
+                colmetadata.setTableName(sqlTables.get(0).getName());
 
                 if (colassplit.length > 1)
                     colmetadata.setAlias(colassplit[1].trim());
@@ -363,12 +434,40 @@ public class SQLParser
                 System.out.println("Index hint found: " + indexHint);
             }
 
-            if (wherePos != -1)
+            if (sqlTables.size() > 1)
             {
-                String strWhere = insql.substring(wherePos + 7);
-                whereClause.parseWhereClause(strWhere);
+                if (joinPos != -1)
+                    throw new SQLException("Implicit and Explicit JOIN not currently supported");
 
-                insqlupcase = insqlupcase.substring(0, wherePos);
+                joinClause = new SQLJoinClause(SQLJoinClause.JoinType.INNER_JOIN);
+                joinClause.setJoinTable(sqlTables.get(1));
+
+                if (wherePos != -1)
+                {
+                    String strWhere = insql.substring(wherePos + 7);
+                    SQLWhereClause onClause = new SQLWhereClause();
+                    onClause.parseWhereClause(strWhere);
+                    joinClause.setOnClause(onClause);
+
+                    try
+                    {
+                        joinClause.updateFragments(sqlTables);
+                    }
+                    catch (Exception e)
+                    {
+                        throw new SQLException("Invalid field found in implicit Join clause.");
+                    }
+                }
+            }
+            else
+            {
+                if (wherePos != -1)
+                {
+                    String strWhere = insql.substring(wherePos + 7);
+                    whereClause.parseWhereClause(strWhere);
+
+                    insqlupcase = insqlupcase.substring(0, wherePos);
+                }
             }
 
             if (joinPos != -1)
@@ -399,6 +498,7 @@ public class SQLParser
                 whereClause.updateFragmentColumnsParent(sqlTables);
 
                 assignParameterIndexes();
+
             }
             catch (Exception e)
             {
@@ -407,6 +507,23 @@ public class SQLParser
         }
         else
             throw new SQLException("Invalid SQL found - only supports CALL and/or SELECT statements.");
+    }
+
+    private boolean parseHavingClause(String havingConditions) throws SQLException
+    {
+        //HAVING aggregate_function(column_name) operator value
+        try
+        {
+            havingClause = new SQLWhereClause();
+
+            havingClause.parseWhereClause(havingConditions);
+        }
+        catch (Exception e)
+        {
+            throw new SQLException("Error while parsing HAVING clause: " +  e.getLocalizedMessage());
+        }
+
+        return false;
     }
 
     private boolean parseConstantSelect(String sql) throws SQLException
@@ -457,7 +574,7 @@ public class SQLParser
                 throw new SQLException("Invalid SQL detected: " + col);
             }
 
-            colmetadata.setColumnType(HPCCColumnMetaData.COLUMN_TYPE_CONSTANT);
+            colmetadata.setColumnType(ColumnType.CONSTANT);
             colmetadata.setConstantValue(col);
 
             if (colassplit.length > 1)
@@ -486,7 +603,7 @@ public class SQLParser
         }
         catch (Exception e)
         {
-            throw new SQLException("Invalid field found in Where clause.");
+            throw new SQLException("Invalid field found in Join clause.");
         }
     }
 
@@ -559,7 +676,7 @@ public class SQLParser
         return sqlTables.get(index).getAlias();
     }
 
-    public int getSqlType()
+    public SQLType getSqlType()
     {
         return sqlType;
     }
@@ -576,10 +693,12 @@ public class SQLParser
 
     public String[] getColumnNames()
     {
-        Iterator<HPCCColumnMetaData> it = selectColumns.iterator();
         String[] selcols = new String[selectColumns.size()];
-        for (int i = 0; it.hasNext(); i++)
-            selcols[i] = it.next().getColumnName();
+        int i = 0;
+        for (HPCCColumnMetaData col : selectColumns)
+        {
+            selcols[i++] = col.getColumnName();
+        }
 
         return selcols;
     }
@@ -589,7 +708,7 @@ public class SQLParser
     public void assignParameterIndexes() throws SQLException
     {
         int paramIndex = 1;
-        if (sqlType == SQL_TYPE_SELECT)
+        if (sqlType == SQLType.SELECT)
         {
             if( whereClause != null && whereClause.getExpressionsCount() > 0)
             {
@@ -598,7 +717,7 @@ public class SQLParser
                 while (expressionit.hasNext())
                 {
                     SQLExpression exp = expressionit.next();
-                    if (exp.getExpressionType() == ExpressionType.LOGICAL_EXPRESSION_TYPE)
+                    if (exp.getExpressionType() == ExpressionType.LOGICAL_EXPRESSION)
                     {
                             paramIndex = exp.setParameterizedNames(paramIndex);
                     }
@@ -618,14 +737,14 @@ public class SQLParser
         return whereClause.getExpressionColumnNames();
     }
 
-    public String[] getUniqueWhereClauseColumnNames()
+    public Object[] getUniqueWhereClauseColumnNames()
     {
         return whereClause.getUniqueExpressionColumnNames();
     }
 
-    public SQLExpression getExpressionFromColumnName(String name)
+    public String getExpressionFromColumnName(String name)
     {
-        return whereClause.getExpressionFromColumndName(name);
+        return whereClause.getExpressionFromColumnName(name);
     }
 
     public boolean whereClauseContainsKey(String name)
@@ -641,11 +760,6 @@ public class SQLParser
     public String getWhereClauseString()
     {
         return whereClause.toString();
-    }
-
-    public int getUniqueWhereColumnCount()
-    {
-        return whereClause.getUniqueColumnCount();
     }
 
     public boolean whereClauseContainsOrOperator()
@@ -748,11 +862,11 @@ public class SQLParser
         else if (colsplit.length > 2)
             throw new SQLException("Invalid column found: " + fieldName);
 
-        if (!availableCols.containsKey(tableName + "." + fieldName))
+        if (!availableCols.containsKey(tableName.toUpperCase() + "." + fieldName.toUpperCase()))
         {
             if (!fieldName.trim().equals("*"))
             {
-                if (column.getColumnType() == HPCCColumnMetaData.COLUMN_TYPE_FNCTION)
+                if (column.getColumnType() == ColumnType.FUNCTION)
                 {
                     if (column.getAlias() == null)
                         column.setAlias(fieldName + "Out");
@@ -768,7 +882,7 @@ public class SQLParser
                     column.setColumnName("ConstStr" + column.getIndex());
                     column.setEclType("STRING");
                     column.setSqlType(java.sql.Types.VARCHAR);
-                    column.setColumnType(HPCCColumnMetaData.COLUMN_TYPE_CONSTANT);
+                    column.setColumnType(ColumnType.CONSTANT);
                     column.setConstantValue(fieldName);
                 }
                 else if (HPCCJDBCUtils.isNumeric(fieldName))
@@ -776,7 +890,7 @@ public class SQLParser
                     column.setColumnName("ConstNum" + column.getIndex());
                     column.setEclType("INTEGER");
                     column.setSqlType(java.sql.Types.NUMERIC);
-                    column.setColumnType(HPCCColumnMetaData.COLUMN_TYPE_CONSTANT);
+                    column.setColumnType(ColumnType.CONSTANT);
                     column.setConstantValue(fieldName);
                 }
                 else
@@ -787,7 +901,7 @@ public class SQLParser
         {
             column.setTableName(tableName);
             column.setColumnName(fieldName);
-            column.setEclType(availableCols.get(tableName + "." + fieldName).getEclType());
+            column.setEclType(availableCols.get(tableName.toUpperCase() + "." + fieldName.toUpperCase()).getEclType());
         }
     }
 
@@ -822,8 +936,23 @@ public class SQLParser
         return joinClause;
     }
 
+    public boolean isSelectDistinct()
+    {
+        return isSelectDistinct;
+    }
+
     public SQLWhereClause getWhereClause()
     {
         return whereClause;
+    }
+
+    public boolean hasHavingClause()
+    {
+        return havingClause != null;
+    }
+
+    public SQLWhereClause getHavingClause()
+    {
+        return havingClause;
     }
 }

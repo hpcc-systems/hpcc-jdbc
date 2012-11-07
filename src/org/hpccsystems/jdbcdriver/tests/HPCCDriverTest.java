@@ -14,6 +14,7 @@ import java.util.Properties;
 import org.hpccsystems.jdbcdriver.HPCCConnection;
 import org.hpccsystems.jdbcdriver.HPCCDatabaseMetaData;
 import org.hpccsystems.jdbcdriver.HPCCDriver;
+import org.hpccsystems.jdbcdriver.HPCCJDBCUtils;
 import org.hpccsystems.jdbcdriver.HPCCPreparedStatement;
 import org.hpccsystems.jdbcdriver.HPCCResultSet;
 
@@ -237,6 +238,37 @@ public class HPCCDriverTest
         return success;
     }
 
+    private static boolean printouttypeinfo(HPCCConnection connection)
+    {
+        boolean success = true;
+        try
+        {
+            ResultSet types = connection.getMetaData().getTypeInfo();
+
+            System.out.println("ECL Types: ");
+            int colcount = types.getMetaData().getColumnCount();
+
+            for (int i = 1; i <= colcount; i++)
+            {
+                System.out.print("[*****" + types.getMetaData().getColumnName(i) + "*****]");
+            }
+            System.out.println("");
+
+            while (types.next())
+            {
+                for (int i = 1; i <= colcount; i++)
+                {
+                    System.out.print("[ " + types.getObject(i) + " ]");
+                }
+                System.out.println();
+            }
+        }
+        catch (Exception e)
+        {
+            success = false;
+        }
+        return success;
+    }
     @SuppressWarnings("unused")
     private static boolean printoutproccols(HPCCConnection connection)
     {
@@ -417,6 +449,7 @@ public class HPCCDriverTest
 
             int colcount = meta.getColumnCount();
             int resultcount = qrs.getRowCount();
+
             if (resultcount > 0 )
             {
                 for (int i = 1; i <= colcount; i++)
@@ -431,7 +464,7 @@ public class HPCCDriverTest
                 System.out.println();
                 for (int i = 1; i <= meta.getColumnCount(); i++)
                 {
-                    System.out.print("[+++++" + HPCCDatabaseMetaData.convertSQLtype2JavaClassName(meta.getColumnType(i))  + "+++++]");
+                    System.out.print("[+++++" + HPCCJDBCUtils.convertSQLtype2JavaClassName(meta.getColumnType(i))  + "+++++]");
                 }
 
                 while (qrs.next())
@@ -443,6 +476,7 @@ public class HPCCDriverTest
                     }
                 }
             }
+
             System.out.println("\nTotal Records found: " + resultcount);
 
             success = (resultcount >= minResults);
@@ -574,7 +608,7 @@ public class HPCCDriverTest
 
             for (int i = 1; i <= colcount; i++)
             {
-                String coltype = HPCCDatabaseMetaData.convertSQLtype2JavaClassName(meta.getColumnType(i));
+                String coltype = HPCCJDBCUtils.convertSQLtype2JavaClassName(meta.getColumnType(i));
                 System.out.print("[");
 
                 for (int y = 0; y < (coltype.length() >= padvalue ? 0 : (padvalue - coltype.length()) / 2); y++)
@@ -689,34 +723,36 @@ public class HPCCDriverTest
             if (!testLazyLoading(propsinfo))
                     throw new RuntimeException("Lazy loading failed");
 
-            if (!createStandAloneDataMetadata(propsinfo)) 
+            if (!createStandAloneDataMetadata(propsinfo))
                     throw new RuntimeException("Stand-alone metadata failed");
 
             HPCCConnection connectionprops = connectViaProps(propsinfo);
-            if (connectionprops == null) 
+            if (connectionprops == null)
                 throw new RuntimeException("Could not connect with properties object");
-            
-            if (! getDatabaseInfo(connectionprops) ) 
+
+            if (! getDatabaseInfo(connectionprops) )
                 throw new RuntimeException("Could not fetch DB Info");
-            if (! testSelect1(connectionprops) ) 
+            if (! testSelect1(connectionprops) )
                 throw new RuntimeException("TestSelect1 failed");
 
             HPCCConnection connectionurl = connectViaUrl(infourl);
-            if (! (connectionurl != null) ) 
+            if (! (connectionurl != null) )
                 throw new RuntimeException("Could not connect with URL");
-            if (! getDatabaseInfo(connectionurl) ) 
+            if (! getDatabaseInfo(connectionurl) )
                 throw new RuntimeException("Could not fetch DB Info");
 
-            if (! printoutalltablescols(connectViaProps(propsinfo)) ) 
+            if (! printouttypeinfo(connectViaProps(propsinfo)))
+                throw new RuntimeException("Print ECL types failed");
+            if (! printoutalltablescols(connectViaProps(propsinfo)) )
                 throw new RuntimeException("printout alltablescols failed");
-            if (! testPrepStatementReuse(propsinfo) ) 
+            if (! testPrepStatementReuse(propsinfo) )
                 throw new RuntimeException("testPrepStatementReuse failed");
-            if (testClosePrepStatementUse(propsinfo))  
+            if (testClosePrepStatementUse(propsinfo))
                 throw new RuntimeException("testClosePrepStatementUse passed");
-            if (testPrepStatementReuseBadQuery(propsinfo)) 
+            if (testPrepStatementReuseBadQuery(propsinfo))
                 throw new RuntimeException("testPrepStatementReuseBadQuery passed");
-            if (! runParralellTest(connectionprops) ) 
-                throw new RuntimeException("Parrallel Connection reuse test failed");
+            //if (! runParralellTest(connectionprops) )
+            //    throw new RuntimeException("Parrallel Connection reuse test failed");
 
             executeFreeHandSQL(propsinfo,
                     "call myroxie::fetchpeoplebyzipservice(33488)",
@@ -748,6 +784,110 @@ public class HPCCDriverTest
             executeFreeHandSQL(propsinfo,"select 1", params, true, 1, "Select single numeric constant");
             executeFreeHandSQL(propsinfo,"select 1,2,3,4", params, true, 1, "Select four numeric constants");
             executeFreeHandSQL(propsinfo,"select '1a'", params, true, 1, "Select single string constant");
+
+            executeFreeHandSQL(propsinfo,
+                    "select  peeps.gender, peeps.firstname, peeps.lastname from progguide::exampledata::people peeps where ( peeps.firstname = 'TIMTOHY' ) limit 100 ",
+                    params, true, 1, "encapsulated where clause");
+
+            executeFreeHandSQL(propsinfo,
+                    "select  peeps.gender, peeps.firstname, peeps.lastname from progguide::exampledata::people peeps where ( peeps.firstname IN ('TIMTOHY') ) limit 100 ",
+                    params, true, 1, "encapsulated where clause with IN () operator");
+
+            executeFreeHandSQL(propsinfo,
+                    "select  peeps.gender, peeps.firstname, peeps.lastname from progguide::exampledata::people peeps where ( peeps.firstname NOT IN ('TIMTOHY') ) limit 100 ",
+                    params, true, 1, "encapsulated where clause with NOT IN () operator");
+
+            executeFreeHandSQL(propsinfo,
+                    "select  peeps.gender, peeps.firstname, peeps.lastname from progguide::exampledata::people peeps where ( peeps.firstname IN ('TIMTOHY')  limit 100 ",
+                    params, false, 0, "invalid encapsulated where clause missing ) ");
+
+            executeFreeHandSQL(propsinfo,
+                    "select  peeps.gender, peeps.firstname, peeps.lastname from progguide::exampledata::people peeps where ( peeps.firstname = 'TIMTOHY'  limit 100 ",
+                    params, false, 0, "2 invalid encapsulated where clause missing ) ");
+
+            executeFreeHandSQL(propsinfo,
+                    "select  peeps.gender, peeps.firstname, peeps.lastname from tutorial::rp::tutorialperson as persons, progguide::exampledata::people peeps where  persons.firstname = peeps.firstname and persons.city  = upper('delray beach') limit 100",
+                    params, true, 1, "implicit join");
+
+            executeFreeHandSQL(propsinfo,
+                    "select  peeps.gender, peeps.firstname, peeps.lastname from tutorial::rp::tutorialperson as persons, progguide::exampledata::people peeps where  persons.firstname = peeps.firstname and persons.city is not null limit 100",
+                    params, true, 1, "implicit join IS NOT NULL filter");
+
+            executeFreeHandSQL(propsinfo,
+                    "select  peeps.gender, peeps.firstname, peeps.lastname from tutorial::rp::tutorialperson as persons, progguide::exampledata::people peeps where  persons.firstname = peeps.firstname and persons.city is null limit 100",
+                    params, true, 0, "implicit join IS NULL filter");
+
+            executeFreeHandSQL(propsinfo,
+                    "select  peeps.gender, peeps.firstname, peeps.lastname from tutorial::rp::tutorialperson as persons, progguide::exampledata::people peeps outer join  tutorial::rp::tutorialperson as people2 on people2.firstname = persons.firstname where  persons.firstname = peeps.firstname and persons.city  > upper('delray') limit 100",
+                    params, false, 0, "implicit join + explicit join");
+
+            executeFreeHandSQL(propsinfo,
+                    "select  * from tutorial::rp::tutorialperson as persons where  persons.city  > upper('delray') limit 100",
+                    params, true, 1, "select where upper(\'literal\')");
+
+            executeFreeHandSQL(propsinfo,
+                    "select  * from tutorial::rp::tutorialperson as persons where  lower(persons.city)  = 'delray beach' limit 100",
+                    params, true, 1, "select where lower(field)");
+
+            executeFreeHandSQL(propsinfo,
+                    "select  upper(firstname), lower(lastname) from tutorial::rp::tutorialperson as persons where  persons.city  = 'DELRAY BEACH' limit 100",
+                    params, true, 1, "select upper(col) where ");
+
+            executeFreeHandSQL(propsinfo,
+                    "select  count( persons.city)  from tutorial::rp::tutorialperson as persons where  persons.city  > 'DELRAY' group by city having count(city) < 22 limit 100",
+                    params, true, 1, "count having single field scalar output");
+
+            executeFreeHandSQL(propsinfo,
+                    "select  count( persons.zip), zip  from tutorial::rp::tutorialperson as persons where  persons.zip  > '33445' group by zip having count(zip) > 20 limit 100",
+                    params, true, 1, "count having single field payload indexed");
+
+            executeFreeHandSQL(propsinfo,
+                    "select  count( persons.city), city  from tutorial::rp::tutorialperson as persons where  persons.city  > 'DELRAY' group by zip having count(city) < 22 limit 100",
+                    params, true, 1, "count having single field not indexed");
+
+            executeFreeHandSQL(propsinfo,
+                   "select  count( persons.zip), zip   from tutorial::rp::tutorialperson as persons where  persons.zip  > '33445' group by zip having count(zip) < 22 order by zip ASC limit 100",
+                   params, true, 1, "count having single field payload indexed");
+
+            executeFreeHandSQL(propsinfo,
+                    "select  count(  distinct  persons.zip) from tutorial::rp::tutorialperson as persons where  persons.zip  > '33445'  limit 100",
+                    params, true, 1, "count distintc single field payload indexed");
+
+            executeFreeHandSQL(propsinfo,
+                    "select   distinct  persons.middlename from tutorial::rp::tutorialperson as persons USE INDEX(0)limit 100",
+                    params, true, 1, "select distintc single field non indexed");
+
+            executeFreeHandSQL(propsinfo,
+                    "select   distinct  persons.middlename, count(distinct middlename) from tutorial::rp::tutorialperson as persons USE INDEX(0) group by middlename limit 100",
+                    params, true, 1, "select distintc single field non indexed");
+
+            executeFreeHandSQL(propsinfo,
+                    "select   persons.firstname from tutorial::rp::tutorialperson as persons  where  persons.zip  in ('33445') and persons.zip not in ('90210') limit 100",
+                    params, true, 1, "multiple keyed field payload indexed");
+
+            executeFreeHandSQL(propsinfo,
+                    "select  count(  distinct  persons.zip, persons.firstname) from tutorial::rp::tutorialperson as persons   USE INDEX(0) where  persons.zip  > '33445'  limit 100",
+                    params, true, 1, "count distintc multiple field NOT indexed");
+
+            executeFreeHandSQL(propsinfo,
+                    "select   persons.zip, firstname, lastname from tutorial::rp::tutorialperson as persons    where  persons.zip  in ('33445','33446'   ,   '',  '33487')  limit 100",
+                    params, true, 1, "in operator multiple literals");
+
+            executeFreeHandSQL(propsinfo,
+                    "select   persons.zip, firstname, lastname from tutorial::rp::tutorialperson as persons    where  persons.zip  not in ('33445','33446'   ,   '',  '33487')  limit 100",
+                    params, true, 1, "not in operator multiple literals");
+
+            executeFreeHandSQL(propsinfo,
+                    "select  persons.zip from tutorial::rp::tutorialperson as persons  where  persons.zip  in ('33445')  limit 100",
+                    params, true, 1, "count distintc single field NOT indexed");
+
+            executeFreeHandSQL(propsinfo,
+                    "select  count(  distinct  persons.zip, persons.firstname) from tutorial::rp::tutorialperson as persons  where  persons.zip  in ('33445')  limit 100",
+                    params, true, 1, "count distintc multiple field payload indexed");
+
+            executeFreeHandSQL(propsinfo,
+                    "call 'myroxie::fetchpeoplebyzipservice'(33445)",
+                    params, true, 1, "Call single quoted published query name");
 
             executeFreeHandSQL(propsinfo,
                     "call 'myroxie::fetchpeoplebyzipservice'(33445)",
@@ -890,8 +1030,12 @@ public class HPCCDriverTest
                     "select count(persons.zip) as zipcount, persons.city as mycity , zip, p2.ball from super::super::tutorial::rp::tutorialperson as persons join thor::motionchart_motion_chart_test_fixed as p2 on p2.zip = persons.zip where persons.zip > ? group by zip limit 10",
                     params, false, 0, "Select invalid join condition (field doesn't exist)");
 
+            //executeFreeHandSQL(propsinfo,
+                    //"select acct.account, acct.personid, persons.firstname, persons.lastname from progguide::exampledata::people as persons outer join  progguide::exampledata::accounts as acct on acct.personid = persons.personid  where persons.personid > 5 limit 10",
+                    //params, true, 10, "Select outter join -- Can be lengthly query");
+
             executeFreeHandSQL(propsinfo,
-                    "select acct.account, acct.personid, persons.firstname, persons.lastname from progguide::exampledata::people as persons outer join  progguide::exampledata::accounts as acct on acct.personid = persons.personid  where persons.personid > 5 limit 10",
+                    "select acct.account, acct.personid, persons.firstname, persons.lastname from progguide::exampledata::people as persons outer join  progguide::exampledata::accounts as acct on acct.personid = persons.personid  where persons.personid = 5 limit 10",
                     params, true, 10, "Select outter join -- Can be lengthly query");
 
             executeFreeHandSQL(propsinfo,
@@ -944,22 +1088,25 @@ public class HPCCDriverTest
                 throw new RuntimeException("Valid lower case JDBC URL test failed");
             if (!driver.acceptsURL("JDBC:hpcc"))
                 throw new RuntimeException("Valid mixed case JDBC URL test1 failed");
-            if (!driver.acceptsURL("JDBC:HPCC")) 
+            if (!driver.acceptsURL("JDBC:HPCC"))
                 throw new RuntimeException("Valid upper case JDBC URL test failed");
-            if (!driver.acceptsURL("jdbc:HPCC")) 
+            if (!driver.acceptsURL("jdbc:HPCC"))
                 throw new RuntimeException("Valid mixed case JDBC URL test2 failed");
             if (!driver.acceptsURL("jDbC:hPcC"))
                 throw new RuntimeException("Valid camel case JDBC URL test2 failed");
+
             if (!driver.acceptsURL("jdbc:hpcc;"))
                 throw new RuntimeException("Valid seperator JDBC URL test failed");
             if (!driver.acceptsURL("jdbc:hpcc;prop1=val1;prop2=val2"))
-                throw new RuntimeException("Valid properties JDBC URL test passed");
-            if (driver.acceptsURL("jdbc:hpcc:"))
-                throw new RuntimeException("Invalid seperator JDBC URL test passed");
+                throw new RuntimeException("Valid properties JDBC URL semicolon test failed");
+            if (!driver.acceptsURL("jdbc:hpcc:prop1=val1:prop2=val2"))
+                throw new RuntimeException("Valid properties JDBC URL colon test failed");
+            if (!driver.acceptsURL("jdbc:hpcc:"))
+                throw new RuntimeException("Valid seperator JDBC URL test passed");
             if (driver.acceptsURL("jdbc : hpcc"))
                 throw new RuntimeException("Invalid spaces JDBC URL test passed");
-            if (driver.acceptsURL("jdbc:hpcc:prop1=val1;prop2=val2"))
-                throw new RuntimeException("Invalid spaces JDBC URL test passed");
+            if (!driver.acceptsURL("jdbc:hpcc:prop1=val1;prop2=val2"))
+                throw new RuntimeException("Valid JDBC URL test failed");
             if (driver.acceptsURL("  jdbc:hpcc"))
                 throw new RuntimeException("Invalid spaces JDBC URL test2 passed");
             if (driver.acceptsURL("Garbage"))

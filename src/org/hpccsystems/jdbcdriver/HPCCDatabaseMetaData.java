@@ -41,6 +41,7 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
+import org.hpccsystems.jdbcdriver.HPCCJDBCUtils.EclTypes;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -118,7 +119,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         this.readTimoutMillis = HPCCJDBCUtils.stringToInt(props.getProperty("ReadTimeoutMilli"),
                 Integer.valueOf(HPCCDriver.READTIMEOUTMILDEFAULT));
 
-        System.out.println("EclDatabaseMetaData ServerAddress: " + serverAddress + " TargetCluster: " + targetcluster
+        System.out.println("HPCCDatabaseMetaData ServerAddress: " + serverAddress + " TargetCluster: " + targetcluster
                 + " eclwatch: " + basewseclwatchurl);
 
         targetclusters = new ArrayList<String>();
@@ -277,172 +278,6 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         return 0;
     }
 
-    /**
-     * Translates a data type from an integer (java.sql.Types value) to a string
-     * that represents the corresponding class.
-     *
-     * @param type
-     *            The java.sql.Types value to convert to a string
-     *            representation.
-     * @return The class name that corresponds to the given java.sql.Types
-     *         value, or "java.lang.Object" if the type has no known mapping.
-     */
-
-    public static String convertSQLtype2JavaClassName(int type)
-    {
-        String result = "java.lang.Object";
-
-        switch (type)
-        {
-            case java.sql.Types.CHAR:
-            case java.sql.Types.VARCHAR:
-            case java.sql.Types.LONGVARCHAR:
-                result = "java.lang.String";
-                break;
-            case java.sql.Types.NUMERIC:
-            case java.sql.Types.DECIMAL:
-                result = "java.math.BigDecimal";
-                break;
-            case java.sql.Types.BIT:
-                result = "java.lang.Boolean";
-                break;
-            case java.sql.Types.TINYINT:
-                result = "java.lang.Byte";
-                break;
-            case java.sql.Types.SMALLINT:
-                result = "java.lang.Short";
-                break;
-            case java.sql.Types.INTEGER:
-                result = "java.lang.Integer";
-                break;
-            case java.sql.Types.BIGINT:
-                result = "java.lang.Long";
-                break;
-            case java.sql.Types.REAL:
-                result = "java.lang.Real";
-                break;
-            case java.sql.Types.FLOAT:
-            case java.sql.Types.DOUBLE:
-                result = "java.lang.Double";
-                break;
-            case java.sql.Types.BINARY:
-            case java.sql.Types.VARBINARY:
-            case java.sql.Types.LONGVARBINARY:
-                result = "java.lang.Byte[]";
-                break;
-            case java.sql.Types.DATE:
-                result = "java.sql.Date";
-                break;
-            case java.sql.Types.TIME:
-                result = "java.sql.Time";
-                break;
-            case java.sql.Types.TIMESTAMP:
-                result = "java.sql.Timestamp";
-                break;
-        }
-        return result;
-    }
-
-    private static int convertECLtypeCode2SQLtype(int ecltypecode)
-    {
-        int type = java.sql.Types.OTHER;
-
-        if (ecltypecode == EclTypes.ECLTypeboolean.ordinal())
-            type = java.sql.Types.BOOLEAN;
-        else if (ecltypecode == EclTypes.ECLTypearray.ordinal())
-            type = java.sql.Types.ARRAY;
-        else if (ecltypecode == EclTypes.ECLTypeblob.ordinal())
-            type = java.sql.Types.BLOB;
-        else if (ecltypecode == EclTypes.ECLTypechar.ordinal())
-            type = java.sql.Types.CHAR;
-        else if (ecltypecode == EclTypes.ECLTypedate.ordinal())
-            type = java.sql.Types.DATE;
-        else if (ecltypecode == EclTypes.ECLTypedecimal.ordinal())
-            type = java.sql.Types.DECIMAL;
-        else if (ecltypecode == EclTypes.ECLTypeint.ordinal())
-            type = java.sql.Types.INTEGER;
-        else if (ecltypecode == EclTypes.ECLTypenull.ordinal())
-            type = java.sql.Types.NULL;
-        else if (ecltypecode == EclTypes.ECLTypenumeric.ordinal())
-            type = java.sql.Types.NUMERIC;
-        else if (ecltypecode == EclTypes.ECLTypepackedint.ordinal())
-            type = java.sql.Types.INTEGER;
-        else if (ecltypecode == EclTypes.ECLTypepointer.ordinal())
-            type = java.sql.Types.REF;
-        else if (ecltypecode == EclTypes.ECLTypeqstring.ordinal())
-            type = java.sql.Types.VARCHAR;
-        else if (ecltypecode == EclTypes.ECLTypereal.ordinal())
-            type = java.sql.Types.REAL;
-        else if (ecltypecode == EclTypes.ECLTypestring.ordinal())
-            type = java.sql.Types.VARCHAR;
-        else if (ecltypecode == EclTypes.ECLTypeunsigned.ordinal())
-            type = java.sql.Types.NUMERIC;
-        else if (ecltypecode == EclTypes.ECLTypevarstring.ordinal())
-            type = java.sql.Types.VARCHAR;
-
-        return type;
-    }
-
-    public static int convertECLtype2SQLtype(String ecltype)
-    {
-        int type = java.sql.Types.OTHER;
-        String postfix = ecltype.substring(ecltype.lastIndexOf(':') + 1);
-        /* Simple types */
-        // if (postfix.startsWith("STRING"))
-        if (postfix.contains("STRING"))
-            type = java.sql.Types.VARCHAR;
-        else if (postfix.startsWith("FLOAT"))
-            type = java.sql.Types.FLOAT;
-        else if (postfix.startsWith("DOUBLE"))
-            type = java.sql.Types.DOUBLE;
-        // else if (postfix.endsWith("DECIMAL"))
-        else if (postfix.startsWith("DECIMAL"))
-            type = java.sql.Types.DECIMAL;
-        // else if (postfix.endsWith("INTEGER"))
-        else if (postfix.startsWith("INTEGER"))
-            type = java.sql.Types.INTEGER;
-        // nonNegativeInteger
-        // else if (ecltype.endsWith("NONNEGATIVEINTEGER"))
-        // type = java.sql.Types.??
-        // positiveInteger
-        // nonPositiveInteger
-        // negativeInteger
-        else if (postfix.startsWith("LONG"))
-            type = java.sql.Types.NUMERIC;
-        // unsignedLong
-        else if (postfix.startsWith("INT"))
-            type = java.sql.Types.INTEGER;
-        // unsignedInt
-        else if (postfix.startsWith("SHORT"))
-            type = java.sql.Types.SMALLINT;
-        // unsignedShort
-        // else if (ecltype.endsWith("BYTE"))
-        // type = java.sql.Types.;
-        else if (postfix.startsWith("UNSIGNED"))
-            type = java.sql.Types.NUMERIC;
-        /* XML primitive types */
-        else if (postfix.startsWith("DATETIME"))
-            type = java.sql.Types.TIMESTAMP;
-        else if (postfix.startsWith("TIME"))
-            type = java.sql.Types.TIME;
-        else if (postfix.startsWith("DATE"))
-            type = java.sql.Types.DATE;
-        else if (postfix.startsWith("GDAY"))
-            type = java.sql.Types.DATE;
-        else if (postfix.startsWith("GMONTH"))
-            type = java.sql.Types.DATE;
-        else if (postfix.startsWith("GYEAR"))
-            type = java.sql.Types.DATE;
-        else if (postfix.startsWith("GYEARMONTH"))
-            type = java.sql.Types.DATE;
-        else if (postfix.startsWith("GMONTHDAY"))
-            type = java.sql.Types.DATE;
-        else if (postfix.startsWith("DURATION"))
-            type = java.sql.Types.VARCHAR;
-
-        return type;
-    }
-
     public static int registerSchemaElements(Element node, HPCCQuery query)
     {
         NodeList results = node.getElementsByTagName("Results");
@@ -481,7 +316,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                                     columntype = elem.getTextContent();
                             }
                             HPCCColumnMetaData elemmeta = new HPCCColumnMetaData(columname.toUpperCase(), 0,
-                                    convertECLtype2SQLtype(columntype.toUpperCase()));
+                                    HPCCJDBCUtils.mapECLtype2SQLtype(columntype));
                             elemmeta.setTableName(tablename);
                             elemmeta.setParamType(procedureColumnOut);
                             try
@@ -532,7 +367,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                                     columntype = elem.getTextContent();
                             }
                             HPCCColumnMetaData elemmeta = new HPCCColumnMetaData(columname, i + 1,
-                                    convertECLtype2SQLtype(columntype.toUpperCase()));
+                                    HPCCJDBCUtils.mapECLtype2SQLtype(columntype.toUpperCase()));
                             elemmeta.setTableName(query.getName());
                             elemmeta.setParamType(procedureColumnIn);
                             try
@@ -1372,7 +1207,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                 coltype = col.getSqlType();
 
                 System.out.println("Proc col Found: " + query.getName() + "." + fieldname + " of type: " + coltype
-                        + "(" + convertSQLtype2JavaClassName(coltype) + ")");
+                        + "(" + HPCCJDBCUtils.convertSQLtype2JavaClassName(coltype) + ")");
 
                 ArrayList rowValues = new ArrayList();
                 procedurecols.add(rowValues);
@@ -1383,7 +1218,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                 /* 4 */rowValues.add(fieldname);
                 /* 5 */rowValues.add(col.getParamType());
                 /* 6 */rowValues.add(coltype);
-                /* 7 */rowValues.add(convertSQLtype2JavaClassName(coltype));
+                /* 7 */rowValues.add(HPCCJDBCUtils.convertSQLtype2JavaClassName(coltype));
                 /* 8 */rowValues.add(0);
                 /* 9 */rowValues.add(0);
                 /* 10 */rowValues.add(0);
@@ -1473,11 +1308,11 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                     + (table.hasRelatedIndexes() ? "Has " + table.getRelatedIndexesCount() + " related Indexes" : "")
                     + (table.isKeyFile() ? "-Keyed File " : "") + (table.isSuperFile() ? "-SuperFile " : "")
                     + (table.isFromRoxieCluster() ? "-FromRoxieCluster" : ""));
-            rowValues.add("null");
-            rowValues.add("null");
-            rowValues.add("null");
-            rowValues.add("null");
-            rowValues.add("null");
+            rowValues.add(null);
+            rowValues.add(null);
+            rowValues.add(null);
+            rowValues.add(null);
+            rowValues.add(null);
         }
         return rowValues;
     }
@@ -1496,18 +1331,6 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         metacols.add(new HPCCColumnMetaData("TABLE_SCHEM", 1, java.sql.Types.VARCHAR));
         metacols.add(new HPCCColumnMetaData("TABLE_CATALOG", 2, java.sql.Types.VARCHAR));
 
-        Enumeration<Object> files = dfufiles.getFiles();
-        while (files.hasMoreElements())
-        {
-            DFUFile file = (DFUFile) files.nextElement();
-            String tablename = file.getFileName();
-
-            ArrayList<String> rowValues = new ArrayList<String>();
-            tables.add(rowValues);
-            rowValues.add(tablename);
-            rowValues.add("Catalog");
-
-        }
         return new HPCCResultSet(tables, metacols, "Schemas");
     }
 
@@ -1609,7 +1432,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                 coltype = field.getSqlType();
 
                 HPCCJDBCUtils.traceoutln("Table col found: " + file.getFileName() + "." + fieldname + " of type: " + coltype
-                        + "(" + convertSQLtype2JavaClassName(coltype) + ")");
+                        + "(" + HPCCJDBCUtils.convertSQLtype2JavaClassName(coltype) + ")");
 
                 ArrayList rowValues = new ArrayList();
                 columns.add(rowValues);
@@ -1618,7 +1441,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                 /* 3 */rowValues.add(file.getFullyQualifiedName());
                 /* 4 */rowValues.add(fieldname);
                 /* 5 */rowValues.add(coltype);
-                /* 6 */rowValues.add(convertSQLtype2JavaClassName(coltype));
+                /* 6 */rowValues.add(HPCCJDBCUtils.convertSQLtype2JavaClassName(coltype));
                 /* 7 */rowValues.add(0);
                 /* 8 */rowValues.add("null");
                 /* 9 */rowValues.add(0);
@@ -1783,7 +1606,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
             types.add(rowValues);
 
             /* 1 */rowValues.add(String.valueOf(ecltype));
-            /* 2 */rowValues.add(convertECLtypeCode2SQLtype(ecltype.ordinal()));
+            /* 2 */rowValues.add(HPCCJDBCUtils.convertECLtypeCode2SQLtype(ecltype));
             /* 3 */rowValues.add(0);
             /* 4 */rowValues.add(null);
             /* 5 */rowValues.add(null);
@@ -1794,7 +1617,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
             /* 10 */rowValues.add(false);
             /* 11 */rowValues.add(false);
             /* 12 */rowValues.add(false);
-            /* 13 */rowValues.add(convertSQLtype2JavaClassName(convertECLtypeCode2SQLtype(ecltype.ordinal())));
+            /* 13 */rowValues.add(HPCCJDBCUtils.convertSQLtype2JavaClassName(HPCCJDBCUtils.convertECLtypeCode2SQLtype(ecltype)));
             /* 14 */rowValues.add(0);
             /* 15 */rowValues.add(0);
             /* 16 */rowValues.add(0);
@@ -2245,6 +2068,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         try
         {
             urlString = basewseclwatchurl + "/WsDfu/DFUQuery?LogicalName=*&PageSize=" + pageSize + "&PageStartFrom=" + pageOffset + "&rawxml_&filetype=" + FILEFETCHTYPE_ALL;
+            HPCCJDBCUtils.traceoutln("Fetching tables: " + urlString);
             URL dfuLogicalFilesURL = new URL(urlString);
             HttpURLConnection dfulogfilesConn = createHPCCESPConnection(dfuLogicalFilesURL);
 
@@ -2694,122 +2518,6 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public String getBasicAuth()
     {
         return basicAuth;
-    }
-
-    public enum EclTypes
-    {
-        ECLTypeboolean(0),
-        ECLTypeint(1),
-        ECLTypereal(2),
-        ECLTypedecimal(3),
-        ECLTypestring(4),
-        ECLTypeunused1(5),
-        ECLTypedate(6),
-        ECLTypeunused2(7),
-        ECLTypeunused3(8),
-        ECLTypebitfield(9),
-        ECLTypeunused4(10),
-        ECLTypechar(11),
-        ECLTypeenumerated(12),
-        ECLTyperecord(13),
-        ECLTypevarstring(14),
-        ECLTypeblob(15),
-        ECLTypedata(16),
-        ECLTypepointer(17),
-        ECLTypeclass(18),
-        ECLTypearray(19),
-        ECLTypetable(20),
-        ECLTypeset(21),
-        ECLTyperow(22),
-        ECLTypegroupedtable(23),
-        ECLTypevoid(24),
-        ECLTypealien(25),
-        ECLTypeswapint(26),
-        ECLTypepackedint(28),
-        ECLTypeunused5(29),
-        ECLTypeqstring(30),
-        ECLTypeunicode(31),
-        ECLTypeany(32),
-        ECLTypevarunicode(33),
-        ECLTypepattern(34),
-        ECLTyperule(35),
-        ECLTypetoken(36),
-        ECLTypefeature(37),
-        ECLTypeevent(38),
-        ECLTypenull(39),
-        ECLTypescope(40),
-        ECLTypeutf8(41),
-        ECLTypetransform(42),
-        ECLTypeifblock(43), // not a real type -but used for the rtlfield serialization
-        ECLTypefunction(44),
-        ECLTypesortlist(45),
-        ECLTypemodifier(0xff), // used  by  getKind()
-        ECLTypeunsigned(0x100), // combined with some of the above, when
-                                // returning summary type information. Not
-                                // returned by getTypeCode()
-        ECLTypeebcdic(0x200), // combined with some of the above, when returning
-                              // summary type information. Not returned by
-                              // getTypeCode()
-        // Some pseudo types - never actually created
-        ECLTypestringorunicode(0xfc), // any string/unicode variant
-        ECLTypenumeric(0xfd),
-        ECLTypescalar(0xfe);
-
-        EclTypes(int eclcode){}
-
-        /*
-        public String getTypeName()
-        {
-            switch (this.ordinal())
-            {
-                case EclTypes.ECLTypeboolean:
-                case java.sql.Types.VARCHAR:
-                case java.sql.Types.LONGVARCHAR:
-                    result = "java.lang.String";
-                    break;
-                case java.sql.Types.NUMERIC:
-                case java.sql.Types.DECIMAL:
-                    result = "java.math.BigDecimal";
-                    break;
-                case java.sql.Types.BIT:
-                    result = "java.lang.Boolean";
-                    break;
-                case java.sql.Types.TINYINT:
-                    result = "java.lang.Byte";
-                    break;
-                case java.sql.Types.SMALLINT:
-                    result = "java.lang.Short";
-                    break;
-                case java.sql.Types.INTEGER:
-                    result = "java.lang.Integer";
-                    break;
-                case java.sql.Types.BIGINT:
-                    result = "java.lang.Long";
-                    break;
-                case java.sql.Types.REAL:
-                    result = "java.lang.Real";
-                    break;
-                case java.sql.Types.FLOAT:
-                case java.sql.Types.DOUBLE:
-                    result = "java.lang.Double";
-                    break;
-                case java.sql.Types.BINARY:
-                case java.sql.Types.VARBINARY:
-                case java.sql.Types.LONGVARBINARY:
-                    result = "java.lang.Byte[]";
-                    break;
-                case java.sql.Types.DATE:
-                    result = "java.sql.Date";
-                    break;
-                case java.sql.Types.TIME:
-                    result = "java.sql.Time";
-                    break;
-                case java.sql.Types.TIMESTAMP:
-                    result = "java.sql.Timestamp";
-                    break;
-            }
-            return "";
-        }*/
     }
 
     public boolean tableExists(String clustername, String filename)

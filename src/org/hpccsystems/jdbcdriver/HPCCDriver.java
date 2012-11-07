@@ -76,7 +76,7 @@ public class HPCCDriver implements Driver
         {
             if (url != null && acceptsURL(url))
             {
-                StringTokenizer urltokens = new StringTokenizer(url, ";");
+                StringTokenizer urltokens = new StringTokenizer(url, ":;");
 
                 while (urltokens.hasMoreTokens())
                 {
@@ -210,7 +210,7 @@ public class HPCCDriver implements Driver
 
     public boolean acceptsURL(String url) throws SQLException
     {
-        return url != null && url.matches("^(?i)jdbc:hpcc(;.*)*?");
+        return url != null && url.matches("^(?i)jdbc:hpcc((:|;).*)*?");
     }
 
     private static void initializePropInfo()

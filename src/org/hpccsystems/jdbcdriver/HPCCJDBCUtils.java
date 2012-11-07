@@ -20,7 +20,6 @@ package org.hpccsystems.jdbcdriver;
 
 import java.lang.reflect.Field;
 import java.text.NumberFormat;
-import java.text.ParseException;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -219,6 +218,45 @@ public class HPCCJDBCUtils
         return true;
     }
 
+    private final static Pattern PARENSTRPATTERN = Pattern.compile(
+            "\\s*(\\()(.*?)(\\))\\s*",Pattern.DOTALL);
+
+    public static boolean isInParenthesis(String parenstring)
+    {
+        if (parenstring == null)
+            return false;
+
+        Matcher matcher = PARENSTRPATTERN.matcher(parenstring);
+
+         return matcher.matches();
+    }
+
+    public final static Pattern AGGFUNCPATTERN = Pattern.compile(
+            "\\s*(.*?)(\\()(.*?)(\\))\\s*",Pattern.DOTALL);
+
+    public static boolean isAggFunction(String aggfunstr)
+    {
+        if (aggfunstr == null)
+            return false;
+
+        Matcher matcher = AGGFUNCPATTERN.matcher(aggfunstr);
+
+         return matcher.matches();
+    }
+
+    public static String getParenContents(String parenstring)
+    {
+        if (parenstring == null)
+        return "";
+
+        Matcher matcher = PARENSTRPATTERN.matcher(parenstring);
+
+        if(matcher.matches())
+            return matcher.group(2).trim();
+        else
+            return parenstring;
+    }
+
     public static long stringToLong(String str, long uponError)
     {
         try
@@ -283,7 +321,7 @@ public class HPCCJDBCUtils
 
         Matcher matcher = QUOTEDSTRPATTERN.matcher(quotedString);
 
-        if(matcher.matches() && matcher.groupCount() >= 3)
+        if(matcher.matches() )
             return matcher.group(2).trim();
         else
             return quotedString;
@@ -318,5 +356,236 @@ public class HPCCJDBCUtils
             throw new Exception("java.sql.Types.class.getFields were not feched, cannot get SQL Type name");
 
         return SQLFieldMapping.get(sqltypecode);
+    }
+
+    public final static String EscapedSingleQuote = "\'\'";
+
+    public static boolean hasPossibleEscapedQuoteLiteral(String quotedString) throws Exception
+    {
+        if (quotedString == null)
+            return false;
+
+        return handleQuotedString(quotedString).contains(EscapedSingleQuote);
+    }
+
+    public static String replaceSQLwithECLEscapeChar(String quotedString) throws Exception
+    {
+        if (quotedString == null)
+            return "";
+
+        String eclescaped = "\\\\'";
+        String replaced = '\''+handleQuotedString(quotedString).replaceAll("\'\'", eclescaped)+'\'';
+
+        return replaced;
+    }
+
+    private static HashMap<String, Integer> mapECLTypeNameToSQLType = new HashMap<String, Integer>();
+    static
+    {
+        mapECLTypeNameToSQLType.put("STRING", java.sql.Types.VARCHAR);
+        mapECLTypeNameToSQLType.put("QSTRING", java.sql.Types.VARCHAR);
+        mapECLTypeNameToSQLType.put("FLOAT", java.sql.Types.FLOAT);
+        mapECLTypeNameToSQLType.put("DOUBLE", java.sql.Types.DOUBLE);
+        mapECLTypeNameToSQLType.put("DECIMAL", java.sql.Types.DECIMAL);
+        mapECLTypeNameToSQLType.put("INTEGER", java.sql.Types.INTEGER);
+        mapECLTypeNameToSQLType.put("LONG", java.sql.Types.NUMERIC);
+        mapECLTypeNameToSQLType.put("INT", java.sql.Types.INTEGER);
+        mapECLTypeNameToSQLType.put("SHORT", java.sql.Types.SMALLINT);
+        mapECLTypeNameToSQLType.put("UNSIGNED", java.sql.Types.NUMERIC);
+        mapECLTypeNameToSQLType.put("DATETIME", java.sql.Types.TIMESTAMP);
+        mapECLTypeNameToSQLType.put("TIME", java.sql.Types.TIME);
+        mapECLTypeNameToSQLType.put("DATE", java.sql.Types.DATE);
+        mapECLTypeNameToSQLType.put("GDAY", java.sql.Types.DATE);
+        mapECLTypeNameToSQLType.put("GMONTH", java.sql.Types.DATE);
+        mapECLTypeNameToSQLType.put("GYEAR", java.sql.Types.DATE);
+        mapECLTypeNameToSQLType.put("GYEARMONTH", java.sql.Types.DATE);
+        mapECLTypeNameToSQLType.put("GMONTHDAY", java.sql.Types.DATE);
+        mapECLTypeNameToSQLType.put("DURATION", java.sql.Types.VARCHAR);
+    }
+
+    private static Pattern TRAILINGNUMERICPATTERN = Pattern.compile(
+            "(.*\\s+?)*([A-Z]+)([0-9]+)*",Pattern.DOTALL);
+
+    public static int mapECLtype2SQLtype(String ecltype)
+    {
+        String postfix = ecltype.substring(ecltype.lastIndexOf(':') + 1);
+
+        Matcher m = TRAILINGNUMERICPATTERN.matcher(postfix.toUpperCase());
+
+        int ftype = java.sql.Types.OTHER;
+        if (m.matches() && mapECLTypeNameToSQLType.containsKey(m.group(2)))
+            ftype = mapECLTypeNameToSQLType.get(m.group(2));
+        return ftype;
+    }
+
+    public enum EclTypes
+    {
+        ECLTypeboolean(0),
+        ECLTypeint(1),
+        ECLTypereal(2),
+        ECLTypedecimal(3),
+        ECLTypestring(4),
+        ECLTypeunused1(5),
+        ECLTypedate(6),
+        ECLTypeunused2(7),
+        ECLTypeunused3(8),
+        ECLTypebitfield(9),
+        ECLTypeunused4(10),
+        ECLTypechar(11),
+        ECLTypeenumerated(12),
+        ECLTyperecord(13),
+        ECLTypevarstring(14),
+        ECLTypeblob(15),
+        ECLTypedata(16),
+        ECLTypepointer(17),
+        ECLTypeclass(18),
+        ECLTypearray(19),
+        ECLTypetable(20),
+        ECLTypeset(21),
+        ECLTyperow(22),
+        ECLTypegroupedtable(23),
+        ECLTypevoid(24),
+        ECLTypealien(25),
+        ECLTypeswapint(26),
+        ECLTypepackedint(28),
+        ECLTypeunused5(29),
+        ECLTypeqstring(30),
+        ECLTypeunicode(31),
+        ECLTypeany(32),
+        ECLTypevarunicode(33),
+        ECLTypepattern(34),
+        ECLTyperule(35),
+        ECLTypetoken(36),
+        ECLTypefeature(37),
+        ECLTypeevent(38),
+        ECLTypenull(39),
+        ECLTypescope(40),
+        ECLTypeutf8(41),
+        ECLTypetransform(42),
+        ECLTypeifblock(43), // not a real type -but used for the rtlfield serialization
+        ECLTypefunction(44),
+        ECLTypesortlist(45),
+        ECLTypemodifier(0xff), // used  by  getKind()
+        ECLTypeunsigned(0x100), // combined with some of the above, when
+                                // returning summary type information. Not
+                                // returned by getTypeCode()
+        ECLTypeebcdic(0x200), // combined with some of the above, when returning
+                              // summary type information. Not returned by
+                              // getTypeCode()
+        // Some pseudo types - never actually created
+        ECLTypestringorunicode(0xfc), // any string/unicode variant
+        ECLTypenumeric(0xfd),
+        ECLTypescalar(0xfe);
+
+        EclTypes(int eclcode){}
+    }
+
+    private final static HashMap<EclTypes, Integer> mapECLtypeCodeToSQLtype = new HashMap<EclTypes, Integer>();
+    static
+    {
+        mapECLtypeCodeToSQLtype.put(EclTypes.ECLTypeboolean, java.sql.Types.BOOLEAN);
+        mapECLtypeCodeToSQLtype.put(EclTypes.ECLTypearray, java.sql.Types.ARRAY);
+        mapECLtypeCodeToSQLtype.put(EclTypes.ECLTypeblob, java.sql.Types.BLOB);
+        mapECLtypeCodeToSQLtype.put(EclTypes.ECLTypechar, java.sql.Types.CHAR);
+        mapECLtypeCodeToSQLtype.put(EclTypes.ECLTypedate, java.sql.Types.DATE);
+        mapECLtypeCodeToSQLtype.put(EclTypes.ECLTypedecimal, java.sql.Types.DECIMAL);
+        mapECLtypeCodeToSQLtype.put(EclTypes.ECLTypeint, java.sql.Types.INTEGER);
+        mapECLtypeCodeToSQLtype.put(EclTypes.ECLTypenull, java.sql.Types.NULL);
+        mapECLtypeCodeToSQLtype.put(EclTypes.ECLTypenumeric, java.sql.Types.NUMERIC);
+        mapECLtypeCodeToSQLtype.put(EclTypes.ECLTypepackedint, java.sql.Types.INTEGER);
+        mapECLtypeCodeToSQLtype.put(EclTypes.ECLTypepointer, java.sql.Types.REF);
+        mapECLtypeCodeToSQLtype.put(EclTypes.ECLTypeqstring, java.sql.Types.VARCHAR);
+        mapECLtypeCodeToSQLtype.put(EclTypes.ECLTypereal, java.sql.Types.REAL);
+        mapECLtypeCodeToSQLtype.put(EclTypes.ECLTypestring, java.sql.Types.VARCHAR);
+        mapECLtypeCodeToSQLtype.put(EclTypes.ECLTypeunsigned, java.sql.Types.NUMERIC);
+        mapECLtypeCodeToSQLtype.put(EclTypes.ECLTypevarstring, java.sql.Types.VARCHAR);
+    }
+
+    /**
+     * Translates an ecltype element to sql type int (java.sql.Types value)
+     *
+     * @param ecltype
+     *            The ecl type enumerated value.
+     * @return The java.sql.Types value to convert to a string
+     *            representation.
+     */
+    public static int convertECLtypeCode2SQLtype(EclTypes ecltype)
+    {
+        if(mapECLtypeCodeToSQLtype.containsKey(ecltype))
+            return mapECLtypeCodeToSQLtype.get(ecltype);
+        else
+            return java.sql.Types.OTHER;
+    }
+
+    private final static HashMap<Integer, String> mapSQLtypeCodeToJavaClass = new HashMap<Integer, String>();
+    static
+    {
+        mapSQLtypeCodeToJavaClass.put(java.sql.Types.CHAR,          "java.lang.String");
+        mapSQLtypeCodeToJavaClass.put(java.sql.Types.VARCHAR,       "java.lang.String");
+        mapSQLtypeCodeToJavaClass.put(java.sql.Types.LONGVARCHAR,   "java.lang.String");
+        mapSQLtypeCodeToJavaClass.put(java.sql.Types.NUMERIC,       "java.math.BigDecimal");
+        mapSQLtypeCodeToJavaClass.put(java.sql.Types.DECIMAL,       "java.math.BigDecimal");
+        mapSQLtypeCodeToJavaClass.put(java.sql.Types.BIT,           "java.lang.Boolean");
+        mapSQLtypeCodeToJavaClass.put(java.sql.Types.TINYINT,       "java.lang.Byte");
+        mapSQLtypeCodeToJavaClass.put(java.sql.Types.SMALLINT,      "java.lang.Short");
+        mapSQLtypeCodeToJavaClass.put(java.sql.Types.INTEGER,       "java.lang.Integer");
+        mapSQLtypeCodeToJavaClass.put(java.sql.Types.BIGINT,        "java.lang.Long");
+        mapSQLtypeCodeToJavaClass.put(java.sql.Types.REAL,          "java.lang.Real");
+        mapSQLtypeCodeToJavaClass.put(java.sql.Types.FLOAT,         "java.lang.Double");
+        mapSQLtypeCodeToJavaClass.put(java.sql.Types.DOUBLE,        "java.lang.Double");
+        mapSQLtypeCodeToJavaClass.put(java.sql.Types.BINARY,        "java.lang.Byte[]");
+        mapSQLtypeCodeToJavaClass.put(java.sql.Types.VARBINARY,     "java.lang.Byte[]");
+        mapSQLtypeCodeToJavaClass.put(java.sql.Types.LONGVARBINARY, "java.lang.Byte[]");
+        mapSQLtypeCodeToJavaClass.put(java.sql.Types.DATE,          "java.sql.Date");
+        mapSQLtypeCodeToJavaClass.put(java.sql.Types.TIME,          "java.sql.Time");
+        mapSQLtypeCodeToJavaClass.put(java.sql.Types.TIMESTAMP,     "java.sql.Timestamp");
+    }
+
+    private final static String JAVA_OBJECT_TYPE_NAME = "java.lang.Object";
+    /**
+     * Translates a data type from an integer (java.sql.Types value) to a string
+     * that represents the corresponding class.
+     *
+     * @param type
+     *            The java.sql.Types value to convert to a string
+     *            representation.
+     * @return The class name that corresponds to the given java.sql.Types
+     *         value, or "java.lang.Object" if the type has no known mapping.
+     */
+    public static String convertSQLtype2JavaClassName(int type)
+    {
+        if(mapSQLtypeCodeToJavaClass.containsKey(type))
+            return mapSQLtypeCodeToJavaClass.get(type);
+        else
+            return JAVA_OBJECT_TYPE_NAME;
+    }
+
+    /**
+     * Attempts to map a string value to an enum value of
+     * a given enum class.
+     *
+     * Iterates through all enum values of given enum class,
+     * and compares to given string.
+     * Returns enum value if it finds match, otherwise throws Exception
+     *
+     * @param enumclass reference to target enumaration
+     * @param strvalue string value to be mapped to enum value
+     *
+     * @return The corresponding enum value if found
+     *
+     * @throws IllegalArgumentException if strvalue cannot be mapped to
+     * given enum
+     *
+     **/
+    public static <T extends Enum<T>> T findEnumValFromString(Class<T> enumclass, String strvalue)
+    {
+        for(Enum enumValue : enumclass.getEnumConstants())
+        {
+            if(enumValue.name().equalsIgnoreCase(strvalue))
+            {
+                return (T) enumValue;
+            }
+        }
+        throw new IllegalArgumentException(enumclass.getName() +".'" + strvalue + "' is not valid.");
     }
 }

@@ -29,40 +29,40 @@ import java.util.regex.Pattern;
 
 public class DFUFile
 {
-    private String              Prefix = null;
-    private String              ClusterName = null;
-    private String              Directory = null;
-    private String              Description = "";
-    private int                 Parts = -1;
-    private String              FullyQualifiedName = null;
-    private String              FileName = null;
-    private String              Owner = null;
-    private long                TotalSize = -1;
-    private long                RecordCount = -1;
-    private String              Modified = null;
-    private long                LongSize = -1;
-    private long                LongRecordCount = -1;
+    private String              prefix = null;
+    private String              clusterName = null;
+    private String              directory = null;
+    private String              description = "";
+    private int                 parts = -1;
+    private String              fullyQualifiedName = null;
+    private String              fileName = null;
+    private String              owner = null;
+    private long                totalSize = -1;
+    private long                recordCount = -1;
+    private String              modified = null;
+    private long                longSize = -1;
+    private long                longRecordCount = -1;
     private boolean             isSuperFile = false;
     private boolean             isZipFile = false;
     private boolean             isDirectory = false;
-    private int                 Replicate = -1;
-    private int                 IntSize = -1;
-    private int                 IntRecordCount = -1;
-    private boolean             FromRoxieCluster = false;
-    private boolean             BrowseData = false;
-    private boolean             IsKeyFile = false;
-    private String              Format = "FLAT";
-    private String              CsvSeparate = null;
-    private String              CsvTerminate = null;
-    private String              CsvQuote = null;
-    private String              Ecl = null;
-    private Properties          Fields = new Properties();
-    private Properties          KeyedColumns = new Properties();
-    private Properties          NonKeyedColumns = new Properties();
+    private int                 replicate = -1;
+    private int                 intSize = -1;
+    private int                 intRecordCount = -1;
+    private boolean             fromRoxieCluster = false;
+    private boolean             browseData = false;
+    private boolean             isKeyFile = false;
+    private FileFormat          format = FileFormat.FLAT;
+    private String              csvSeparate = null;
+    private String              csvTerminate = null;
+    private String              csvQuote = null;
+    private String              ecl = null;
+    private Properties          fields = new Properties();
+    private Properties          keyedColumns = new Properties();
+    private Properties          nonKeyedColumns = new Properties();
     private List<String>        relatedIndexes = null;
     private List<String>        subFiles = null;
-    private String              IdxFilePosField = null;
-    private boolean             HasPayLoad = false;
+    private String              idxFilePosField = null;
+    private boolean             hasPayLoad = false;
     private boolean             hasKeyedFieldInfoBeenSet = false;
 
     private final static String RELATEDINDEXKEYWORD = "XDBC:RelIndexes";
@@ -73,51 +73,59 @@ public class DFUFile
     private final static Pattern IDXPOSPATTERN = Pattern.compile(
             "\\s*" + IDXFILEPOSFIELDTAG + "\\s*=\\s*\\[(.*?)\\s*\\].*",Pattern.DOTALL);
 
+    public enum FileFormat
+    {
+        FLAT,
+        THOR,
+        XML,
+        CSV;
+    }
+
     public DFUFile(String prefix, String clusterName, String filename)
     {
         super();
-        Prefix = prefix;
-        ClusterName = clusterName;
-        FileName = filename;
-        FullyQualifiedName = filename;
+        this.prefix = prefix;
+        this.clusterName = clusterName;
+        this.fileName = filename;
+        this.fullyQualifiedName = filename;
     }
 
     public DFUFile(String prefix, String clusterName, String directory, String description, int parts, String filename,
             String fullyqualifiedname, String owner, long totalSize, long recordCount, String modified, long longSize,
             long longRecordCount, boolean isSuperFile, boolean isZipFile, boolean isDirectory, int replicate,
             int intSize, int intRecordCount, boolean fromRoxieCluster, boolean browseData, boolean isKeyFile,
-            String format, String csvseparate, String csvterminate, String csvquote, String ecl)
+            FileFormat format, String csvseparate, String csvterminate, String csvquote, String ecl)
     {
-        Prefix = prefix;
-        ClusterName = clusterName;
-        Directory = directory;
-        Description = description;
-        Parts = parts;
-        FileName = filename;
-        FullyQualifiedName = fullyqualifiedname;
-        Owner = owner;
-        TotalSize = totalSize;
-        RecordCount = recordCount;
-        Modified = modified;
-        LongSize = longSize;
-        LongRecordCount = longRecordCount;
+        this.prefix = prefix;
+        this.clusterName = clusterName;
+        this.directory = directory;
+        this.description = description;
+        this.parts = parts;
+        this.fileName = filename;
+        this.fullyQualifiedName = fullyqualifiedname;
+        this.owner = owner;
+        this.totalSize = totalSize;
+        this.recordCount = recordCount;
+        this.modified = modified;
+        this.longSize = longSize;
+        this.longRecordCount = longRecordCount;
         this.isSuperFile = isSuperFile;
         this.isZipFile = isZipFile;
         this.isDirectory = isDirectory;
-        Replicate = replicate;
-        IntSize = intSize;
-        IntRecordCount = intRecordCount;
-        FromRoxieCluster = fromRoxieCluster;
-        BrowseData = browseData;
-        IsKeyFile = isKeyFile;
-        Format = format;
-        CsvSeparate = csvseparate;
-        CsvTerminate = csvterminate;
-        CsvQuote = csvquote;
+        this.replicate = replicate;
+        this.intSize = intSize;
+        this.intRecordCount = intRecordCount;
+        this.fromRoxieCluster = fromRoxieCluster;
+        this.browseData = browseData;
+        this.isKeyFile = isKeyFile;
+        this.format = format;
+        this.csvSeparate = csvseparate;
+        this.csvTerminate = csvterminate;
+        this.csvQuote = csvquote;
 
         if (ecl != null && ecl.length() > 0)
         {
-            Ecl = ecl;
+            this.ecl = ecl;
             setFileRecDef(ecl);
         }
     }
@@ -126,60 +134,60 @@ public class DFUFile
 
     public String getFileName()
     {
-        return FileName;
+        return fileName;
     }
 
     public void setFileName(String fileName)
     {
-        FileName = fileName;
+        this.fileName = fileName;
     }
 
     public String getPrefix()
     {
-        return Prefix;
+        return prefix;
     }
 
     public void setPrefix(String prefix)
     {
-        Prefix = prefix;
+        this.prefix = prefix;
     }
 
     public String getClusterName()
     {
-        return ClusterName;
+        return clusterName;
     }
 
     public void setClusterName(String clusterName)
     {
-        ClusterName = clusterName;
+        this.clusterName = clusterName;
     }
 
     public String getDirectory()
     {
-        return Directory;
+        return directory;
     }
 
     public void setDirectory(String directory)
     {
-        Directory = directory;
+        this.directory = directory;
     }
 
     public String getDescription()
     {
-        return Description;
+        return description;
     }
 
     public void setDescription(String description)
     {
         if (description != null && description.length() > 0 )
         {
-            Description = description.trim();
+            this.description = description.trim();
 
-            int pos=Description.indexOf(RELATEDINDEXKEYWORD);
+            int pos=this.description.indexOf(RELATEDINDEXKEYWORD);
             if ( pos > -1) //found keyword
                 setRelatedIndexes(description.substring(pos));
 
-            pos=Description.indexOf(IDXFILEPOSFIELDTAG);
+            pos=this.description.indexOf(IDXFILEPOSFIELDTAG);
             if ( pos > -1) //found keyword
                 setIdxFilePosField(description.substring(pos));
         }
@@ -189,13 +197,13 @@ public class DFUFile
     {
         Matcher matcher = IDXPOSPATTERN.matcher(str);
 
-        if(matcher.matches() && matcher.groupCount() >= 1)
-            IdxFilePosField = matcher.group(1);
+        if(matcher.matches())
+            idxFilePosField = matcher.group(1);
     }
 
     public String getIdxFilePosField()
     {
-        return IdxFilePosField != null ? IdxFilePosField : getLastNonKeyedNumericField();
+        return idxFilePosField != null ? idxFilePosField : getLastNonKeyedNumericField();
     }
 
     public boolean hasValidIdxFilePosField()
@@ -207,14 +215,14 @@ public class DFUFile
     private String getLastNonKeyedNumericField()
     {
         // TODO get numeric field
-        return (String) NonKeyedColumns.get(NonKeyedColumns.size());
+        return (String) nonKeyedColumns.get(nonKeyedColumns.size());
     }
 
     private void setRelatedIndexes(String str)
     {
         Matcher matcher = RELINDEXPATTERN.matcher(str);
 
-        if(matcher.matches() && matcher.groupCount() >= 1)
+        if(matcher.matches())
         {
             StringTokenizer indexeToks = new StringTokenizer(matcher.group(1), ";");
 
@@ -229,82 +237,82 @@ public class DFUFile
 
     public int getParts()
     {
-        return Parts;
+        return parts;
     }
 
     public void setParts(int parts)
     {
-        Parts = parts;
+        this.parts = parts;
     }
 
     public String getFullyQualifiedName()
     {
-        return FullyQualifiedName;
+        return fullyQualifiedName;
     }
 
     public void setFullyQualifiedName(String name)
     {
-        FullyQualifiedName = name;
+        this.fullyQualifiedName = name;
     }
 
     public String getOwner()
     {
-        return Owner;
+        return owner;
     }
 
     public void setOwner(String owner)
     {
-        Owner = owner;
+        this.owner = owner;
     }
 
     public long getTotalSize()
     {
-        return TotalSize;
+        return totalSize;
     }
 
     public void setTotalSize(long totalSize)
     {
-        TotalSize = totalSize;
+        this.totalSize = totalSize;
     }
 
     public long getRecordCount()
     {
-        return RecordCount;
+        return recordCount;
     }
 
     public void setRecordCount(long recordCount)
     {
-        RecordCount = recordCount;
+        this.recordCount = recordCount;
     }
 
     public String getModified()
     {
-        return Modified;
+        return modified;
     }
 
     public void setModified(String modified)
     {
-        Modified = modified;
+        this.modified = modified;
     }
 
     public long getLongSize()
     {
-        return LongSize;
+        return longSize;
     }
 
     public void setLongSize(long longSize)
     {
-        LongSize = longSize;
+        this.longSize = longSize;
     }
 
     public long getLongRecordCount()
     {
-        return LongRecordCount;
+        return longRecordCount;
     }
 
     public void setLongRecordCount(long longRecordCount)
     {
-        LongRecordCount = longRecordCount;
+        this.longRecordCount = longRecordCount;
     }
 
     public boolean isSuperFile()
@@ -339,67 +347,67 @@ public class DFUFile
 
     public int getReplicate()
     {
-        return Replicate;
+        return replicate;
     }
 
     public void setReplicate(int replicate)
     {
-        Replicate = replicate;
+        this.replicate = replicate;
     }
 
     public int getIntSize()
     {
-        return IntSize;
+        return intSize;
     }
 
     public void setIntSize(int intSize)
     {
-        IntSize = intSize;
+        this.intSize = intSize;
     }
 
     public int getIntRecordCount()
     {
-        return IntRecordCount;
+        return intRecordCount;
     }
 
     public void setIntRecordCount(int intRecordCount)
     {
-        IntRecordCount = intRecordCount;
+        this.intRecordCount = intRecordCount;
     }
 
     public boolean isFromRoxieCluster()
     {
-        return FromRoxieCluster;
+        return fromRoxieCluster;
     }
 
     public void setFromRoxieCluster(boolean fromRoxieCluster)
     {
-        FromRoxieCluster = fromRoxieCluster;
+        this.fromRoxieCluster = fromRoxieCluster;
     }
 
     public boolean isBrowseData()
     {
-        return BrowseData;
+        return browseData;
     }
 
     public void setBrowseData(boolean browseData)
     {
-        BrowseData = browseData;
+        this.browseData = browseData;
     }
 
     public boolean isKeyFile()
     {
-        return IsKeyFile;
+        return isKeyFile;
     }
 
     public void setIsKeyFile(boolean isKeyFile)
     {
-        IsKeyFile = isKeyFile;
+        this.isKeyFile = isKeyFile;
     }
 
     public void setFileFields(String eclString)
     {
-        Ecl = "";
+        ecl = "";
         if (eclString != null && eclString.length() > 0)
         {
             try
@@ -439,12 +447,12 @@ public class DFUFile
                             }
 
                             HPCCColumnMetaData columnmeta = new HPCCColumnMetaData(name, index,
-                                    HPCCDatabaseMetaData.convertECLtype2SQLtype(type.toString().toUpperCase()));
+                                    HPCCJDBCUtils.mapECLtype2SQLtype(type.toString()));
                             columnmeta.setEclType(type.toString());
-                            columnmeta.setTableName(this.FullyQualifiedName);
+                            columnmeta.setTableName(this.fullyQualifiedName);
 
-                            Ecl += type + " " + name + "; ";
-                            Fields.put(name.toUpperCase(), columnmeta);
+                            ecl += type + " " + name + "; ";
+                            fields.put(name.toUpperCase(), columnmeta);
 
                             index++;
                         }
@@ -461,93 +469,96 @@ public class DFUFile
 
     public Enumeration<Object> getAllFields()
     {
-        return Fields.elements();
+        return fields.elements();
     }
 
     public Properties getAllFieldsProps()
     {
-        return Fields;
+        return fields;
     }
 
     public boolean containsField(String fieldName)
     {
-        return Fields.containsKey(fieldName.toUpperCase());
+        return fields.containsKey(fieldName.toUpperCase());
     }
 
     public HPCCColumnMetaData getFieldMetaData(String fieldName)
     {
-        return (HPCCColumnMetaData) Fields.get(fieldName.toUpperCase());
+        return (HPCCColumnMetaData) fields.get(fieldName.toUpperCase());
     }
 
     public String[] getAllTableFieldsStringArray()
     {
-        String[] fields = new String[Fields.size()];
-        Enumeration<Object> it = Fields.elements();
+        String[] fieldsstr = new String[fields.size()];
+        Enumeration<Object> it = fields.elements();
         while (it.hasMoreElements())
         {
             HPCCColumnMetaData col = ((HPCCColumnMetaData) it.nextElement());
-            fields[col.getIndex()] = col.getColumnName();
+            fieldsstr[col.getIndex()] = col.getColumnName();
         }
-        return fields;
+        return fieldsstr;
     }
 
     public String getFormat()
     {
-        return Format;
+        return format != null ? format.name() : "";
     }
 
     public String getCsvSeparate()
     {
-        return CsvSeparate;
+        return csvSeparate;
     }
 
     public String getCsvTerminate()
     {
-        return CsvTerminate;
+        return csvTerminate;
     }
 
-    public void setFormat(String format)
+    public void setFormat(String formatstr)
     {
-        if (format != null && format.length() > 0)
+        format = FileFormat.FLAT;
+
+        if (formatstr != null && formatstr.length() > 0)
         {
-            if (format.equalsIgnoreCase("THOR") || format.equalsIgnoreCase("CSV") || format.equalsIgnoreCase("XML"))
+            try
             {
-                Format = format;
-                return;
+                format = HPCCJDBCUtils.findEnumValFromString(FileFormat.class, formatstr.trim());
+            }
+            catch (Exception e)
+            {
+                HPCCJDBCUtils.traceoutln("Invalid file format detected");
             }
         }
-        // TODO Default = FLAT... is this safe to assume???
-        Format = "FLAT";
     }
 
     public void setCsvSeparate(String csvSeparate)
     {
-        CsvSeparate = csvSeparate;
+        this.csvSeparate = csvSeparate;
     }
 
     public void setCsvTerminate(String csvTerminate)
     {
-        CsvTerminate = csvTerminate;
+        this.csvTerminate = csvTerminate;
     }
 
     public void setCsvQuote(String csvQuote)
     {
-        CsvQuote = csvQuote;
+        this.csvQuote = csvQuote;
     }
 
     public String getCsvQuote()
     {
-        return CsvQuote;
+        return csvQuote;
     }
 
     public boolean hasFileRecDef()
     {
-        return Ecl == null || Ecl.length() <= 0 ? false : true;
+        return ecl == null || ecl.length() <= 0 ? false : true;
     }
 
     public String getFileRecDef(String structname)
     {
-        return Ecl == null ? null : structname + " := RECORD " + Ecl + "END; ";
+        return ecl == null ? null : structname + " := RECORD " + ecl + "END; ";
     }
 
     public void setFileRecDef(String ecl)
@@ -561,100 +572,100 @@ public class DFUFile
         // EclColumnMetaData field = (EclColumnMetaData)
         // Fields.get(keyName.toUpperCase());
         // want to match up name and type, for now just check name.
-        return (HPCCColumnMetaData) Fields.get(keyName.toUpperCase());
+        return (HPCCColumnMetaData) fields.get(keyName.toUpperCase());
     }
 
-    public void setKeyedColumns(Properties KeyFields)
+    public void setKeyedColumns(Properties keyFields)
     {
         hasKeyedFieldInfoBeenSet = true;
-        KeyedColumns = KeyFields;
+        keyedColumns = keyFields;
     }
 
-    public void setNonKeyedColumns(Properties NonKeyFields)
+    public void setNonKeyedColumns(Properties nonKeyFields)
     {
         hasKeyedFieldInfoBeenSet = true;
-        NonKeyedColumns = NonKeyFields;
-        if (NonKeyFields != null && NonKeyFields.size() > 0)
-            HasPayLoad = true;
+        nonKeyedColumns = nonKeyFields;
+        if (nonKeyFields != null && nonKeyFields.size() > 0)
+            hasPayLoad = true;
     }
 
-    public void addKeyedColumnInOrder(String KeyLabel)
+    public void addKeyedColumnInOrder(String keyLabel)
     {
         hasKeyedFieldInfoBeenSet = true;
-        KeyedColumns.put(KeyedColumns.size() + 1, KeyLabel);
+        keyedColumns.put(keyedColumns.size() + 1, keyLabel);
     }
 
     public void addKeyedColumn(int KeyIndex, String KeyLabel)
     {
-        if (!KeyedColumns.containsKey(KeyIndex))
-            KeyedColumns.put(KeyIndex, KeyLabel);
+        if (!keyedColumns.containsKey(KeyIndex))
+            keyedColumns.put(KeyIndex, KeyLabel);
     }
 
-    public void addNonKeyedColumnInOrder(String KeyLabel)
+    public void addNonKeyedColumnInOrder(String keyLabel)
     {
         hasKeyedFieldInfoBeenSet = true;
-        if (KeyLabel.startsWith("__internal_fpos__"))
+        if (keyLabel.startsWith("__internal_fpos__"))
         {
             // IndexPositionField = KeyLabel;
             return;
         }
-        NonKeyedColumns.put(NonKeyedColumns.size() + 1, KeyLabel);
+        nonKeyedColumns.put(nonKeyedColumns.size() + 1, keyLabel);
     }
 
-    public void addNonKeyedColumn(int NonKeyIndex, String NonKeyLabel)
+    public void addNonKeyedColumn(int nonKeyIndex, String nonKeyLabel)
     {
         hasKeyedFieldInfoBeenSet = true;
-        if (!NonKeyedColumns.containsKey(NonKeyIndex))
+        if (!nonKeyedColumns.containsKey(nonKeyIndex))
         {
-            NonKeyedColumns.put(NonKeyIndex, NonKeyLabel);
-            HasPayLoad = true;
+            nonKeyedColumns.put(nonKeyIndex, nonKeyLabel);
+            hasPayLoad = true;
         }
     }
 
     public boolean hasPayLoad()
     {
-        return HasPayLoad;
+        return hasPayLoad;
     }
 
     public Properties getKeyedColumns()
     {
-        return KeyedColumns;
+        return keyedColumns;
     }
 
     public Properties getNonKeyedColumns()
     {
-        return NonKeyedColumns;
+        return nonKeyedColumns;
     }
 
-    public int getNonKeyColumnIndex(String ColumnName)
+    public int getNonKeyColumnIndex(String columnName)
     {
-        int cols = NonKeyedColumns.size();
+        int cols = nonKeyedColumns.size();
         for (int i = 1; i <= cols; i++)
         {
-            if (NonKeyedColumns.get(i).equals(ColumnName))
+            if (nonKeyedColumns.get(i).equals(columnName))
                 return i;
         }
 
         return -1;
     }
 
-    public int getKeyColumnIndex(String ColumnName)
+    public int getKeyColumnIndex(String columnName)
     {
-        int cols = KeyedColumns.size();
+        int cols = keyedColumns.size();
         for (int i = 1; i <= cols; i++)
         {
-            if (KeyedColumns.get(i).equals(ColumnName))
+            if (keyedColumns.get(i).equals(columnName))
                 return i;
         }
         return -1;
     }
 
-    public void addRelatedIndex(String IndexName)
+    public void addRelatedIndex(String indexName)
     {
         if (relatedIndexes == null)
             relatedIndexes = new ArrayList<String>();
 
-        relatedIndexes.add(IndexName);
+        relatedIndexes.add(indexName);
     }
 
     public void setRelatedIndexes(List<String> indexes)
@@ -697,22 +708,22 @@ public class DFUFile
     public Object getFileRecDefwithIndexpos(HPCCColumnMetaData fieldMetaData, String structname)
     {
         if (fieldMetaData != null)
-            return structname + " := RECORD " + Ecl + fieldMetaData.getEclType() + " " + fieldMetaData.getColumnName()
+            return structname + " := RECORD " + ecl + fieldMetaData.getEclType() + " " + fieldMetaData.getColumnName()
                     + " {virtual(fileposition)}; END; ";
 
-        return structname + " := RECORD " + Ecl + " END; "; // might need to throw exception instead
+        return structname + " := RECORD " + ecl + " END; "; // might need to throw exception instead
     }
 
     public String getKeyedFieldsAsDelmitedString(char c, String prefixtoappend)
     {
         StringBuilder fields = new StringBuilder();
-        int colscount = KeyedColumns.size();
+        int colscount = keyedColumns.size();
 
         for (int i = 1; i <= colscount; i++)
         {
             if (prefixtoappend != null)
                 fields.append(prefixtoappend).append('.');
-            fields.append(KeyedColumns.get(i));
+            fields.append(keyedColumns.get(i));
             if (i < colscount)
                 fields.append(c).append(" ");
         }
@@ -722,13 +733,13 @@ public class DFUFile
     public String getNonKeyedFieldsAsDelmitedString(char c, String prefixtoappend)
     {
         StringBuilder fields = new StringBuilder();
-        int colscount = NonKeyedColumns.size();
+        int colscount = nonKeyedColumns.size();
 
         for (int i = 1; i <= colscount; i++)
         {
             if (prefixtoappend != null)
                 fields.append(prefixtoappend).append('.');
-            fields.append(NonKeyedColumns.get(i));
+            fields.append(nonKeyedColumns.get(i));
             if (i < colscount)
                 fields.append(c).append(" ");
         }
@@ -766,9 +777,9 @@ public class DFUFile
     public boolean containsField(HPCCColumnMetaData fieldMetaData, boolean verifyEclType)
     {
         String fieldName = fieldMetaData.getColumnName().toUpperCase();
-        if (Fields.containsKey(fieldName))
+        if (fields.containsKey(fieldName))
             if (!verifyEclType
-                    || ((HPCCColumnMetaData) Fields.get(fieldName)).getEclType().equals(fieldMetaData.getEclType()))
+                    || ((HPCCColumnMetaData) fields.get(fieldName)).getEclType().equals(fieldMetaData.getEclType()))
                 return true;
         return false;
     }
@@ -790,7 +801,7 @@ public class DFUFile
 
     public int getNonKeyedColumnsCount()
     {
-        return NonKeyedColumns == null ? 0 : NonKeyedColumns.size();
+        return nonKeyedColumns == null ? 0 : nonKeyedColumns.size();
     }
 
     public boolean containsField(HPCCColumnMetaData column)

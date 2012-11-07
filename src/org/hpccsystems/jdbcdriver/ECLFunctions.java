@@ -22,6 +22,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.hpccsystems.jdbcdriver.ECLFunction.FunctionType;
+
 public class ECLFunctions
 {
     static Map<String, ECLFunction> functions;
@@ -30,18 +32,24 @@ public class ECLFunctions
         functions = new HashMap<String, ECLFunction>();
 
         functions.put("COUNT", new ECLFunction("COUNT", true, new HPCCColumnMetaData("countreturn", 0,
-                java.sql.Types.NUMERIC), true));
+                java.sql.Types.NUMERIC), true, FunctionType.AGGREGATE, "COUNT"));
         functions.put("MAX", new ECLFunction("MAX", true,
-                new HPCCColumnMetaData("maxreturn", 0, java.sql.Types.NUMERIC), false));
+                new HPCCColumnMetaData("maxreturn", 0, java.sql.Types.NUMERIC), false,FunctionType.AGGREGATE, "MAX"));
         functions.put("MIN", new ECLFunction("MIN", true,
-                new HPCCColumnMetaData("minreturn", 0, java.sql.Types.NUMERIC), false));
+                new HPCCColumnMetaData("minreturn", 0, java.sql.Types.NUMERIC), false,FunctionType.AGGREGATE, "MIN"));
         functions.put("SUM", new ECLFunction("SUM", true,
-                new HPCCColumnMetaData("sumreturn", 0, java.sql.Types.NUMERIC), false));
+                new HPCCColumnMetaData("sumreturn", 0, java.sql.Types.NUMERIC), false,FunctionType.AGGREGATE, "SUM"));
+        functions.put("AVG", new ECLFunction("AVG", true,
+                new HPCCColumnMetaData("avgreturn", 0, java.sql.Types.NUMERIC), false,FunctionType.AGGREGATE , "AVE"));
+        functions.put("UPPER", new ECLFunction("UPPER", true,
+                new HPCCColumnMetaData("", 0, java.sql.Types.VARCHAR), false, FunctionType.CONTENT_MODIFIER, "Std.Str.ToUpperCase"));
+        functions.put("LOWER", new ECLFunction("LOWER", true,
+                new HPCCColumnMetaData("", 0, java.sql.Types.VARCHAR), false, FunctionType.CONTENT_MODIFIER, "Std.Str.ToLowerCase"));
     }
 
     static ECLFunction getEclFunction(String funcname)
     {
-        return functions.get(funcname);
+        return functions.get(funcname.trim().toUpperCase());
     }
 
     static public boolean verifyEclFunction(String name, List<HPCCColumnMetaData> funccols)
