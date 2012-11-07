@@ -346,7 +346,7 @@ public class SQLParser
                     List<HPCCColumnMetaData> funccols = new ArrayList<HPCCColumnMetaData>();
 
                     String funcname = col.substring(0, col.indexOf('('));
-                    //ECLFunction func = ECLFunctions.getEclFunction(funcname.toUpperCase());
+
                     ECLFunction func = ECLFunctions.getEclFunction(funcname);
 
                     if (func != null)
@@ -866,7 +866,7 @@ public class SQLParser
         {
             if (!fieldName.trim().equals("*"))
             {
-                if (column.getColumnType() == ColumnType.FNCTION)
+                if (column.getColumnType() == ColumnType.FUNCTION)
                 {
                     if (column.getAlias() == null)
                         column.setAlias(fieldName + "Out");

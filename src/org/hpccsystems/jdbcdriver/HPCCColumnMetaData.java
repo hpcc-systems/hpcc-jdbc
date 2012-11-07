@@ -30,7 +30,7 @@ public class HPCCColumnMetaData
     {
         FIELD,
         CONSTANT,
-        FNCTION,
+        FUNCTION,
         CONTENTMODIFIER;
     }
 
@@ -84,7 +84,7 @@ public class HPCCColumnMetaData
         this.sqlType = java.sql.Types.OTHER;
         this.paramType = HPCCDatabaseMetaData.procedureColumnUnknown;
         javaClassName = HPCCJDBCUtils.convertSQLtype2JavaClassName(this.sqlType);
-        columnType = ColumnType.FNCTION;
+        columnType = ColumnType.FUNCTION;
         funccols = columns;
     }
 

@@ -340,7 +340,7 @@ public class ECLEngine
                 if (i == 0 && expectedretcolumns.size() == 1)
                     eclEntities.put("SCALAROUTNAME", col.getColumnName());
             }
-            else if (col.getColumnType() == ColumnType.FNCTION)
+            else if (col.getColumnType() == ColumnType.FUNCTION)
             {
                 if (col.getColumnName().equalsIgnoreCase("COUNT"))
                 {
@@ -1016,7 +1016,7 @@ public class ECLEngine
             HPCCColumnMetaData.ColumnType type = currentselectcol.getColumnType();
             if (type == ColumnType.FIELD && !indexfields.containsKey(colname.toUpperCase()))
                 return false;
-            else if (type == ColumnType.FNCTION  && !containsPayload(indexfields, currentselectcol.getFunccols().iterator()))
+            else if (type == ColumnType.FUNCTION  && !containsPayload(indexfields, currentselectcol.getFunccols().iterator()))
                 return false;
         }
         return true;
@@ -1118,7 +1118,7 @@ public class ECLEngine
                 {
                     if (inParameters != null)
                     {
-                        value = (String) inParameters.get(new Integer(columindex + 1));
+                        value = (String) inParameters.get(columindex + 1);
                         if (value == null)
                             throw new SQLException("Could not bind parameter");
                     }

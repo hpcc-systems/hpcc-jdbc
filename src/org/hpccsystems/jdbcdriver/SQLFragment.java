@@ -151,7 +151,7 @@ public class SQLFragment
                         ECLFunction func = ECLFunctions.getEclFunction(matcher.group(1));
 
                         if (func == null)
-                            System.out.println("Function found in HAVING cluase might not be supported.");
+                            System.out.println("Function found in HAVING clause might not be supported.");
                         else
                         {
                             if (func.getFunctionType() == FunctionType.CONTENT_MODIFIER)
