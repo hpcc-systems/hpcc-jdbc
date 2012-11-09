@@ -27,6 +27,8 @@ import java.util.StringTokenizer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.hpccsystems.jdbcdriver.HPCCJDBCUtils.TraceLevel;
+
 public class DFUFile
 {
     private String              prefix = null;
@@ -232,7 +234,7 @@ public class DFUFile
             }
         }
         else
-            System.out.println("Could not determine releated index for file: " + this.getFullyQualifiedName());
+            HPCCJDBCUtils.traceoutln(TraceLevel.ERROR,  "Could not determine releated index for file: " + this.getFullyQualifiedName());
     }
 
     public int getParts()
@@ -461,7 +463,7 @@ public class DFUFile
             }
             catch (Exception e)
             {
-                System.out.println("Invalid ECL Record definition found in " + this.getFullyQualifiedName()                        + " details.");
+                HPCCJDBCUtils.traceoutln(TraceLevel.ERROR,  "Invalid ECL Record definition found in " + this.getFullyQualifiedName()                        + " details.");
                 return;
             }
         }
@@ -526,7 +528,7 @@ public class DFUFile
             }
             catch (Exception e)
             {
-                HPCCJDBCUtils.traceoutln("Invalid file format detected");
+                HPCCJDBCUtils.traceoutln(TraceLevel.ERROR,  "Invalid file format detected");
             }
         }
     }
