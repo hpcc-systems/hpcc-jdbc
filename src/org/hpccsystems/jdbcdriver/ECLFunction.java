@@ -20,17 +20,27 @@ package org.hpccsystems.jdbcdriver;
 
 public class ECLFunction
 {
+    public enum FunctionType
+    {
+        AGGREGATE,
+        CONTENT_MODIFIER;
+    }
+
     private String             name;
     private boolean            acceptsWilCard;
     private boolean            acceptsMultipleInputs;
     private HPCCColumnMetaData returnType;
+    private FunctionType       functionType;
+    private String             eclFunction;
 
-    public ECLFunction(String thename, boolean acceptswild, HPCCColumnMetaData returntype, boolean multipleInput)
+    public ECLFunction(String thename, boolean acceptswild, HPCCColumnMetaData returntype, boolean multipleInput, FunctionType fntype, String eclfunc)
     {
         name = thename;
         acceptsWilCard = acceptswild;
         returnType = returntype;
         acceptsMultipleInputs = multipleInput;
+        functionType = fntype;
+        eclFunction = eclfunc;
     }
 
     public ECLFunction(String thename, HPCCColumnMetaData returntype)
@@ -58,5 +68,20 @@ public class ECLFunction
     public boolean acceptsMultipleInputs()
     {
         return acceptsMultipleInputs;
+    }
+
+    public FunctionType getFunctionType()
+    {
+        return functionType;
+    }
+
+    public void setFunctionType(FunctionType functionType)
+    {
+        this.functionType = functionType;
+    }
+
+    public String getEclFunction()
+    {
+        return eclFunction;
     }
 }

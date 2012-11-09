@@ -39,26 +39,26 @@ public class HPCCLogicalFiles
 
     public void putFile(String fullyQualifiedName, DFUFile file)
     {
-        files.put(fullyQualifiedName, file);
+        files.put(fullyQualifiedName.toUpperCase(), file);
         if (file.isSuperFile())
             superfiles.add(fullyQualifiedName);
     }
 
     public void putFile(DFUFile file)
     {
-        files.put(file.getFullyQualifiedName(), file);
+        files.put(file.getFullyQualifiedName().toUpperCase(), file);
         if (file.isSuperFile())
             superfiles.add(file.getFullyQualifiedName());
     }
 
     public boolean containsFileName(String filename)
     {
-        return files.containsKey(filename);
+        return files.containsKey(filename.toUpperCase());
     }
 
     public DFUFile getFile(String filename)
     {
-        return (DFUFile) files.get(filename);
+        return (DFUFile) files.get(filename.toUpperCase());
     }
 
     public Enumeration<Object> getFiles()
@@ -73,7 +73,7 @@ public class HPCCLogicalFiles
         List<String> subfiles = superfile.getSubfiles();
         for (int y = 0; y < subfiles.size(); y++)
         {
-            DFUFile subfile = ((DFUFile) files.get(subfiles.get(y)));
+            DFUFile subfile = ((DFUFile) files.get(subfiles.get(y).toUpperCase()));
             if (subfile != null)
             {
                 if (subfile.hasFileRecDef())
@@ -95,14 +95,14 @@ public class HPCCLogicalFiles
 
     public void updateSuperFile(String superfilename)
     {
-        DFUFile superfile = (DFUFile) files.get(superfilename);
+        DFUFile superfile = (DFUFile) files.get(superfilename.toUpperCase());
         if (!superfile.hasFileRecDef())
         {
             if (superfile.containsSubfiles())
             {
                 System.out.println("Processing superfile: " + superfile.getFullyQualifiedName());
                 superfile.setFileRecDef(getSubfileRecDef(superfile));
-                files.put(superfile.getFullyQualifiedName(), superfile);
+                files.put(superfile.getFullyQualifiedName().toUpperCase(), superfile);
             }
         }
     }
@@ -114,7 +114,7 @@ public class HPCCLogicalFiles
 
         for (int i = 0; i < superfilescount; i++)
         {
-            DFUFile superfile = (DFUFile) files.get(superfiles.get(i));
+            DFUFile superfile = (DFUFile) files.get(superfiles.get(i).toUpperCase());
             if (!superfile.hasFileRecDef())
             {
                 if (superfile.containsSubfiles())
@@ -123,7 +123,7 @@ public class HPCCLogicalFiles
                     superfile.setFileRecDef(getSubfileRecDef(superfile));
                     if (superfile.hasFileRecDef())
                     {
-                        files.put(superfile.getFullyQualifiedName(), superfile);
+                        files.put(superfile.getFullyQualifiedName().toUpperCase(), superfile);
                         superfilesupdated++;
                     }
                 }

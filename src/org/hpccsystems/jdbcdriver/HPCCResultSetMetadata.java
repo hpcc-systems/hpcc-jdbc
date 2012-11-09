@@ -218,7 +218,7 @@ public class HPCCResultSetMetadata implements ResultSetMetaData
     {
         if (column >= 1 && column <= columnList.size())
         {
-            return HPCCDatabaseMetaData.convertSQLtype2JavaClassName(columnList.get(column - 1).getSqlType());
+            return HPCCJDBCUtils.convertSQLtype2JavaClassName(columnList.get(column - 1).getSqlType());
         }
         else
         {
