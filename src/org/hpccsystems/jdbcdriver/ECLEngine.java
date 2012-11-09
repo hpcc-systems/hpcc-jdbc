@@ -1151,78 +1151,71 @@ public class ECLEngine
     {
         NodeList rowList = null;
 
-        try
+        DocumentBuilder db = dbf.newDocumentBuilder();
+        Document dom = db.parse(xml);
+
+        long elapsedTime = System.currentTimeMillis() - startTime;
+        System.out.println("Total elapsed http request/response time in milliseconds: " + elapsedTime);
+
+        Element docElement = dom.getDocumentElement();
+
+        NodeList dsList = docElement.getElementsByTagName("Dataset");
+
+        System.out.println("Parsing results...");
+
+        int dsCount = 0;
+        if (dsList != null && (dsCount = dsList.getLength()) > 0)
         {
-            DocumentBuilder db = dbf.newDocumentBuilder();
-            Document dom = db.parse(xml);
+            System.out.println("Results datsets found: " + dsList.getLength());
 
-            long elapsedTime = System.currentTimeMillis() - startTime;
-            System.out.println("Total elapsed http request/response time in milliseconds: " + elapsedTime);
+            // The dataset element is encapsulated within a Result element
+            // need to fetch appropriate resulst dataset
 
-            Element docElement = dom.getDocumentElement();
-
-            NodeList dsList = docElement.getElementsByTagName("Dataset");
-
-            System.out.println("Parsing results...");
-
-            int dsCount = 0;
-            if (dsList != null && (dsCount = dsList.getLength()) > 0)
+            for (int i = 0; i < dsCount; i++)
             {
-                System.out.println("Results datsets found: " + dsList.getLength());
-
-                // The dataset element is encapsulated within a Result element
-                // need to fetch appropriate resulst dataset
-
-                for (int i = 0; i < dsCount; i++)
+                Element ds = (Element) dsList.item(i);
+                String currentdatsetname = ds.getAttribute("name");
+                if (expectedDSName == null || expectedDSName.length() == 0
+                        || currentdatsetname.equalsIgnoreCase(expectedDSName))
                 {
-                    Element ds = (Element) dsList.item(i);
-                    String currentdatsetname = ds.getAttribute("name");
-                    if (expectedDSName == null || expectedDSName.length() == 0
-                            || currentdatsetname.equalsIgnoreCase(expectedDSName))
+                    rowList = ds.getElementsByTagName("Row");
+                    break;
+                }
+            }
+        }
+        else if (docElement.getElementsByTagName("Exception").getLength() > 0)
+        {
+            NodeList exceptionlist = docElement.getElementsByTagName("Exception");
+
+            if (exceptionlist.getLength() > 0)
+            {
+                Exception resexception = null;
+                NodeList currexceptionelements = exceptionlist.item(0).getChildNodes();
+
+                for (int j = 0; j < currexceptionelements.getLength(); j++)
+                {
+                    Node exceptionelement = currexceptionelements.item(j);
+                    if (exceptionelement.getNodeName().equals("Message"))
                     {
-                        rowList = ds.getElementsByTagName("Row");
-                        break;
+                        resexception = new Exception("HPCCJDBC: Error in response: \'"
+                                + exceptionelement.getTextContent() + "\'");
                     }
                 }
+                if (dsList == null || dsList.getLength() <= 0)
+                    throw resexception;
             }
-            else if (docElement.getElementsByTagName("Exception").getLength() > 0)
-            {
-                NodeList exceptionlist = docElement.getElementsByTagName("Exception");
-
-                if (exceptionlist.getLength() > 0)
-                {
-                    Exception resexception = null;
-                    NodeList currexceptionelements = exceptionlist.item(0).getChildNodes();
-
-                    for (int j = 0; j < currexceptionelements.getLength(); j++)
-                    {
-                        Node exceptionelement = currexceptionelements.item(j);
-                        if (exceptionelement.getNodeName().equals("Message"))
-                        {
-                            resexception = new Exception("HPCCJDBC error in response: \'"
-                                    + exceptionelement.getTextContent() + "\'");
-                        }
-                    }
-                    if (dsList == null || dsList.getLength() <= 0)
-                        throw resexception;
-                }
-            }
-            else
-            {
-                // The root element is itself the Dataset element
-                if (dsCount == 0)
-                {
-                    rowList = docElement.getElementsByTagName("Row");
-                }
-            }
-
-            System.out.println("Finished Parsing results.");
         }
-        catch (Exception e)
+        else
         {
-            throw new Exception(
-                    "Invalid response received, verify ServerAddress, TargetCluster, and SQL query:\n" + e.getMessage());
+            // The root element is itself the Dataset element
+            if (dsCount == 0)
+            {
+                rowList = docElement.getElementsByTagName("Row");
+            }
         }
+
+        System.out.println("Finished Parsing results.");
+
 
         return rowList;
     }

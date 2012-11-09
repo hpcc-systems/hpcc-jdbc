@@ -99,7 +99,8 @@ public class HPCCConnection implements Connection
 
     public Statement createStatement() throws SQLException
     {
-        return new HPCCPreparedStatement(this, null);
+        System.out.println("HPCCConnection: createStatement(  )");
+        return new HPCCStatement(this);
     }
 
     public PreparedStatement prepareStatement(String query) throws SQLException

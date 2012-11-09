@@ -17,6 +17,7 @@ import org.hpccsystems.jdbcdriver.HPCCDriver;
 import org.hpccsystems.jdbcdriver.HPCCJDBCUtils;
 import org.hpccsystems.jdbcdriver.HPCCPreparedStatement;
 import org.hpccsystems.jdbcdriver.HPCCResultSet;
+import org.hpccsystems.jdbcdriver.HPCCStatement;
 
 public class HPCCDriverTest
 {
@@ -1131,6 +1132,27 @@ public class HPCCDriverTest
                 info.put("EclResultLimit", "ALL"); //I want all records returned
                 info.put("PageSize", "20"); //GetTables and GetProcs will only return 20 entries
 
+
+                HPCCConnection connectionprops = connectViaProps(info);
+                if (connectionprops == null)
+                    throw new RuntimeException("Could not connect with properties object");
+
+                HPCCStatement stmt = (HPCCStatement) connectionprops.createStatement();
+
+                String stmtsql = "select tbl.* from lotto::winning::numbers::date::csv tbl limit 10";
+                if( stmt.execute(stmtsql))
+                {
+                    HPCCResultSet res1 = (HPCCResultSet) stmt.executeQuery(stmtsql);
+
+                    if (res1.getRowCount() > 0)
+                        printOutResultSet(res1,0);
+
+                    HPCCResultSet res2 = (HPCCResultSet) stmt.getResultSet();
+                    if (res1.getRowCount() != res2.getRowCount())
+                        throw new RuntimeException("HPCCStatement test: 2 resultsets differ.");
+                }
+                else
+                    throw new RuntimeException("HPCCStatement test failed.");
 
                 if (!runFullTest(info))
                     throw new RuntimeException("Full test failed.");

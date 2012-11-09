@@ -82,6 +82,15 @@ public class SQLParser
         storedProcName = null;
         sqlType = SQLType.UNKNOWN;
         indexHint = null;
+        columnsVerified = false;
+        joinClause = null;
+        groupByFragments = null;
+        orderByFragments = null;
+        procInParamValues = null;
+        limit = -1;
+        selectColsContainWildcard = false;
+        isSelectDistinct = false;
+        parameterizedCount = 0;
 
         insql = HPCCJDBCUtils.removeAllNewLines(insql);
         String insqlupcase = insql.toUpperCase();
