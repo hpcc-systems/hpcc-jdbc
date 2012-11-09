@@ -31,6 +31,7 @@ import java.util.regex.Pattern;
 
 import org.hpccsystems.jdbcdriver.ECLFunction.FunctionType;
 import org.hpccsystems.jdbcdriver.HPCCColumnMetaData.ColumnType;
+import org.hpccsystems.jdbcdriver.HPCCJDBCUtils.TraceLevel;
 import org.hpccsystems.jdbcdriver.SQLExpression.ExpressionType;
 
 /**
@@ -74,7 +75,7 @@ public class SQLParser
 
     public void process(String insql) throws SQLException
     {
-        System.out.println("INCOMING SQL: " + insql);
+        HPCCJDBCUtils.traceoutln(TraceLevel.INFO,  "INCOMING SQL: " + insql);
 
         sqlTables = new ArrayList<SQLTable>();
         selectColumns = new LinkedList<HPCCColumnMetaData>();
@@ -82,6 +83,15 @@ public class SQLParser
         storedProcName = null;
         sqlType = SQLType.UNKNOWN;
         indexHint = null;
+        columnsVerified = false;
+        joinClause = null;
+        groupByFragments = null;
+        orderByFragments = null;
+        procInParamValues = null;
+        limit = -1;
+        selectColsContainWildcard = false;
+        isSelectDistinct = false;
+        parameterizedCount = 0;
 
         insql = HPCCJDBCUtils.removeAllNewLines(insql);
         String insqlupcase = insql.toUpperCase();
@@ -143,7 +153,7 @@ public class SQLParser
             {
                 if (parseConstantSelect(insql))
                 {
-                    System.out.println("Found Select <constant>");
+                    HPCCJDBCUtils.traceoutln(TraceLevel.INFO,  "Found Select <constant>");
                     sqlType = SQLType.SELECTCONST;
                     return;
                 }
@@ -346,7 +356,6 @@ public class SQLParser
                     List<HPCCColumnMetaData> funccols = new ArrayList<HPCCColumnMetaData>();
 
                     String funcname = col.substring(0, col.indexOf('('));
-
                     ECLFunction func = ECLFunctions.getEclFunction(funcname);
 
                     if (func != null)
@@ -431,7 +440,7 @@ public class SQLParser
                 if (useindexend < 0)
                     throw new SQLException("Malformed USE INDEX() clause.");
                 indexHint = useindexstr.substring(0, useindexend).trim();
-                System.out.println("Index hint found: " + indexHint);
+                HPCCJDBCUtils.traceoutln(TraceLevel.INFO,  "Index hint found: " + indexHint);
             }
 
             if (sqlTables.size() > 1)
