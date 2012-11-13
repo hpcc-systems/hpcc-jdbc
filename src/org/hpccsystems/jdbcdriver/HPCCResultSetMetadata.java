@@ -23,8 +23,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-
-import org.hpccsystems.jdbcdriver.HPCCJDBCUtils.TraceLevel;
+import java.util.logging.Level;
 
 public class HPCCResultSetMetadata implements ResultSetMetaData
 {
@@ -64,7 +63,7 @@ public class HPCCResultSetMetadata implements ResultSetMetaData
         }
         catch (Exception e)
         {
-            HPCCJDBCUtils.traceoutln(TraceLevel.ERROR, "ERROR CREATING HPCCResultSetMetadata Object");
+            HPCCJDBCUtils.traceoutln(Level.SEVERE,  "ERROR CREATING HPCCResultSetMetadata Object");
         }
     }
 
