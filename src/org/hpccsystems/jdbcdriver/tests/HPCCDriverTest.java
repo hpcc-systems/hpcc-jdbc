@@ -1125,6 +1125,7 @@ public class HPCCDriverTest
             {
                 info.put("ServerAddress", "192.168.124.128"); //your HPCC address here
                 info.put("LazyLoad", "true");
+                info.put("TraceToFile", "true");
                 info.put("TargetCluster", "myroxie"); //queries will run on this HPCC target cluster
                 info.put("QuerySet", "thor"); //published HPCC queries will run from this queryset
                 info.put("WsECLWatchPort", "8010"); //Target HPCC configured to run WsECLWatch on this port

@@ -26,6 +26,8 @@ import java.sql.SQLException;
 import java.util.Properties;
 import java.util.StringTokenizer;
 
+import org.hpccsystems.jdbcdriver.HPCCJDBCUtils.TraceLevel;
+
 public class HPCCDriver implements Driver
 {
     public static final String   ECLRESULTLIMDEFAULT      = "100";
@@ -41,6 +43,8 @@ public class HPCCDriver implements Driver
     public static final String   CONNECTTIMEOUTMILDEFAULT = "5000";
     public static final String   READTIMEOUTMILDEFAULT    = "15000";
     public static final String   JDBCURLPROTOCOL          = "jdbc:hpcc";
+    public static final String   TRACETOFILEDEFAULT       = "false";
+    public static final String   TRACELEVELDEFAULT        = HPCCJDBCUtils.TraceLevel.INFO.name();
 
     private static DriverPropertyInfo[] infoArray;
 
@@ -51,7 +55,8 @@ public class HPCCDriver implements Driver
             HPCCDriver driver = new HPCCDriver();
             DriverManager.registerDriver(driver);
             initializePropInfo();
-            System.out.println("HPCC JDBC Driver registered.");
+
+            HPCCJDBCUtils.traceoutln(TraceLevel.INFO,  "HPCC JDBC Driver registered.");
         }
         catch (SQLException ex)
         {
@@ -65,7 +70,7 @@ public class HPCCDriver implements Driver
 
     public Connection connect(String url, Properties info) throws SQLException
     {
-        HPCCJDBCUtils.traceoutln("HPCCConnection jdbc url: " + url);
+        HPCCJDBCUtils.traceoutln(TraceLevel.INFO,  "HPCCConnection jdbc url: " + url);
 
         Properties connprops = new Properties();
 
@@ -91,7 +96,7 @@ public class HPCCDriver implements Driver
                             if (!connprops.containsKey(key))
                                 connprops.put(key, value);
                             else
-                                System.out.println("Connection property: " + key + " found in info properties and URL, ignoring URL value");
+                                HPCCJDBCUtils.traceoutln(TraceLevel.VERBOSE,  "Connection property: " + key + " found in info properties and URL, ignoring URL value");
                         }
                     }
                 }
@@ -99,7 +104,7 @@ public class HPCCDriver implements Driver
         }
         catch (Exception e)
         {
-            System.out.println("Issue parsing URL! \"" + url + "\"");
+            HPCCJDBCUtils.traceoutln(TraceLevel.ERROR,  "Issue parsing URL! \"" + url + "\"");
         }
 
         try
@@ -108,6 +113,16 @@ public class HPCCDriver implements Driver
                 connprops.setProperty("ServerAddress", SERVERADDRESSDEFAULT);
 
             String serverAddress = connprops.getProperty("ServerAddress");
+
+            if (!connprops.containsKey("TraceLevel"))
+                connprops.setProperty("TraceLevel", TRACELEVELDEFAULT);
+
+            if (!connprops.containsKey("TraceToFile"))
+                connprops.setProperty("TraceToFile", TRACETOFILEDEFAULT);
+
+            if (connprops.containsKey("TraceLevel"))
+                HPCCJDBCUtils.initTracing(connprops.getProperty("TraceLevel"),
+                    Boolean.parseBoolean(connprops.getProperty("TraceToFile")));
 
             if (!connprops.containsKey("TargetCluster"))
                 connprops.setProperty("TargetCluster", CLUSTERDEFAULT);
@@ -184,8 +199,7 @@ public class HPCCDriver implements Driver
             if (setdefaultreslim)
             {
                 connprops.setProperty("EclResultLimit", ECLRESULTLIMDEFAULT);
-                System.out.println("Invalid Numeric EclResultLimit value detected, using default value: "
-                        + ECLRESULTLIMDEFAULT);
+                HPCCJDBCUtils.traceoutln(TraceLevel.WARNING,  "Invalid Numeric EclResultLimit value detected, using default value: "+ECLRESULTLIMDEFAULT);
             }
 
             String basicAuth = HPCCConnection.createBasicAuth(connprops.getProperty("username"), connprops.getProperty("password"));
@@ -195,15 +209,13 @@ public class HPCCDriver implements Driver
             if (!connprops.containsKey("LazyLoad"))
                 connprops.setProperty("LazyLoad", LAZYLOADDEFAULT);
 
-            if (connprops.containsKey("LogDebug") && Boolean.parseBoolean(connprops.getProperty("LogDebug")))
-                HPCCJDBCUtils.enableTraceLogging();
         }
         catch (Exception e)
         {
-            System.out.println("Issue detected while setting connection properties!");
+            HPCCJDBCUtils.traceoutln(TraceLevel.ERROR,  "Issue detected while setting connection properties!");
         }
 
-        System.out.println("HPCCDriver::connect" + connprops.getProperty("ServerAddress"));
+        HPCCJDBCUtils.traceoutln(TraceLevel.INFO,"HPCCDriver::connect" + connprops.getProperty("ServerAddress"));
 
         return new HPCCConnection(connprops);
     }
@@ -281,16 +293,15 @@ public class HPCCDriver implements Driver
         infoArray[15].description = "Default limit on number of result records returned.";
         infoArray[15].required = false;
 
-        infoArray[16] = new DriverPropertyInfo("LazyLoad", LAZYLOADDEFAULT);
-        String [] boolchoices = {"true", "false"};
-        infoArray[16].choices = boolchoices;
-        infoArray[16].description = "If disabled, all HPCC metadata is loaded and cached at connect time, otherwise HPCC file & published query info is loaded on-demand.";
+        infoArray[16] = new DriverPropertyInfo("TraceLevel", TRACELEVELDEFAULT);
+        infoArray[16].choices = HPCCJDBCUtils.getTraceLevelStrOptions();
+        infoArray[16].description = "Trace logging level.";
         infoArray[16].required = false;
 
-        infoArray[17] = new DriverPropertyInfo("LogDebug", "false");
-        infoArray[17].choices = boolchoices;
-        infoArray[17].description = "Trace logging switch.";
+        infoArray[17] = new DriverPropertyInfo("TraceToFile", TRACETOFILEDEFAULT);
+        infoArray[17].description = "Traces sent to System.out by default, otherwise if this flag is true traces sent to: " + HPCCJDBCUtils.workingDir +  HPCCJDBCUtils.traceFileName;
         infoArray[17].required = false;
+        infoArray[17].choices = new String [] {"true", "false"};
     }
 
     public DriverPropertyInfo[] getPropertyInfo(String url, Properties info) throws SQLException
