@@ -24,8 +24,8 @@ import java.sql.SQLException;
 import java.sql.SQLWarning;
 import java.sql.Statement;
 import java.util.HashMap;
+import java.util.logging.Level;
 
-import org.hpccsystems.jdbcdriver.HPCCJDBCUtils.TraceLevel;
 import org.w3c.dom.NodeList;
 
 /**
@@ -50,7 +50,7 @@ public class HPCCStatement implements Statement
 
     public HPCCStatement(Connection conn)
     {
-        HPCCJDBCUtils.traceoutln(TraceLevel.INFO,   className + "Constructor(conn)");
+        HPCCJDBCUtils.traceoutln(Level.INFO,   className + "Constructor(conn)");
         this.hpccConnection = (HPCCConnection)conn;
         this.dbMetadata = hpccConnection.getDatabaseMetaData();
     }
@@ -59,7 +59,7 @@ public class HPCCStatement implements Statement
     {
         try
         {
-            HPCCJDBCUtils.traceoutln(TraceLevel.INFO,  className + "Attempting to process sql query: " + sqlQuery);
+            HPCCJDBCUtils.traceoutln(Level.INFO,  className + "Attempting to process sql query: " + sqlQuery);
             if (!this.closed)
             {
                 if (parser != null)
@@ -77,7 +77,7 @@ public class HPCCStatement implements Statement
         }
         catch (SQLException e)
         {
-            HPCCJDBCUtils.traceoutln(TraceLevel.ERROR,  e.getLocalizedMessage());
+            HPCCJDBCUtils.traceoutln(Level.SEVERE,   e.getLocalizedMessage());
             if (warnings == null)
                 warnings = new SQLWarning();
             warnings.setNextException(e);
@@ -89,8 +89,8 @@ public class HPCCStatement implements Statement
 
     protected ResultSet executeHPCCQuery(HashMap<Integer, Object> params) throws SQLException
     {
-        HPCCJDBCUtils.traceoutln(TraceLevel.INFO,  className + ": executeQuery()");
-        HPCCJDBCUtils.traceoutln(TraceLevel.INFO,  "\tAttempting to process sql query: " + sqlQuery);
+        HPCCJDBCUtils.traceoutln(Level.INFO,  className + ": executeQuery()");
+        HPCCJDBCUtils.traceoutln(Level.INFO,  "\tAttempting to process sql query: " + sqlQuery);
         result = null;
 
         try
@@ -143,7 +143,7 @@ public class HPCCStatement implements Statement
     {
         sqlQuery = sql;
 
-        HPCCJDBCUtils.traceoutln(TraceLevel.INFO,  className + ": executeQuery(" + sql + ")");
+        HPCCJDBCUtils.traceoutln(Level.INFO,  className + ": executeQuery(" + sql + ")");
 
         processQuery();
 
@@ -157,7 +157,7 @@ public class HPCCStatement implements Statement
 
     public void close() throws SQLException
     {
-        HPCCJDBCUtils.traceoutln(TraceLevel.VERBOSE,  className + ": close( )");
+        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": close( )");
         if (!closed)
         {
             closed = true;
@@ -184,7 +184,7 @@ public class HPCCStatement implements Statement
     {
         try
         {
-            HPCCJDBCUtils.traceoutln(TraceLevel.VERBOSE,  className + ": getMaxRows()");
+            HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": getMaxRows()");
             return Integer.parseInt(this.hpccConnection.getProperty("EclLimit"));
         }
         catch (Exception e)
@@ -195,7 +195,7 @@ public class HPCCStatement implements Statement
 
     public void setMaxRows(int max) throws SQLException
     {
-        HPCCJDBCUtils.traceoutln(TraceLevel.VERBOSE,  className + ": setMaxRows(" + max + "  ) ignored");
+        throw new UnsupportedOperationException(className + ": setMaxRows(int max) Not supported yet.");
     }
 
     public void setEscapeProcessing(boolean enable) throws SQLException
@@ -205,13 +205,13 @@ public class HPCCStatement implements Statement
 
     public int getQueryTimeout() throws SQLException
     {
-        HPCCJDBCUtils.traceoutln(TraceLevel.VERBOSE,  className + ": getQueryTimeout()");
+        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": getQueryTimeout()");
         return 0;
     }
 
     public void setQueryTimeout(int seconds) throws SQLException
     {
-        HPCCJDBCUtils.traceoutln(TraceLevel.VERBOSE,  className + ": setQueryTimeout()");
+        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setQueryTimeout()");
     }
 
     public void cancel() throws SQLException
@@ -221,13 +221,13 @@ public class HPCCStatement implements Statement
 
     public SQLWarning getWarnings() throws SQLException
     {
-        HPCCJDBCUtils.traceoutln(TraceLevel.VERBOSE,  className + ": getWarnings()");
+        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": getWarnings()");
         return warnings;
     }
 
     public void clearWarnings() throws SQLException
     {
-        HPCCJDBCUtils.traceoutln(TraceLevel.VERBOSE,  className + ": clearWarnings()");
+        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": clearWarnings()");
         warnings = null;
     }
 
@@ -248,8 +248,8 @@ public class HPCCStatement implements Statement
     public boolean execute() throws SQLException
     {
         result = null;
-        HPCCJDBCUtils.traceoutln(TraceLevel.INFO,  className + ": execute()");
-        HPCCJDBCUtils.traceoutln(TraceLevel.INFO,  "\tAttempting to process sql query: " + sqlQuery);
+        HPCCJDBCUtils.traceoutln(Level.INFO,  className + ": execute()");
+        HPCCJDBCUtils.traceoutln(Level.INFO,  "\tAttempting to process sql query: " + sqlQuery);
         try
         {
             result = (HPCCResultSet) executeHPCCQuery(null);
@@ -269,7 +269,7 @@ public class HPCCStatement implements Statement
 
     public int getUpdateCount() throws SQLException
     {
-        HPCCJDBCUtils.traceoutln(TraceLevel.INFO, className + ":getUpdateCount: -1");
+        HPCCJDBCUtils.traceoutln(Level.INFO, className + ":getUpdateCount: -1");
         return -1;
     }
 
@@ -290,7 +290,7 @@ public class HPCCStatement implements Statement
 
     public void setFetchSize(int rows) throws SQLException
     {
-        HPCCJDBCUtils.traceoutln(TraceLevel.INFO, className + ": setFetchSize Not supported yet.");
+        HPCCJDBCUtils.traceoutln(Level.INFO, className + ": setFetchSize Not supported yet.");
     }
 
     public int getFetchSize() throws SQLException

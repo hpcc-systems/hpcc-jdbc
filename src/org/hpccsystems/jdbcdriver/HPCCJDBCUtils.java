@@ -18,15 +18,16 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package org.hpccsystems.jdbcdriver;
 
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.lang.reflect.Field;
-import java.sql.Timestamp;
 import java.text.NumberFormat;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.logging.ConsoleHandler;
+import java.util.logging.FileHandler;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -37,37 +38,46 @@ public class HPCCJDBCUtils
     public static final String HPCCCATALOGNAME = "HPCC System";
     private static String [] values;
 
-    private static BufferedWriter traceWriter = null;// new BufferedWriter(new OutputStreamWriter(System.out));
+    public static final Level defaultLogLevel = Level.INFO;
     public final static String traceFileName = "HPCCJDBC.log";
-    private static boolean traceToFile = false;
     public final static String workingDir = System.getProperty("user.dir") + fileSep;
+    private static ConsoleHandler cHandler = null;
+    private static FileHandler fHandler = null;
 
-    public enum TraceLevel
-    {
-        OFF,
-        ERROR,
-        WARNING,
-        INFO,
-        VERBOSE;
-    }
-
-    private static HashMap<String, TraceLevel> mapTraceLevels = new HashMap<String, TraceLevel>();
+    private static HPCCJDBCLogFormatter formatter = new HPCCJDBCLogFormatter();
+    public static Logger logger = Logger.getLogger("org.hpccsystems.jdbcdriver");
     static
     {
-        for(TraceLevel enumValue : TraceLevel.class.getEnumConstants())
+        try
         {
-            mapTraceLevels.put(enumValue.name(), enumValue);
+            logger.setUseParentHandlers(false);
+
+            cHandler = new HPCCJDBCStdOutConsoleHandler();
+            cHandler.setFormatter(formatter);
+
+            fHandler = new FileHandler(traceFileName);
+            fHandler.setFormatter(formatter);
+            fHandler.setLevel(Level.OFF);
+
+            logger.addHandler(fHandler);
+            logger.addHandler(cHandler);
+
+        }
+        catch (Exception e)
+        {
+            System.err.println(e.getStackTrace());
         }
     }
 
     static
     {
-        values = new String [TraceLevel.values().length];
-        int i = 0;
-        for(TraceLevel enumValue : TraceLevel.class.getEnumConstants())
-        {
-            values[i++] = enumValue.name();
-        }
+        values = new String [6];
+        values[0] = Level.ALL.getName();
+        values[1] = Level.SEVERE.getName();
+        values[2] = Level.WARNING.getName();
+        values[3] = Level.INFO.getName();
+        values[4] = Level.FINEST.getName();
+        values[5] = Level.OFF.getName();
     }
 
     public static String [] getTraceLevelStrOptions()
@@ -75,123 +85,36 @@ public class HPCCJDBCUtils
         return values;
     }
 
-    private static TraceLevel traceLevel = TraceLevel.INFO;
-
-    private static void setTraceLevel(String level)
-    {
-        if (mapTraceLevels.containsKey(level))
-            traceLevel = mapTraceLevels.get(level);
-        else
-            traceLevel = TraceLevel.INFO;
-    }
-
     public static void initTracing(String level, boolean tofile)
     {
-        traceToFile = tofile;
-
-        setTraceLevel(level);
-
-        if (traceToFile && traceLevel.ordinal() > TraceLevel.OFF.ordinal())
+        Level lev = null;
+        try
         {
-            {
-                try
-                {
-                    FileWriter logfilewriter = new FileWriter(traceFileName,false);
-                    traceWriter = new BufferedWriter(logfilewriter);
-                }
-                catch (Exception e)
-                {
-                    e.printStackTrace(System.err);
-                }
-            }
+            lev = Level.parse(level.toUpperCase());
         }
-    }
-
-    public static void traceoutln()
-    {
-        if (traceToFile && traceWriter != null)
+        catch (Exception e)
         {
-            try
-            {
-                traceWriter.append("\n");
-                traceWriter.flush();
-            }
-            catch (IOException e)
-            {
-                e.printStackTrace(System.err);
-            }
+            lev =  defaultLogLevel;
         }
-        else
-            System.out.println();
-    }
 
-    public static void traceAppend(TraceLevel level, String tracestmt)
-    {
-        if (traceLevel.ordinal() >= level.ordinal())
+        for (Handler handler : logger.getHandlers())
         {
-            if (traceToFile && traceWriter != null)
-            {
-                try
-                {
-                    traceWriter.append(tracestmt);
-                }
-                catch (IOException e)
-                {
-                    e.printStackTrace(System.err);
-                }
-            }
+            if (tofile && handler.equals(cHandler))
+                handler.setLevel(Level.OFF);
+            else if (!tofile && handler.equals(fHandler))
+                handler.setLevel(Level.OFF);
             else
-                System.out.print(tracestmt);
+                handler.setLevel(lev);
         }
+
+        logger.setLevel(lev);
     }
 
-    public static void traceout(TraceLevel level, String tracestmt)
+    public static void traceoutln(Level level, String message)
     {
-        if (traceLevel.ordinal() >= level.ordinal())
+        if (logger != null)
         {
-            if (traceToFile && traceWriter != null)
-            {
-                try
-                {
-
-                    java.util.Date date = new java.util.Date();
-                    traceWriter.append((new Timestamp(date.getTime())).toString());
-                    traceWriter.append(":\t");
-                    traceWriter.append(tracestmt);
-                    traceWriter.flush();
-                }
-                catch (IOException e)
-                {
-                    e.printStackTrace(System.err);
-                }
-            }
-            else
-                System.out.print(tracestmt);
-        }
-    }
-
-    public static void traceoutln(TraceLevel level, String tracestmt)
-    {
-        if (traceLevel.ordinal() >= level.ordinal())
-        {
-            if (traceToFile && traceWriter != null)
-            {
-                try
-                {
-                    java.util.Date date = new java.util.Date();
-                    traceWriter.append((new Timestamp(date.getTime())).toString());
-                    traceWriter.append(":\t");
-                    traceWriter.append(tracestmt);
-                    traceWriter.append(newLine);
-                    traceWriter.flush();
-                }
-                catch (IOException e)
-                {
-                    e.printStackTrace(System.err);
-                }
-            }
-            else
-                System.out.println(tracestmt);
+            logger.log(level, message);
         }
     }
 
