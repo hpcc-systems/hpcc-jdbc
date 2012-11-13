@@ -23,6 +23,8 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.Properties;
 
+import org.hpccsystems.jdbcdriver.HPCCJDBCUtils.TraceLevel;
+
 public class HPCCLogicalFiles
 {
     private Properties   files;
@@ -79,7 +81,7 @@ public class HPCCLogicalFiles
                 if (subfile.hasFileRecDef())
                 {
                     eclrecdef = subfile.getFileRecDef("recdef");
-                    System.out.println("\tUsing record definition from: " + subfile.getFullyQualifiedName());
+                    HPCCJDBCUtils.traceoutln(TraceLevel.INFO,  "\tUsing record definition from: " + subfile.getFullyQualifiedName());
                     break;
                 }
                 else if (subfile.isSuperFile())
@@ -100,7 +102,7 @@ public class HPCCLogicalFiles
         {
             if (superfile.containsSubfiles())
             {
-                System.out.println("Processing superfile: " + superfile.getFullyQualifiedName());
+                HPCCJDBCUtils.traceoutln(TraceLevel.INFO,  "Processing superfile: " + superfile.getFullyQualifiedName());
                 superfile.setFileRecDef(getSubfileRecDef(superfile));
                 files.put(superfile.getFullyQualifiedName().toUpperCase(), superfile);
             }
@@ -119,7 +121,7 @@ public class HPCCLogicalFiles
             {
                 if (superfile.containsSubfiles())
                 {
-                    System.out.println("Processing superfile: " + superfile.getFullyQualifiedName());
+                    HPCCJDBCUtils.traceoutln(TraceLevel.INFO,  "Processing superfile: " + superfile.getFullyQualifiedName());
                     superfile.setFileRecDef(getSubfileRecDef(superfile));
                     if (superfile.hasFileRecDef())
                     {
@@ -129,7 +131,7 @@ public class HPCCLogicalFiles
                 }
             }
         }
-        System.out.println("Update superfiles' record definition ( " + superfilesupdated + " out of " + superfilescount + " )");
+        HPCCJDBCUtils.traceoutln(TraceLevel.INFO,  "Update superfiles' record definition ( " + superfilesupdated + " out of " + superfilescount + " )");
     }
 
     public long getReportedFileCount()

@@ -37,6 +37,7 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.hpccsystems.jdbcdriver.HPCCColumnMetaData.ColumnType;
+import org.hpccsystems.jdbcdriver.HPCCJDBCUtils.TraceLevel;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -152,7 +153,7 @@ public class ECLEngine
             addFileColsToAvailableCols(joinTableFile, availablecols);
 
             avoidindex = true; // will not be using index
-            System.out.println("Will not use INDEX files for \"Join\" query.");
+            HPCCJDBCUtils.traceoutln(TraceLevel.INFO,  "Will not use INDEX files for \"Join\" query.");
         }
 
         sqlParser.verifyAndProcessALLSelectColumns(availablecols);
@@ -167,13 +168,13 @@ public class ECLEngine
             if (indexhint.trim().equals("0"))
             {
                 avoidindex = true;
-                System.out.println("Will not use any index.");
+                HPCCJDBCUtils.traceoutln(TraceLevel.INFO,  "Will not use any index.");
             }
             if (!avoidindex)
             {
                 tmpindexname = findAppropriateIndex(indexhint, expectedretcolumns, sqlParser);
                 if (tmpindexname == null)
-                    System.out.println("Cannot use USE INDEX hint: " + indexhint);
+                    HPCCJDBCUtils.traceoutln(TraceLevel.INFO,  "Cannot use USE INDEX hint: " + indexhint);
             }
         } else
 
@@ -188,7 +189,7 @@ public class ECLEngine
 
         if (tmpindexname != null)
         {
-            System.out.print("Generating ECL using index file: " + tmpindexname);
+            HPCCJDBCUtils.traceoutln(TraceLevel.INFO,  "Generating ECL using index file: " + tmpindexname);
             indexFileToUse = dbMetadata.getDFUFile(tmpindexname);
             indexPosField = indexFileToUse.getIdxFilePosField();
 
@@ -218,19 +219,19 @@ public class ECLEngine
 
             if (isPayloadIndex)
             {
-                System.out.println(" as PAYLOAD");
+                HPCCJDBCUtils.traceoutln(TraceLevel.INFO,  " as PAYLOAD");
                 idxsetupstr.append("IdxDS := Idx(").append(keyedAndWild.toString()).append(");\n");
             }
             else
             {
-                System.out.println(" Not as PAYLOAD");
+                HPCCJDBCUtils.traceoutln(TraceLevel.INFO,  " Not as PAYLOAD");
                 idxsetupstr.append("IdxDS := FETCH(Tbl1DS, Idx( ").append(keyedAndWild.toString())
                         .append("), RIGHT.").append(indexFileToUse.getIdxFilePosField()).append(");\n");
             }
             eclEntities.put("IndexRead", idxsetupstr.toString());
         }
         else
-            System.out.println("NOT USING INDEX!");
+            HPCCJDBCUtils.traceoutln(TraceLevel.INFO,  "NOT USING INDEX!");
 
         if (hpccQueryFile.hasFileRecDef())
         {
@@ -850,7 +851,7 @@ public class ECLEngine
             throw new SQLException(e.getMessage());
         }
 
-        HPCCJDBCUtils.traceoutln("HPCC URL created: " + urlString);
+        HPCCJDBCUtils.traceoutln(TraceLevel.INFO, "HPCC URL created: " + urlString);
     }
 
     private void generateConstSelectURL() throws SQLException
@@ -868,7 +869,7 @@ public class ECLEngine
                 urlString += hpccConnProps.getProperty("TargetCluster");
             }
             else
-                System.out.println("No cluster property found, executing query on EclDirect default cluster");
+                HPCCJDBCUtils.traceoutln(TraceLevel.INFO,  "No cluster property found, executing query on EclDirect default cluster");
 
             urlString += "&eclText=";
             urlString += URLEncoder.encode(eclCode.toString(), "UTF-8");
@@ -878,8 +879,7 @@ public class ECLEngine
         {
             throw new SQLException(e.getMessage());
         }
-
-        System.out.println("HPCC URL created: " + urlString);
+        HPCCJDBCUtils.traceoutln(TraceLevel.INFO,  "HPCC URL created: " + urlString);
     }
 
     private void generateConstSelectECL()
@@ -915,11 +915,11 @@ public class ECLEngine
             if (hpccConnProps.containsKey("TargetCluster"))
                 urlString += "&cluster=" + hpccConnProps.getProperty("TargetCluster");
             else
-                System.out.println("No cluster property found, executing query on EclDirect default cluster");
+                HPCCJDBCUtils.traceoutln(TraceLevel.INFO,  "No cluster property found, executing query on EclDirect default cluster");
 
             hpccRequestUrl = new URL(urlString);
 
-            System.out.println("HPCC URL created: " + urlString);
+            HPCCJDBCUtils.traceoutln(TraceLevel.INFO,  "HPCC URL created: " + urlString);
         }
         catch (Exception e)
         {
@@ -1059,7 +1059,7 @@ public class ECLEngine
 
             HttpURLConnection conn = dbMetadata.createHPCCESPConnection(hpccRequestUrl);
 
-            System.out.println("Executing ECL: " + sb);
+            HPCCJDBCUtils.traceoutln(TraceLevel.INFO,  "Executing ECL: " + sb);
             OutputStreamWriter wr = new OutputStreamWriter(conn.getOutputStream());
             wr.write(sb.toString());
             wr.flush();
@@ -1137,7 +1137,7 @@ public class ECLEngine
             wr.write(sb.toString());
             wr.flush();
 
-            System.out.println("Executing: " + hpccRequestUrl + " : " + sb.toString());
+            HPCCJDBCUtils.traceoutln(TraceLevel.INFO,  "Executing: " + hpccRequestUrl + " : " + sb.toString());
 
             return parseDataset(conn.getInputStream(), startTime);
         }
@@ -1155,18 +1155,18 @@ public class ECLEngine
         Document dom = db.parse(xml);
 
         long elapsedTime = System.currentTimeMillis() - startTime;
-        System.out.println("Total elapsed http request/response time in milliseconds: " + elapsedTime);
+        HPCCJDBCUtils.traceoutln(TraceLevel.INFO, "Total elapsed http request/response time in milliseconds: " + elapsedTime);
 
         Element docElement = dom.getDocumentElement();
 
         NodeList dsList = docElement.getElementsByTagName("Dataset");
 
-        System.out.println("Parsing results...");
+        HPCCJDBCUtils.traceoutln(TraceLevel.INFO, "Parsing results...");
 
         int dsCount = 0;
         if (dsList != null && (dsCount = dsList.getLength()) > 0)
         {
-            System.out.println("Results datsets found: " + dsList.getLength());
+            HPCCJDBCUtils.traceoutln(TraceLevel.INFO, "Results datsets found: " + dsList.getLength());
 
             // The dataset element is encapsulated within a Result element
             // need to fetch appropriate resulst dataset
@@ -1213,9 +1213,7 @@ public class ECLEngine
                 rowList = docElement.getElementsByTagName("Row");
             }
         }
-
-        System.out.println("Finished Parsing results.");
-
+        HPCCJDBCUtils.traceoutln(TraceLevel.INFO,  "Finished Parsing results.");
 
         return rowList;
     }
@@ -1231,7 +1229,7 @@ public class ECLEngine
 
         if (this.resultSchema != null && this.resultSchema.getLength() > 0)
         {
-            System.out.println("contains resultschema");
+            HPCCJDBCUtils.traceoutln(TraceLevel.INFO,  "contains resultschema");
         }
     }
 
