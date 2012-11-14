@@ -951,8 +951,24 @@ public class HPCCDriverTest
                     params, true, 1, "Select agg function aliased field, and field");
 
             executeFreeHandSQL(propsinfo,
+                    "select max(persons.firstname), min(persons.firstname), COUNT(persons.firstname), persons.firstname, persons.lastname from tutorial::rp::tutorialperson as persons where persons.zip < '33445' limit 10",
+                    params, true, 2, "select min, max, count, count NONKEYED");
+
+            executeFreeHandSQL(propsinfo,
+                    "select max(persons.firstname), min(persons.firstname), COUNT(persons.firstname) from tutorial::rp::tutorialperson as persons where persons.zip < '33445' limit 10",
+                    params, true, 1, "select min, max, count, count NONKEYED - scalar output expected");
+
+            executeFreeHandSQL(propsinfo,
+                    "select max(persons.firstname), min(persons.firstname), COUNT(persons.firstname), persons.firstname, persons.lastname from tutorial::rp::tutorialperson as persons where persons.firstname < 'a' limit 10",
+                    params, true, 1, "select min, max, count, count KEYED");
+
+            executeFreeHandSQL(propsinfo,
+                    "select min(persons.firstname), persons.firstname, persons.lastname from tutorial::rp::tutorialperson as persons where persons.zip = '33445' limit 10",
+                    params, true, 1, "select min() NONKEYED");
+
+            executeFreeHandSQL(propsinfo,
                     "select min(persons.firstname), persons.firstname, persons.lastname from tutorial::rp::tutorialperson as persons where persons.firstname < 'a' limit 10",
-                    params, true, 1, "select min()");
+                    params, true, 1, "select min() KEYED  ");
 
             executeFreeHandSQL(propsinfo,
                     "select max(persons.firstname), persons.firstname, persons.lastname from tutorial::rp::tutorialperson as persons where persons.zip < '33445' limit 10",
@@ -1001,10 +1017,6 @@ public class HPCCDriverTest
             executeFreeHandSQL(propsinfo,
                     "select persons.firstname, persons.lastname from tutorial::rp::peoplebyzipindex3 as persons outer join  tutorial::rp::peoplebyzipindex2 as people2 on people2.firstname = persons.firstname limit 10",
                     params, false, 0, "Join where both tables are index files");
-
-            executeFreeHandSQL(propsinfo,
-                    "select min(persons.firstname), persons.firstname, persons.lastname from tutorial::rp::tutorialperson as persons where persons.firstname < 'a' limit 10",
-                    params, true, 1, "Select min(one field)");
 
             executeFreeHandSQL(propsinfo,
                     "select max(persons.firstname), persons.firstname, persons.lastname from tutorial::rp::tutorialperson as persons where persons.zip < '33445' limit 10",
@@ -1125,7 +1137,8 @@ public class HPCCDriverTest
             {
                 info.put("ServerAddress", "192.168.124.128"); //your HPCC address here
                 info.put("LazyLoad", "true");
-                info.put("TraceToFile", "true");
+                info.put("TraceToFile", "false");
+                info.put("TraceLevel", "INFO");
                 info.put("TargetCluster", "myroxie"); //queries will run on this HPCC target cluster
                 info.put("QuerySet", "thor"); //published HPCC queries will run from this queryset
                 info.put("WsECLWatchPort", "8010"); //Target HPCC configured to run WsECLWatch on this port
