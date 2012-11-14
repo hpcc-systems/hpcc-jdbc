@@ -1140,7 +1140,7 @@ public class HPCCDriverTest
 
                 HPCCStatement stmt = (HPCCStatement) connectionprops.createStatement();
 
-                String stmtsql = "select tbl.* from lotto::winning::numbers::date::csv tbl limit 10";
+                String stmtsql = "select tbl.* from lotto::winning::numbers::date::csv tbl where (b1 != 'asfdfsa') or (b2 = '23') limit 10";
                 if( stmt.execute(stmtsql))
                 {
                     HPCCResultSet res1 = (HPCCResultSet) stmt.executeQuery(stmtsql);
