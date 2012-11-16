@@ -94,6 +94,7 @@ public class HPCCJDBCUtils
         }
         catch (Exception e)
         {
+            logger.log(Level.INFO, "Couldn't determine log level, will log at default level: " + defaultLogLevel.getName());
             lev =  defaultLogLevel;
         }
 
