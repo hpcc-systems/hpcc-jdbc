@@ -8,7 +8,7 @@ import java.util.logging.LogRecord;
 
 public class HPCCJDBCLogFormatter  extends Formatter
 {
-    private static final DateFormat df = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss.SSS");
+    private static final DateFormat df = new SimpleDateFormat("yyyy/MM/dd hh:mm:ss.SSS");
     private static final String MESSAGEDELIMITER = " - ";
 
     @Override
