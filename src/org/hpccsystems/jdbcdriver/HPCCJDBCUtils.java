@@ -23,36 +23,99 @@ import java.text.NumberFormat;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.logging.ConsoleHandler;
+import java.util.logging.FileHandler;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class HPCCJDBCUtils
 {
-    private static boolean trace_enabled = false;
+    public static String newLine = System.getProperty("line.separator");
+    public static String fileSep = System.getProperty("file.separator");;
+    public static final String HPCCCATALOGNAME = "HPCC System";
+    private static String [] values;
 
-    public static void enableTraceLogging()
-    {
-        trace_enabled = true;
-    }
+    public static final Level defaultLogLevel = Level.INFO;
+    public final static String traceFileName = "HPCCJDBC.log";
+    public final static String workingDir = System.getProperty("user.dir") + fileSep;
+    private static ConsoleHandler cHandler = null;
+    private static FileHandler fHandler = null;
 
-    public static void disableTraceLogging()
+    private static HPCCJDBCLogFormatter formatter = new HPCCJDBCLogFormatter();
+    public static Logger logger = Logger.getLogger("org.hpccsystems.jdbcdriver");
+    static
     {
-        trace_enabled = false;
-    }
-
-    public static void traceout(String tracestmt)
-    {
-        if (trace_enabled)
+        try
         {
-            System.out.print("HPCCJDBC-TRACE: " + tracestmt);
+            logger.setUseParentHandlers(false);
+
+            cHandler = new HPCCJDBCStdOutConsoleHandler();
+            cHandler.setFormatter(formatter);
+
+            fHandler = new FileHandler(traceFileName);
+            fHandler.setFormatter(formatter);
+            fHandler.setLevel(Level.OFF);
+
+            logger.addHandler(fHandler);
+            logger.addHandler(cHandler);
+
+        }
+        catch (Exception e)
+        {
+            System.err.println(e.getStackTrace());
         }
     }
 
-    public static void traceoutln(String tracestmt)
+    static
     {
-        if (trace_enabled)
+        values = new String [6];
+        values[0] = Level.ALL.getName();
+        values[1] = Level.SEVERE.getName();
+        values[2] = Level.WARNING.getName();
+        values[3] = Level.INFO.getName();
+        values[4] = Level.FINEST.getName();
+        values[5] = Level.OFF.getName();
+    }
+
+    public static String [] getTraceLevelStrOptions()
+    {
+        return values;
+    }
+
+    public static void initTracing(String level, boolean tofile)
+    {
+        Level lev = null;
+        try
         {
-            System.out.println("HPCCJDBC-TRACE: " + tracestmt);
+            lev = Level.parse(level.toUpperCase());
+        }
+        catch (Exception e)
+        {
+            logger.log(Level.INFO, "Couldn't determine log level, will log at default level: " + defaultLogLevel.getName());
+            lev =  defaultLogLevel;
+        }
+
+        for (Handler handler : logger.getHandlers())
+        {
+            if (tofile && handler.equals(cHandler))
+                handler.setLevel(Level.OFF);
+            else if (!tofile && handler.equals(fHandler))
+                handler.setLevel(Level.OFF);
+            else
+                handler.setLevel(lev);
+        }
+
+        logger.setLevel(lev);
+    }
+
+    public static void traceoutln(Level level, String message)
+    {
+        if (logger != null)
+        {
+            logger.log(level, message);
         }
     }
 

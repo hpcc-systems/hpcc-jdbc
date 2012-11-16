@@ -26,6 +26,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.StringTokenizer;
+import java.util.logging.Level;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -74,7 +75,7 @@ public class SQLParser
 
     public void process(String insql) throws SQLException
     {
-        System.out.println("INCOMING SQL: " + insql);
+        HPCCJDBCUtils.traceoutln(Level.INFO,  "INCOMING SQL: " + insql);
 
         sqlTables = new ArrayList<SQLTable>();
         selectColumns = new LinkedList<HPCCColumnMetaData>();
@@ -152,7 +153,7 @@ public class SQLParser
             {
                 if (parseConstantSelect(insql))
                 {
-                    System.out.println("Found Select <constant>");
+                    HPCCJDBCUtils.traceoutln(Level.INFO,  "Found Select <constant>");
                     sqlType = SQLType.SELECTCONST;
                     return;
                 }
@@ -355,7 +356,6 @@ public class SQLParser
                     List<HPCCColumnMetaData> funccols = new ArrayList<HPCCColumnMetaData>();
 
                     String funcname = col.substring(0, col.indexOf('('));
-
                     ECLFunction func = ECLFunctions.getEclFunction(funcname);
 
                     if (func != null)
@@ -440,7 +440,7 @@ public class SQLParser
                 if (useindexend < 0)
                     throw new SQLException("Malformed USE INDEX() clause.");
                 indexHint = useindexstr.substring(0, useindexend).trim();
-                System.out.println("Index hint found: " + indexHint);
+                HPCCJDBCUtils.traceoutln(Level.INFO,  "Index hint found: " + indexHint);
             }
 
             if (sqlTables.size() > 1)

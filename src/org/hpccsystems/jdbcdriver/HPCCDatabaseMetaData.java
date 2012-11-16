@@ -36,6 +36,7 @@ import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
+import java.util.logging.Level;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -119,8 +120,8 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         this.readTimoutMillis = HPCCJDBCUtils.stringToInt(props.getProperty("ReadTimeoutMilli"),
                 Integer.valueOf(HPCCDriver.READTIMEOUTMILDEFAULT));
 
-        System.out.println("HPCCDatabaseMetaData ServerAddress: " + serverAddress + " TargetCluster: " + targetcluster
-                + " eclwatch: " + basewseclwatchurl);
+        HPCCJDBCUtils.traceoutln(Level.INFO, "HPCCDatabaseMetaData ServerAddress: " + serverAddress
+                + " TargetCluster: " + targetcluster + " eclwatch: " + basewseclwatchurl);
 
         targetclusters = new ArrayList<String>();
         querysets = new ArrayList<String>();
@@ -136,19 +137,18 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
             if (targetclusters.size() > 0 && !targetclusters.contains(this.targetcluster))
             {
                 props.setProperty("TargetCluster", targetclusters.get(0));
-                System.out.println("Invalid cluster name found: " + this.targetcluster + ". using: "
-                        + targetclusters.get(0));
+                HPCCJDBCUtils.traceoutln(Level.INFO, "Invalid cluster name found: "+ this.targetcluster+ ". using: "+targetclusters.get(0));
                 this.targetcluster = targetclusters.get(0);
             }
 
             if (querysets.size() > 0 && !querysets.contains(this.queryset))
             {
                 props.setProperty("QuerySet", querysets.get(0));
-                System.out.println("Invalid query set name found: " + this.queryset + ". using: " + querysets.get(0));
+                HPCCJDBCUtils.traceoutln(Level.INFO, "Invalid query set name found: "+ this.queryset+". using: "+querysets.get(0));
                 this.queryset = querysets.get(0);
             }
         }
-        System.out.println("HPCCDatabaseMetaData initialized");
+        HPCCJDBCUtils.traceoutln(Level.INFO, "HPCCDatabaseMetaData initialized");
     }
 
     public boolean isDFUMetaDataCached()
@@ -200,13 +200,12 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
 
             if (isDFUMetaDataCached())
             {
-                System.out.println("Tables' Metadata fetched: ");
+                HPCCJDBCUtils.traceoutln(Level.INFO, "Tables' Metadata fetched: ");
                 Enumeration<Object> em = dfufiles.getFiles();
                 while (em.hasMoreElements())
                 {
                     DFUFile file = (DFUFile) em.nextElement();
-                    System.out.println("\t" + file.getClusterName() + "." + file.getFileName() + "("
-                            + file.getFullyQualifiedName() + ")");
+                    HPCCJDBCUtils.traceoutln(Level.INFO,"\t"+file.getClusterName()+"."+file.getFileName()+"("+file.getFullyQualifiedName()+")");
                 }
             }
 
@@ -214,20 +213,21 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
 
             if (isQuerySetMetaDataCached())
             {
-                System.out.println("Stored Procedures' Metadata fetched: ");
+                HPCCJDBCUtils.traceoutln(Level.INFO,"Stored Procedures' Metadata fetched: ");
                 Enumeration<Object> em1 = eclqueries.getQueries();
                 while (em1.hasMoreElements())
                 {
                     HPCCQuery query = (HPCCQuery) em1.nextElement();
-                    System.out.println("\t" + query.getQuerySet() + "::" + query.getName());
+                    HPCCJDBCUtils.traceoutln(Level.INFO,"\t" + query.getQuerySet() + "::" + query.getName());
                 }
             }
         }
         else
-            System.out.println("HPCC file and published query info not fetched (LazyLoad enabled)");
+            HPCCJDBCUtils.traceoutln(Level.INFO,
+                    "HPCC file and published query info not pre-fetched (LazyLoad enabled)");
 
         if (!isSuccess)
-            System.out.println("Could not query HPCC metadata check server address, cluster name, wsecl, and wseclwatch configuration.");
+           HPCCJDBCUtils.traceoutln(Level.SEVERE, "Could not query HPCC metadata check server address, cluster name, wsecl, and wseclwatch configuration.");
 
         return isSuccess;
     }
@@ -235,7 +235,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     private int registerFileDetails(Element node, DFUFile file)
     {
         if (file.isSuperFile())
-            HPCCJDBCUtils.traceoutln("Found super file: " + file.getFullyQualifiedName());
+            HPCCJDBCUtils.traceoutln(Level.INFO, "Found super file: " + file.getFullyQualifiedName());
 
         NodeList fileDetail = node.getElementsByTagName("FileDetail");
 
@@ -325,8 +325,8 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                             }
                             catch (Exception e)
                             {
-                                System.out.println("Could not add dataset element: " + tablename + ":"
-                                        + elemmeta.getColumnName());
+                                HPCCJDBCUtils.traceoutln(Level.SEVERE,  "Could not add dataset element: "
+                                        + tablename + ":" + elemmeta.getColumnName());
                             }
                         }
 
@@ -376,8 +376,8 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                             }
                             catch (Exception e)
                             {
-                                System.out.println("Could not add dataset element: " + inParam + ":"
-                                        + elemmeta.getColumnName());
+                                HPCCJDBCUtils.traceoutln(Level.SEVERE,  "Could not add dataset element: "
+                                        + inParam + ":" + elemmeta.getColumnName());
                             }
                         }
                     }
@@ -391,380 +391,441 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     @Override
     public boolean allProceduresAreCallable() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData allProceduresAreCallable");
         return true;
     }
 
     @Override
     public boolean allTablesAreSelectable() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData allTablesAreSelectable");
         return false;
     }
 
     @Override
     public String getURL() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getURL");
         return "http://www.hpccsystems.com";
     }
 
     @Override
     public String getUserName() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getUserName");
         return UserName;
     }
 
     @Override
     public boolean isReadOnly() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData isReadOnly");
         return true;
     }
 
     @Override
     public boolean nullsAreSortedHigh() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData nullsAreSortedHigh");
         return false;
     }
 
     @Override
     public boolean nullsAreSortedLow() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData nullsAreSortedLow");
         return false;
     }
 
     @Override
     public boolean nullsAreSortedAtStart() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData nullsAreSortedAtStart");
         return false;
     }
 
     @Override
     public boolean nullsAreSortedAtEnd() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData nullsAreSortedAtEnd");
         return false;
     }
 
     @Override
     public String getDatabaseProductName() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getDatabaseProductName: HPCC");
         return "HPCC - Version " + HPCCBuildVersionFull;
     }
 
     @Override
     public String getDatabaseProductVersion() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getDatabaseProductVersion");
         return HPCCBuildVersionFull;
     }
 
     @Override
     public String getDriverName() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getDriverName");
         return "HPCC JDBC Driver";
     }
 
     @Override
     public String getDriverVersion() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getDriverVersion");
         return HPCCVersionTracker.HPCCMajor + "." + HPCCVersionTracker.HPCCMinor + "." + HPCCVersionTracker.HPCCPoint;
     }
 
     @Override
     public int getDriverMajorVersion()
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getDriverMajorVersion");
         return HPCCVersionTracker.HPCCMajor;
     }
 
     @Override
     public int getDriverMinorVersion()
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getDriverMinorVersion");
         return HPCCVersionTracker.HPCCMinor;
     }
 
     @Override
     public boolean usesLocalFiles() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData usesLocalFiles");
         return false;
     }
 
     @Override
     public boolean usesLocalFilePerTable() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData usesLocalFilePerTable");
         return false;
     }
 
     @Override
     public boolean supportsMixedCaseIdentifiers() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsMixedCaseIdentifiers");
         return false;
     }
 
     @Override
     public boolean storesUpperCaseIdentifiers() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData storesUpperCaseIdentifiers");
         return false;
     }
 
     @Override
     public boolean storesLowerCaseIdentifiers() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData storesLowerCaseIdentifiers");
         return false;
     }
 
     @Override
     public boolean storesMixedCaseIdentifiers() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData storesMixedCaseIdentifiers");
         return false;
     }
 
     @Override
     public boolean supportsMixedCaseQuotedIdentifiers() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsMixedCaseQuotedIdentifiers");
         return false;
     }
 
     @Override
     public boolean storesUpperCaseQuotedIdentifiers() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData storesUpperCaseQuotedIdentifiers");
         return false;
     }
 
     @Override
     public boolean storesLowerCaseQuotedIdentifiers() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData storesLowerCaseQuotedIdentifiers");
         return false;
     }
 
     @Override
     public boolean storesMixedCaseQuotedIdentifiers() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData storesMixedCaseQuotedIdentifiers");
         return false;
     }
 
     @Override
     public String getIdentifierQuoteString() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getIdentifierQuoteString");
         return "";
     }
 
     @Override
     public String getSQLKeywords() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getSQLKeywords");
         return "select from where AND call";
     }
 
     @Override
     public String getNumericFunctions() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getNumericFunctions");
         return "";
     }
 
     @Override
     public String getStringFunctions() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getStringFunctions");
         return "";
     }
 
     @Override
     public String getSystemFunctions() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getSystemFunctions");
         return "";
     }
 
     @Override
     public String getTimeDateFunctions() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getTimeDateFunctions");
         return "";
     }
 
     @Override
     public String getSearchStringEscape() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getSearchStringEscape");
         return "";
     }
 
     @Override
     public String getExtraNameCharacters() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getExtraNameCharacters");
         return "";
     }
 
     @Override
     public boolean supportsAlterTableWithAddColumn() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsAlterTableWithAddColumn");
         return false;
     }
 
     @Override
     public boolean supportsAlterTableWithDropColumn() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsAlterTableWithDropColumn");
         return false;
     }
 
     @Override
     public boolean supportsColumnAliasing() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsColumnAliasing");
         return false;
     }
 
     @Override
     public boolean nullPlusNonNullIsNull() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData nullPlusNonNullIsNull");
         return false;
     }
 
     @Override
     public boolean supportsConvert() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsConvert");
         return false;
     }
 
     @Override
     public boolean supportsConvert(int fromType, int toType) throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsConvert");
         return false;
     }
 
     @Override
     public boolean supportsTableCorrelationNames() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsTableCorrelationNames");
         return false;
     }
 
     @Override
     public boolean supportsDifferentTableCorrelationNames() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsDifferentTableCorrelationNames");
         return false;
     }
 
     @Override
     public boolean supportsExpressionsInOrderBy() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsExpressionsInOrderBy");
         return false;
     }
 
     @Override
     public boolean supportsOrderByUnrelated() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsOrderByUnrelated");
         return false;
     }
 
     @Override
     public boolean supportsGroupBy() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsGroupBy");
         return true;
     }
 
     @Override
     public boolean supportsGroupByUnrelated() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsGroupByUnrelated");
         return false;
     }
 
     @Override
     public boolean supportsGroupByBeyondSelect() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsGroupByBeyondSelect");
         return false;
     }
 
     @Override
     public boolean supportsLikeEscapeClause() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsLikeEscapeClause");
         return false;
     }
 
     @Override
     public boolean supportsMultipleResultSets() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsMultipleResultSets");
         return false;
     }
 
     @Override
     public boolean supportsMultipleTransactions() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsMultipleTransactions");
         return false;
     }
 
     @Override
     public boolean supportsNonNullableColumns() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsNonNullableColumns");
         return false;
     }
 
     @Override
     public boolean supportsMinimumSQLGrammar() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsMinimumSQLGrammar");
         return true;
     }
 
     @Override
     public boolean supportsCoreSQLGrammar() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsCoreSQLGrammar");
         return true;
     }
 
     @Override
     public boolean supportsExtendedSQLGrammar() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsExtendedSQLGrammar");
         return true;
     }
 
     @Override
     public boolean supportsANSI92EntryLevelSQL() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsANSI92EntryLevelSQL");
         return true;
     }
 
     @Override
     public boolean supportsANSI92IntermediateSQL() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsANSI92IntermediateSQL");
         return true;
     }
 
     @Override
     public boolean supportsANSI92FullSQL() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsANSI92FullSQL");
         return true;
     }
 
     @Override
     public boolean supportsIntegrityEnhancementFacility() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsIntegrityEnhancementFacility");
         return false;
     }
 
     @Override
     public boolean supportsOuterJoins() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsOuterJoins");
         return false;
     }
 
     @Override
     public boolean supportsFullOuterJoins() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsFullOuterJoins");
         return false;
     }
 
     @Override
     public boolean supportsLimitedOuterJoins() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsLimitedOuterJoins");
         return false;
     }
 
     @Override
     public String getSchemaTerm() throws SQLException
     {
-        // Arjuna: this will be the cluster name for now
-        // throw new UnsupportedOperationException("yNot supported yet.");
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getSchemaTerm");
         return "schema";
     }
 
     @Override
     public String getProcedureTerm() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getProcedureTerm");
         return "NULL";
     }
 
     @Override
     public String getCatalogTerm() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getCatalogTerm");
         // this will be the cluster name for now
         return "NULL";
     }
@@ -772,288 +833,336 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     @Override
     public boolean isCatalogAtStart() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData isCatalogAtStart");
         return false;
     }
 
     @Override
     public String getCatalogSeparator() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getCatalogSeparator");
         return "NULL";
     }
 
     @Override
     public boolean supportsSchemasInDataManipulation() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsSchemasInDataManipulation");
         return false;
     }
 
     @Override
     public boolean supportsSchemasInProcedureCalls() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsSchemasInProcedureCalls");
         return false;
     }
 
     @Override
     public boolean supportsSchemasInTableDefinitions() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsSchemasInTableDefinitions");
         return false;
     }
 
     @Override
     public boolean supportsSchemasInIndexDefinitions() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsSchemasInIndexDefinitions");
         return false;
     }
 
     @Override
     public boolean supportsSchemasInPrivilegeDefinitions() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsSchemasInPrivilegeDefinitions");
         return false;
     }
 
     @Override
     public boolean supportsCatalogsInDataManipulation() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsCatalogsInDataManipulation");
         return false;
     }
 
     @Override
     public boolean supportsCatalogsInProcedureCalls() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsCatalogsInProcedureCalls");
         return false;
     }
 
     @Override
     public boolean supportsCatalogsInTableDefinitions() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsCatalogsInTableDefinitions");
         return false;
     }
 
     @Override
     public boolean supportsCatalogsInIndexDefinitions() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsCatalogsInIndexDefinitions");
         return false;
     }
 
     @Override
     public boolean supportsCatalogsInPrivilegeDefinitions() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsCatalogsInPrivilegeDefinitions");
         return false;
     }
 
     @Override
     public boolean supportsPositionedDelete() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsPositionedDelete");
         return false;
     }
 
     @Override
     public boolean supportsPositionedUpdate() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsPositionedUpdate");
         return false;
     }
 
     @Override
     public boolean supportsSelectForUpdate() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsSelectForUpdate");
         return false;
     }
 
     @Override
     public boolean supportsStoredProcedures() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsStoredProcedures");
         return true;
     }
 
     @Override
     public boolean supportsSubqueriesInComparisons() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsSubqueriesInComparisons");
         return false;
     }
 
     @Override
     public boolean supportsSubqueriesInExists() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsSubqueriesInExists");
         return false;
     }
 
     @Override
     public boolean supportsSubqueriesInIns() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsSubqueriesInIns");
         return false;
     }
 
     @Override
     public boolean supportsSubqueriesInQuantifieds() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsSubqueriesInQuantifieds");
         return false;
     }
 
     @Override
     public boolean supportsCorrelatedSubqueries() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsCorrelatedSubqueries");
         return false;
     }
 
     @Override
     public boolean supportsUnion() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsUnion");
         return false;
     }
 
     @Override
     public boolean supportsUnionAll() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsUnionAll");
         return false;
     }
 
     @Override
     public boolean supportsOpenCursorsAcrossCommit() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsOpenCursorsAcrossCommit");
         return false;
     }
 
     @Override
     public boolean supportsOpenCursorsAcrossRollback() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsOpenCursorsAcrossRollback");
         return false;
     }
 
     @Override
     public boolean supportsOpenStatementsAcrossCommit() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsOpenStatementsAcrossCommit");
         return false;
     }
 
     @Override
     public boolean supportsOpenStatementsAcrossRollback() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsOpenStatementsAcrossRollback");
         return false;
     }
 
     @Override
     public int getMaxBinaryLiteralLength() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getMaxBinaryLiteralLength");
         return 1024;
     }
 
     @Override
     public int getMaxCharLiteralLength() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getMaxCharLiteralLength");
         return 1024;
     }
 
     @Override
     public int getMaxColumnNameLength() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getMaxColumnNameLength");
         return 256;
     }
 
     @Override
     public int getMaxColumnsInGroupBy() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getMaxColumnsInGroupBy");
         return 4;
     }
 
     @Override
     public int getMaxColumnsInIndex() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getMaxColumnsInIndex");
         return 4;
     }
 
     @Override
     public int getMaxColumnsInOrderBy() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getMaxColumnsInOrderBy");
         return 4;
     }
 
     @Override
     public int getMaxColumnsInSelect() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getMaxColumnsInSelect");
         return 16;
     }
 
     @Override
     public int getMaxColumnsInTable() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getMaxColumnsInTable");
         return 128;
     }
 
     @Override
     public int getMaxConnections() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getMaxConnections");
         return 1024;
     }
 
     @Override
     public int getMaxCursorNameLength() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getMaxCursorNameLength");
         return 50000;
     }
 
     @Override
     public int getMaxIndexLength() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getMaxIndexLength");
         return 256;
     }
 
     @Override
     public int getMaxSchemaNameLength() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getMaxSchemaNameLength");
         return 256;
     }
 
     @Override
     public int getMaxProcedureNameLength() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getMaxProcedureNameLength");
         return 256;
     }
 
     @Override
     public int getMaxCatalogNameLength() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getMaxCatalogNameLength");
         return 256;
     }
 
     @Override
     public int getMaxRowSize() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getMaxRowSize");
         return 10000;
     }
 
     @Override
     public boolean doesMaxRowSizeIncludeBlobs() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData doesMaxRowSizeIncludeBlobs");
         return true;
     }
 
     @Override
     public int getMaxStatementLength() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getMaxStatementLength");
         return 200;
     }
 
     @Override
     public int getMaxStatements() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getMaxStatements");
         return 100;
     }
 
     @Override
     public int getMaxTableNameLength() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getMaxTableNameLength 10240");
         return 100;
     }
 
     @Override
     public int getMaxTablesInSelect() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getMaxTablesInSelect");
         return 1;
     }
 
     @Override
     public int getMaxUserNameLength() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getMaxUserNameLength");
         return 20;
         // This is an LDAP limitation, in the future the ESP will expose a query
         // for this value
@@ -1062,42 +1171,50 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     @Override
     public int getDefaultTransactionIsolation() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getDefaultTransactionIsolation");
         return java.sql.Connection.TRANSACTION_NONE;
     }
 
     @Override
     public boolean supportsTransactions() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsTransactions");
         return false;
     }
 
     @Override
     public boolean supportsTransactionIsolationLevel(int level) throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsTransactionIsolationLevel");
         return false;
     }
 
     @Override
     public boolean supportsDataDefinitionAndDataManipulationTransactions() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST,
+                "HPCCDatabaseMetaData supportsDataDefinitionAndDataManipulationTransactions");
         return false;
     }
 
     @Override
     public boolean supportsDataManipulationTransactionsOnly() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsDataManipulationTransactionsOnly");
         return false;
     }
 
     @Override
     public boolean dataDefinitionCausesTransactionCommit() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData dataDefinitionCausesTransactionCommit");
         return false;
     }
 
     @Override
     public boolean dataDefinitionIgnoredInTransactions() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData dataDefinitionIgnoredInTransactions");
         return true;
     }
 
@@ -1110,8 +1227,9 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
 
         boolean allprocsearch = procedureNamePattern == null || procedureNamePattern.length() == 0
                 || procedureNamePattern.trim().equals("*") || procedureNamePattern.trim().equals("%");
-        System.out.println("HPCCDATABASEMETADATA GETPROCS catalog: " + catalog + ", schemaPattern: " + schemaPattern
-                + ", procedureNamePattern: " + procedureNamePattern);
+
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData GETPROCS catalog: " + catalog
+                + ", schemaPattern: " + schemaPattern + ", procedureNamePattern: " + procedureNamePattern);
 
         metacols.add(new HPCCColumnMetaData("PROCEDURE_CAT", 1, java.sql.Types.VARCHAR));
         metacols.add(new HPCCColumnMetaData("PROCEDURE_SCHEM", 2, java.sql.Types.VARCHAR));
@@ -1165,9 +1283,9 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public ResultSet getProcedureColumns(String catalog, String schemaPattern, String procedureNamePattern,
             String columnNamePattern) throws SQLException
     {
-        System.out.println("HPCCDATABASEMETADATA getProcedureColumns catalog: " + catalog + ", schemaPattern: "
-                + schemaPattern + ", procedureNamePattern: " + procedureNamePattern + " columnanmepat: "
-                + columnNamePattern);
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getProcedureColumns catalog: " + catalog
+                + ", schemaPattern: " + schemaPattern + ", procedureNamePattern: " + procedureNamePattern
+                + " columnanmepat: " + columnNamePattern);
 
         List<List> procedurecols = new ArrayList<List>();
         ArrayList<HPCCColumnMetaData> metacols = new ArrayList<HPCCColumnMetaData>();
@@ -1206,7 +1324,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                     continue;
                 coltype = col.getSqlType();
 
-                System.out.println("Proc col Found: " + query.getName() + "." + fieldname + " of type: " + coltype
+                HPCCJDBCUtils.traceoutln(Level.FINEST, "Proc col Found: " + query.getName() + "." + fieldname + " of type: " + coltype
                         + "(" + HPCCJDBCUtils.convertSQLtype2JavaClassName(coltype) + ")");
 
                 ArrayList rowValues = new ArrayList();
@@ -1252,8 +1370,26 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
          * created. Values are "SYSTEM", "USER", "DERIVED". (may be null)
          */
 
-        HPCCJDBCUtils.traceoutln("HPCCDATABASEMETADATA GETTABLES catalog: " + catalog + ", schemaPattern: " + schemaPattern
-                + ", tableNamePattern: " + tableNamePattern);
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData GETTABLES:");
+        if (catalog != null)
+            HPCCJDBCUtils.traceoutln(Level.FINEST, "\t Catalog: " + catalog);
+        else
+            HPCCJDBCUtils.traceoutln(Level.FINEST, "\t Catalog: null");
+
+        if (schemaPattern != null)
+            HPCCJDBCUtils.traceoutln(Level.FINEST, "\t schemaPattern: " + schemaPattern);
+        else
+            HPCCJDBCUtils.traceoutln(Level.FINEST, "\t schemaPattern: null");
+
+        if (tableNamePattern != null)
+            HPCCJDBCUtils.traceoutln(Level.FINEST, "\t tableNamePattern: " + tableNamePattern);
+        else
+            HPCCJDBCUtils.traceoutln(Level.FINEST, "\t tableNamePattern: null");
+
+        if (types != null && types.length > 0)
+            HPCCJDBCUtils.traceoutln(Level.FINEST, "\t types: " + types[0]);
+        else
+            HPCCJDBCUtils.traceoutln(Level.FINEST, "\t types: null");
 
         boolean alltablesearch = tableNamePattern == null || tableNamePattern.length() == 0
                 || tableNamePattern.trim().equals("*") || tableNamePattern.trim().equals("%");
@@ -1322,8 +1458,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     {
         if (!isDFUMetaDataCached())
             setDFUMetaDataCached(fetchHPCCFilesInfo());
-
-        HPCCJDBCUtils.traceoutln("HPCCDATABASEMETADATA GETSCHEMAS");
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData GETSCHEMAS");
 
         List<List<String>> tables = new ArrayList<List<String>>();
         ArrayList<HPCCColumnMetaData> metacols = new ArrayList<HPCCColumnMetaData>();
@@ -1337,7 +1472,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     @Override
     public ResultSet getCatalogs() throws SQLException
     {
-        HPCCJDBCUtils.traceoutln("HPCCDATABASEMETADATA getCatalogs");
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getCatalogs");
 
         List<List<String>> catalogs = new ArrayList<List<String>>();
         ArrayList<HPCCColumnMetaData> metacols = new ArrayList<HPCCColumnMetaData>();
@@ -1354,7 +1489,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     @Override
     public ResultSet getTableTypes() throws SQLException
     {
-        HPCCJDBCUtils.traceoutln("HPCCDATABASEMETADATA getTableTypes");
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getTableTypes");
 
         List<List<String>> tabletypes = new ArrayList<List<String>>();
         ArrayList<HPCCColumnMetaData> metacols = new ArrayList<HPCCColumnMetaData>();
@@ -1382,7 +1517,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public ResultSet getColumns(String catalog, String schemaPattern, String tableNamePattern, String columnNamePattern)
             throws SQLException
     {
-        HPCCJDBCUtils.traceoutln("HPCCDATABASEMETADATA GETCOLUMNS catalog: " + catalog + ", schemaPattern: " + schemaPattern
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData GETCOLUMNS catalog: " + catalog + ", schemaPattern: " + schemaPattern
                 + ", tableNamePattern: " + tableNamePattern + ", columnNamePattern: " + columnNamePattern);
 
         boolean allfieldsearch = columnNamePattern == null || columnNamePattern.length() == 0
@@ -1431,7 +1566,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                 int coltype = java.sql.Types.NULL;
                 coltype = field.getSqlType();
 
-                HPCCJDBCUtils.traceoutln("Table col found: " + file.getFileName() + "." + fieldname + " of type: " + coltype
+                HPCCJDBCUtils.traceoutln(Level.FINEST, "Table col found: " + file.getFileName() + "." + fieldname + " of type: " + coltype
                         + "(" + HPCCJDBCUtils.convertSQLtype2JavaClassName(coltype) + ")");
 
                 ArrayList rowValues = new ArrayList();
@@ -1472,6 +1607,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public ResultSet getColumnPrivileges(String catalog, String schema, String table, String columnNamePattern)
             throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getColumnPrivileges");
         throw new UnsupportedOperationException("HPCCDBMetaData:  getColumnPrivileges Not  supported yet.");
     }
 
@@ -1479,6 +1615,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public ResultSet getTablePrivileges(String catalog, String schemaPattern, String tableNamePattern)
             throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getTablePrivileges");
         throw new UnsupportedOperationException("HPCCDBMetaData: getTablePrivileges Not  supported yet.");
     }
 
@@ -1486,19 +1623,21 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public ResultSet getBestRowIdentifier(String catalog, String schema, String table, int scope, boolean nullable)
             throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getBestRowIdentifier");
         throw new UnsupportedOperationException("HPCCDBMetaData: getBestRowIdentifier Not  supported yet.");
     }
 
     @Override
     public ResultSet getVersionColumns(String catalog, String schema, String table) throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getVersionColumns");
         throw new UnsupportedOperationException("HPCCDBMetaData: getVersionColumns Not  supported yet.");
     }
 
     @Override
     public ResultSet getPrimaryKeys(String catalog, String schema, String table) throws SQLException
     {
-        HPCCJDBCUtils.traceoutln("HPCCDATABASEMETADATA getPrimaryKeys catalog: " + catalog + ", schema: " + schema + ", table: " + table);
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getPrimaryKeys catalog: " + catalog + ", schema: " + schema + ", table: " + table);
 
         List<List<String>> importedkeys = new ArrayList<List<String>>();
         ArrayList<HPCCColumnMetaData> metacols = new ArrayList<HPCCColumnMetaData>();
@@ -1517,7 +1656,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public ResultSet getImportedKeys(String catalog, String schema, String table) throws SQLException
     {
 
-        HPCCJDBCUtils.traceoutln("HPCCDATABASEMETADATA getImportedKeys catalog: " + catalog + ", schema: " + schema  + ", table: " + table);
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getImportedKeys catalog: " + catalog + ", schema: " + schema  + ", table: " + table);
 
         List<List<String>> importedkeys = new ArrayList<List<String>>();
         ArrayList<HPCCColumnMetaData> metacols = new ArrayList<HPCCColumnMetaData>();
@@ -1543,7 +1682,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     @Override
     public ResultSet getExportedKeys(String catalog, String schema, String table) throws SQLException
     {
-        HPCCJDBCUtils.traceoutln("HPCCDATABASEMETADATA getExportedKeys catalog: " + catalog + ", schema: " + schema + ", table: " + table);
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getExportedKeys catalog: " + catalog + ", schema: " + schema + ", table: " + table);
 
         List<List<String>> exportedkeys = new ArrayList<List<String>>();
         ArrayList<HPCCColumnMetaData> metacols = new ArrayList<HPCCColumnMetaData>();
@@ -1570,13 +1709,14 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public ResultSet getCrossReference(String parentCatalog, String parentSchema, String parentTable,
             String foreignCatalog, String foreignSchema, String foreignTable) throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getCrossReference");
         throw new UnsupportedOperationException("HPCCDBMetaData: getCrossReference Not  supported yet.");
     }
 
     @Override
     public ResultSet getTypeInfo() throws SQLException
     {
-        HPCCJDBCUtils.traceoutln("HPCCDATABASEMETADATA GETTYPEINFO");
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData GETTYPEINFO");
 
         List<List<String>> types = new ArrayList<List<String>>();
         ArrayList<HPCCColumnMetaData> metacols = new ArrayList<HPCCColumnMetaData>();
@@ -1632,78 +1772,91 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public ResultSet getIndexInfo(String catalog, String schema, String table, boolean unique, boolean approximate)
             throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getIndexInfo");
         throw new UnsupportedOperationException("HPCCDBMetaData: Not  supported yet.");
     }
 
     @Override
     public boolean supportsResultSetType(int type) throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsResultSetType");
         return true;
     }
 
     @Override
     public boolean supportsResultSetConcurrency(int type, int concurrency) throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsResultSetConcurrency");
         return false;
     }
 
     @Override
     public boolean ownUpdatesAreVisible(int type) throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData ownUpdatesAreVisible");
         return false;
     }
 
     @Override
     public boolean ownDeletesAreVisible(int type) throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData ownDeletesAreVisible");
         return false;
     }
 
     @Override
     public boolean ownInsertsAreVisible(int type) throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData ownInsertsAreVisible");
         return false;
     }
 
     @Override
     public boolean othersUpdatesAreVisible(int type) throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData othersUpdatesAreVisible");
         return false;
     }
 
     @Override
     public boolean othersDeletesAreVisible(int type) throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData othersDeletesAreVisible");
         return false;
     }
 
     @Override
     public boolean othersInsertsAreVisible(int type) throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData othersInsertsAreVisible");
         return false;
     }
 
     @Override
     public boolean updatesAreDetected(int type) throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData updatesAreDetected");
         return false;
     }
 
     @Override
     public boolean deletesAreDetected(int type) throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData deletesAreDetected");
         return false;
     }
 
     @Override
     public boolean insertsAreDetected(int type) throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData insertsAreDetected");
         return false;
     }
 
     @Override
     public boolean supportsBatchUpdates() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsBatchUpdates");
         return false;
     }
 
@@ -1726,7 +1879,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
          * Note: If the driver does not support UDTs, an empty result set is
          * returned.
          */
-        HPCCJDBCUtils.traceoutln("HPCCDATABASEMETADATA GETTYPEINFO");
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getUDTs");
 
         List<List<String>> udts = new ArrayList<List<String>>();
         ArrayList<HPCCColumnMetaData> metacols = new ArrayList<HPCCColumnMetaData>();
@@ -1756,42 +1909,49 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     @Override
     public Connection getConnection() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getConnection");
         throw new UnsupportedOperationException("HPCCDBMetaData: getConnection Not  supported yet.");
     }
 
     @Override
     public boolean supportsSavepoints() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsSavepoints");
         throw new UnsupportedOperationException("HPCCDBMetaData: supportsSavepoints Not  supported yet.");
     }
 
     @Override
     public boolean supportsNamedParameters() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsNamedParameters");
         throw new UnsupportedOperationException("HPCCDBMetaData: supportsNamedParameters Not  supported yet.");
     }
 
     @Override
     public boolean supportsMultipleOpenResults() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsMultipleOpenResults");
         throw new UnsupportedOperationException("HPCCDBMetaData: supportsMultipleOpenResults Not  supported yet.");
     }
 
     @Override
     public boolean supportsGetGeneratedKeys() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsGetGeneratedKeys");
         throw new UnsupportedOperationException("HPCCDBMetaData: supportsGetGeneratedKeysNot  supported yet.");
     }
 
     @Override
     public ResultSet getSuperTypes(String catalog, String schemaPattern, String typeNamePattern) throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getSuperTypes");
         throw new UnsupportedOperationException("HPCCDBMetaData: getSuperTypes Not  supported yet.");
     }
 
     @Override
     public ResultSet getSuperTables(String catalog, String schemaPattern, String tableNamePattern) throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getSuperTables");
         throw new UnsupportedOperationException("HPCCDBMetaData: getSuperTables Not  supported yet.");
     }
 
@@ -1799,12 +1959,14 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public ResultSet getAttributes(String catalog, String schemaPattern, String typeNamePattern,
             String attributeNamePattern) throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getAttributes");
         throw new UnsupportedOperationException("HPCCDBMetaData: getAttributes Not  supported yet.");
     }
 
     @Override
     public boolean supportsResultSetHoldability(int holdability) throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsResultSetHoldability");
         throw new UnsupportedOperationException(
                 "HPCCDBMetaData: supportsResultSetHoldability(int holdability) Not  supported yet.");
     }
@@ -1812,18 +1974,21 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     @Override
     public int getResultSetHoldability() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getResultSetHoldability");
         throw new UnsupportedOperationException("HPCCDBMetaData: getResultSetHoldability Not  supported yet.");
     }
 
     @Override
     public int getDatabaseMajorVersion() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getDatabaseMajorVersion");
         return HPCCBuildMajor;
     }
 
     @Override
     public int getDatabaseMinorVersion() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getDatabaseMinorVersion");
         return (int) HPCCBuildMinor;
     }
 
@@ -1856,13 +2021,13 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                 dfufiles.putFile(file.getFullyQualifiedName(), file);
             }
             else
-                HPCCJDBCUtils.traceoutln("Not fetching info for HPCC file: " + file.getFullyQualifiedName());
+                HPCCJDBCUtils.traceoutln(Level.INFO, "Not fetching info for HPCC file: " + file.getFullyQualifiedName());
         }
         catch (Exception e)
         {
             isSuccess = false;
             e.printStackTrace();
-            System.err.println(e.getMessage());
+            HPCCJDBCUtils.traceoutln(Level.SEVERE,  e.getMessage());
         }
         return isSuccess;
     }
@@ -1885,13 +2050,13 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                     if (NumFilesCount.getLength() > 0)
                     {
                         dfufiles.setReportedFileCount(NumFilesCount.item(0).getTextContent());
-                        System.out.println("Fetching " + pageSize + " files (tables) out of "
+                        HPCCJDBCUtils.traceoutln(Level.INFO, "Fetching " + pageSize + " files (tables) out of "
                                 + dfufiles.getReportedFileCount() + " reported files.");
                     }
                 }
                 catch (Exception e)
                 {
-                    System.out.println("Could not determine total HPCC Logical file count");
+                    HPCCJDBCUtils.traceoutln(Level.SEVERE,  "Could not determine total HPCC Logical file count");
                 }
             }
             NodeList querySetList = dom.getElementsByTagName("DFULogicalFiles");
@@ -1986,10 +2151,11 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                                     dfuFileParsedCount++;
                             }
                             else
-                                System.out.println(file.getFullyQualifiedName() + " does not appear to contain a valid record definition.");
+                                HPCCJDBCUtils.traceoutln(Level.INFO, file.getFullyQualifiedName()
+                                        + " does not appear to contain a valid record definition.");
                         }
                         else
-                            System.out.println("Found DFU file but could not determine name");
+                            HPCCJDBCUtils.traceoutln(Level.SEVERE,  "Found DFU file but could not determine name");
                     }
                 }
             }
@@ -2028,16 +2194,17 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
             URL dfuLogicalFilesURL = new URL(urlString);
             HttpURLConnection dfulogfilesConn = createHPCCESPConnection(dfuLogicalFilesURL);
 
-            HPCCJDBCUtils.traceoutln("Fetching file information: " + urlString);
+            HPCCJDBCUtils.traceoutln(Level.INFO, "Fetching file information: " + urlString);
             isSuccess = parseDFULogicalFiles(dfulogfilesConn.getInputStream(), false) > 0 ? true : false;
         }
         catch (SocketTimeoutException e)
         {
-            System.out.println("Warning: Connection to HPCC timed out while fetching: " + filename);
+            HPCCJDBCUtils.traceoutln(Level.SEVERE,  "Warning: Connection to HPCC timed out while fetching: "
+                    + filename);
         }
         catch (MalformedURLException e)
         {
-            System.out.println("Error fetching HPCC File: " + urlString);
+            HPCCJDBCUtils.traceoutln(Level.SEVERE,  "Error fetching HPCC File: " + urlString);
         }
         catch (IOException e)
         {
@@ -2057,7 +2224,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
 
         if (isDFUMetaDataCached())
         {
-            System.out.println("HPCC dfufile info already present (reconnect to force fetch)");
+            HPCCJDBCUtils.traceoutln(Level.INFO, "HPCC dfufile info already present (reconnect to force fetch)");
             return true;
         }
 
@@ -2068,7 +2235,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         try
         {
             urlString = basewseclwatchurl + "/WsDfu/DFUQuery?LogicalName=*&PageSize=" + pageSize + "&PageStartFrom=" + pageOffset + "&rawxml_&filetype=" + FILEFETCHTYPE_ALL;
-            HPCCJDBCUtils.traceoutln("Fetching tables: " + urlString);
+            HPCCJDBCUtils.traceoutln(Level.INFO, "Fetching tables: " + urlString);
             URL dfuLogicalFilesURL = new URL(urlString);
             HttpURLConnection dfulogfilesConn = createHPCCESPConnection(dfuLogicalFilesURL);
 
@@ -2082,17 +2249,18 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                 }
                 catch (Exception e)
                 {
-                    System.out.println("WARNING: updating superfiles failed.");
+                    HPCCJDBCUtils.traceoutln(Level.INFO, "WARNING: updating superfiles failed.");
                 }
             }
         }
         catch (SocketTimeoutException e)
         {
-            System.out.println("Warning: Connection to HPCC timed out while fetching HPCC Files");
+            HPCCJDBCUtils.traceoutln(Level.SEVERE,
+                    "Warning: Connection to HPCC timed out while fetching HPCC Files");
         }
         catch (MalformedURLException e)
         {
-            System.out.println("Error fetching HPCC Files: " + urlString);
+            HPCCJDBCUtils.traceoutln(Level.SEVERE,  "Error fetching HPCC Files: " + urlString);
         }
         catch (IOException e)
         {
@@ -2180,8 +2348,8 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                 }
                 catch (Exception e)
                 {
-                    System.out.println("Could not retreive Query info for: " + query.getName()
-                            + "(" + query.getWUID() + ")");
+                    HPCCJDBCUtils.traceoutln(Level.SEVERE,
+                            "Could not retreive Query info for: " + query.getName() + "(" + query.getWUID() + ")");
                 }
             }
         }
@@ -2228,7 +2396,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
 
         if (isQuerySetMetaDataCached())
         {
-            System.out.println("HPCC query info already present (reconnect to force fetch)");
+            HPCCJDBCUtils.traceoutln(Level.INFO, "HPCC query info already present (reconnect to force fetch)");
             return true;
         }
 
@@ -2242,8 +2410,8 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         {
             for (int z = 0; z < querysets.size(); z++)
             {
-                System.out.println("Fetching up to " + pageSize + " Stored Procedures' Metadata from QuerySet "
-                        + querysets.get(z));
+                HPCCJDBCUtils.traceoutln(Level.INFO, "Fetching up to " + pageSize
+                        + " Stored Procedures' Metadata from QuerySet " + querysets.get(z));
 
                 String urlString = basewseclwatchurl
                         + "/WsWorkunits/WUQuerysetDetails?QuerySetName=" + querysets.get(z) + "&rawxml_";
@@ -2271,7 +2439,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
 
         if (querysets.size() > 0)
         {
-            System.out.println("QuerySet info already present (reconnect to force fetch)");
+            HPCCJDBCUtils.traceoutln(Level.INFO, "QuerySet info already present (reconnect to force fetch)");
             return true;
         }
 
@@ -2298,7 +2466,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         }
         catch (Exception e)
         {
-            System.out.println("Could not fetch cluster information.");
+            HPCCJDBCUtils.traceoutln(Level.SEVERE,  "Could not fetch cluster information.");
             return false;
         }
         return true;
@@ -2311,7 +2479,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
 
         if (targetclusters.size() > 0)
         {
-            System.out.println("Cluster info already present (reconnect to force fetch)");
+            HPCCJDBCUtils.traceoutln(Level.FINEST, "Cluster info already present (reconnect to force fetch)");
             return true;
         }
 
@@ -2345,7 +2513,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         }
         catch (Exception e)
         {
-            System.out.println("Could not fetch cluster information.");
+            HPCCJDBCUtils.traceoutln(Level.SEVERE,  "Could not fetch cluster information.");
             return false;
         }
 
@@ -2360,6 +2528,8 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         try
         {
             String urlString = basewseclwatchurl + "/WsSMC/Activity?rawxml_";
+
+            HPCCJDBCUtils.traceoutln(Level.INFO, "HPCCDatabaseMetaData Fetching HPCC INFO: " + urlString);
 
             URL querysetURL = new URL(urlString);
             HttpURLConnection querysetconnection = createHPCCESPConnection(querysetURL);
@@ -2401,7 +2571,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         }
         catch (Exception e)
         {
-            System.out.println("Could not fetch HPCC info.");
+            HPCCJDBCUtils.traceoutln(Level.SEVERE,  "Could not fetch HPCC info.");
             return false;
         }
 
@@ -2412,6 +2582,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     {
         try
         {
+            HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData Parsing HPCC version info: " + HPCCBuildVersionFull);
             HPCCBuildType = HPCCBuildVersionFull.substring(0, HPCCBuildVersionFull.lastIndexOf('_'));
 
             String numeric = HPCCBuildVersionFull.substring(HPCCBuildVersionFull.indexOf('_') + 1,
@@ -2422,55 +2593,63 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         }
         catch (Exception e)
         {
-            System.out.println("Error parsing HPCC version: " + e.getMessage());
+            HPCCJDBCUtils.traceoutln(Level.SEVERE,  "Error parsing HPCC version: " + e.getMessage());
         }
     }
 
     @Override
     public int getJDBCMajorVersion() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getJDBCMajorVersion");
         return JDBCVerMajor;
     }
 
     @Override
     public int getJDBCMinorVersion() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getJDBCMinorVersion");
         return JDBCVerMinor;
     }
 
     @Override
     public int getSQLStateType() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getSQLStateType");
         throw new UnsupportedOperationException("HPCCDBMetaData: getSQLStateType Not  supported yet.");
     }
 
     @Override
     public boolean locatorsUpdateCopy() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData locatorsUpdateCopy");
         throw new UnsupportedOperationException("HPCCDBMetaData: locatorsUpdateCopy Not  supported yet.");
     }
 
     @Override
     public boolean supportsStatementPooling() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsStatementPooling");
         throw new UnsupportedOperationException("HPCCDBMetaData: supportsStatementPooling Not  supported yet.");
     }
 
     @Override
     public RowIdLifetime getRowIdLifetime() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData RowIdLifetime");
         throw new UnsupportedOperationException("HPCCDBMetaData: getRowIdLifetime Not  supported yet.");
     }
 
     @Override
     public ResultSet getSchemas(String catalog, String schemaPattern) throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getSchemas");
         throw new UnsupportedOperationException("HPCCDBMetaData: getSchemas Not supported yet.");
     }
 
     @Override
     public boolean supportsStoredFunctionsUsingCallSyntax() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getConnection");
         throw new UnsupportedOperationException(
                 "HPCCDBMetaData:  supportsStoredFunctionsUsingCallSyntax Not supported yet.");
     }
@@ -2478,6 +2657,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     @Override
     public boolean autoCommitFailureClosesAllResultSets() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData autoCommitFailureClosesAllResultSets");
         throw new UnsupportedOperationException(
                 "HPCCDBMetaData: autoCommitFailureClosesAllResultSets Not  supported yet.");
     }
@@ -2485,12 +2665,14 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     @Override
     public ResultSet getClientInfoProperties() throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getClientInfoProperties");
         throw new UnsupportedOperationException("HPCCDBMetaData: getClientInfoProperties Not  supported yet.");
     }
 
     @Override
     public ResultSet getFunctions(String catalog, String schemaPattern, String functionNamePattern) throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getFunctions");
         throw new UnsupportedOperationException(
                 "HPCCDBMetaData: getFunctions(String catalog, String schemaPattern, String functionNamePattern) Not  supported yet.");
     }
@@ -2499,6 +2681,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public ResultSet getFunctionColumns(String catalog, String schemaPattern, String functionNamePattern,
             String columnNamePattern) throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getFunctionColumns");
         throw new UnsupportedOperationException(
                 "HPCCDBMetaData: getFunctionColumns(String catalog, String schemaPattern, String functionNamePattern, String columnNamePattern) Not  supported yet.");
     }
@@ -2506,12 +2689,14 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     @Override
     public <T> T unwrap(Class<T> iface) throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData unwrap");
         throw new UnsupportedOperationException("HPCCDBMetaData: unwrap(Class<T> iface) Not  supported yet.");
     }
 
     @Override
     public boolean isWrapperFor(Class<?> iface) throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData isWrapperFor");
         throw new UnsupportedOperationException("HPCCDBMetaData: isWrapperFor(Class<?> iface) Not  supported yet.");
     }
 
@@ -2684,7 +2869,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         }
         catch (Exception e)
         {
-            System.out.println("Error fetching Index file info: " + file.getFullyQualifiedName());
+            HPCCJDBCUtils.traceoutln(Level.SEVERE, "Error fetching Index file info: " + file.getFullyQualifiedName());
         }
     }
 

@@ -25,6 +25,7 @@ import java.sql.DriverPropertyInfo;
 import java.sql.SQLException;
 import java.util.Properties;
 import java.util.StringTokenizer;
+import java.util.logging.Level;
 
 public class HPCCDriver implements Driver
 {
@@ -41,6 +42,8 @@ public class HPCCDriver implements Driver
     public static final String   CONNECTTIMEOUTMILDEFAULT = "5000";
     public static final String   READTIMEOUTMILDEFAULT    = "15000";
     public static final String   JDBCURLPROTOCOL          = "jdbc:hpcc";
+    public static final String   TRACETOFILEDEFAULT       = "false";
+    public static final String   TRACELEVELDEFAULT        = HPCCJDBCUtils.defaultLogLevel.getName();
 
     private static DriverPropertyInfo[] infoArray;
 
@@ -51,7 +54,8 @@ public class HPCCDriver implements Driver
             HPCCDriver driver = new HPCCDriver();
             DriverManager.registerDriver(driver);
             initializePropInfo();
-            System.out.println("HPCC JDBC Driver registered.");
+
+            HPCCJDBCUtils.traceoutln(Level.INFO,  "HPCC JDBC Driver registered.");
         }
         catch (SQLException ex)
         {
@@ -65,7 +69,7 @@ public class HPCCDriver implements Driver
 
     public Connection connect(String url, Properties info) throws SQLException
     {
-        HPCCJDBCUtils.traceoutln("HPCCConnection jdbc url: " + url);
+        HPCCJDBCUtils.traceoutln(Level.INFO,  "HPCCConnection jdbc url: " + url);
 
         Properties connprops = new Properties();
 
@@ -91,7 +95,7 @@ public class HPCCDriver implements Driver
                             if (!connprops.containsKey(key))
                                 connprops.put(key, value);
                             else
-                                System.out.println("Connection property: " + key + " found in info properties and URL, ignoring URL value");
+                                HPCCJDBCUtils.traceoutln(Level.FINEST,  "Connection property: " + key + " found in info properties and URL, ignoring URL value");
                         }
                     }
                 }
@@ -99,7 +103,7 @@ public class HPCCDriver implements Driver
         }
         catch (Exception e)
         {
-            System.out.println("Issue parsing URL! \"" + url + "\"");
+            HPCCJDBCUtils.traceoutln(Level.SEVERE, "Issue parsing URL! \"" + url + "\"");
         }
 
         try
@@ -108,6 +112,16 @@ public class HPCCDriver implements Driver
                 connprops.setProperty("ServerAddress", SERVERADDRESSDEFAULT);
 
             String serverAddress = connprops.getProperty("ServerAddress");
+
+            if (!connprops.containsKey("TraceLevel"))
+                connprops.setProperty("TraceLevel", TRACELEVELDEFAULT);
+
+            if (!connprops.containsKey("TraceToFile"))
+                connprops.setProperty("TraceToFile", TRACETOFILEDEFAULT);
+
+            if (connprops.containsKey("TraceLevel"))
+                HPCCJDBCUtils.initTracing(connprops.getProperty("TraceLevel"),
+                    Boolean.parseBoolean(connprops.getProperty("TraceToFile")));
 
             if (!connprops.containsKey("TargetCluster"))
                 connprops.setProperty("TargetCluster", CLUSTERDEFAULT);
@@ -184,8 +198,7 @@ public class HPCCDriver implements Driver
             if (setdefaultreslim)
             {
                 connprops.setProperty("EclResultLimit", ECLRESULTLIMDEFAULT);
-                System.out.println("Invalid Numeric EclResultLimit value detected, using default value: "
-                        + ECLRESULTLIMDEFAULT);
+                HPCCJDBCUtils.traceoutln(Level.WARNING,  "Invalid Numeric EclResultLimit value detected, using default value: "+ECLRESULTLIMDEFAULT);
             }
 
             String basicAuth = HPCCConnection.createBasicAuth(connprops.getProperty("username"), connprops.getProperty("password"));
@@ -195,15 +208,13 @@ public class HPCCDriver implements Driver
             if (!connprops.containsKey("LazyLoad"))
                 connprops.setProperty("LazyLoad", LAZYLOADDEFAULT);
 
-            if (connprops.containsKey("LogDebug") && Boolean.parseBoolean(connprops.getProperty("LogDebug")))
-                HPCCJDBCUtils.enableTraceLogging();
         }
         catch (Exception e)
         {
-            System.out.println("Issue detected while setting connection properties!");
+            HPCCJDBCUtils.traceoutln(Level.SEVERE,   "Issue detected while setting connection properties!");
         }
 
-        System.out.println("HPCCDriver::connect" + connprops.getProperty("ServerAddress"));
+        HPCCJDBCUtils.traceoutln(Level.INFO,"HPCCDriver::connect" + connprops.getProperty("ServerAddress"));
 
         return new HPCCConnection(connprops);
     }
@@ -215,82 +226,83 @@ public class HPCCDriver implements Driver
 
     private static void initializePropInfo()
     {
-        infoArray = new DriverPropertyInfo[18];
+        int totalConfigProps = 18;
+        infoArray = new DriverPropertyInfo[totalConfigProps];
 
-        infoArray[0] = new DriverPropertyInfo("ServerAddress", "myHPCCAddress");
-        infoArray[0].description = "Target HPCC ESP Address (used to contact WsECLWatch, WsECLDirect, or WsECL if override not specified).";
-        infoArray[0].required = true;
 
-        infoArray[1] = new DriverPropertyInfo("WsECLWatchAddress", "myWsECLWatchAddress");
-        infoArray[1].description = "WsECLWatch address (required if different than ServerAddress).";
-        infoArray[1].required = false;
+        infoArray[--totalConfigProps] = new DriverPropertyInfo("ConnectTimeoutMilli", CONNECTTIMEOUTMILDEFAULT);
+        infoArray[totalConfigProps].description = "HPCC requests connection time out value in milliseconds.";
+        infoArray[totalConfigProps].required = false;
 
-        infoArray[2] = new DriverPropertyInfo("WsECLWatchPort", WSECLWATCHPORTDEFAULT);
-        infoArray[2].description = "WsECLWatch port (required if HPCC configuration does not use default port).";
-        infoArray[2].required = false;
+        infoArray[--totalConfigProps] = new DriverPropertyInfo("ReadTimeoutMilli", READTIMEOUTMILDEFAULT);
+        infoArray[totalConfigProps].description = "HPCC requests connection read time out value in milliseconds.";
+        infoArray[totalConfigProps].required = false;
 
-        infoArray[3] = new DriverPropertyInfo("WsECLAddress", "myWsECLAddress");
-        infoArray[3].description = "WsECLAddress Address (required if different than ServerAddress).";
-        infoArray[3].required = false;
+        infoArray[--totalConfigProps] = new DriverPropertyInfo("EclResultLimit", ECLRESULTLIMDEFAULT);
+        infoArray[totalConfigProps].description = "Default limit on number of result records returned.";
+        infoArray[totalConfigProps].required = false;
 
-        infoArray[4] = new DriverPropertyInfo("WsECLPort", WSECLPORTDEFAULT);
-        infoArray[4].description = "WsECL port (required if HPCC configuration does not use default port).";
-        infoArray[4].required = false;
+        infoArray[--totalConfigProps] = new DriverPropertyInfo("TraceLevel", TRACELEVELDEFAULT);
+        infoArray[totalConfigProps].choices = HPCCJDBCUtils.getTraceLevelStrOptions();
+        infoArray[totalConfigProps].description = "Logging level (java.util.logging.level).";
+        infoArray[totalConfigProps].required = false;
 
-        infoArray[5] = new DriverPropertyInfo("WsECLDirectAddress", "myWsECLDirectAddress");
-        infoArray[5].description = "WsECLDirect Address (required if different than ServerAddress).";
-        infoArray[5].required = false;
+        infoArray[--totalConfigProps] = new DriverPropertyInfo("TraceToFile", TRACETOFILEDEFAULT);
+        infoArray[totalConfigProps].description = "false -> System.out, true -> " + HPCCJDBCUtils.workingDir +  HPCCJDBCUtils.traceFileName;
+        infoArray[totalConfigProps].required = false;
+        infoArray[totalConfigProps].choices = new String [] {"true", "false"};
 
-        infoArray[6] = new DriverPropertyInfo("WsECLDirectPort", WSECLDIRECTPORTDEFAULT);
-        infoArray[6].description = "WsECLDirect port (required if HPCC configuration does not use default port).";
-        infoArray[6].required = false;
+        infoArray[--totalConfigProps] = new DriverPropertyInfo("TargetCluster", CLUSTERDEFAULT);
+        infoArray[totalConfigProps].description = "Target cluster on which to execute ECL code.";
+        infoArray[totalConfigProps].required = false;
 
-        infoArray[7] = new DriverPropertyInfo("username", "");
-        infoArray[7].description = "HPCC username (*Use JDBC client secure interface if available*).";
-        infoArray[7].required = false;
+        infoArray[--totalConfigProps] = new DriverPropertyInfo("QuerySet", QUERYSETDEFAULT);
+        infoArray[totalConfigProps].description = "Queryset from which published query (Stored Procedure) is chosen.";
+        infoArray[totalConfigProps].required = false;
 
-        infoArray[8] = new DriverPropertyInfo("password", "");
-        infoArray[8].description = "HPCC password (*Use JDBC client secure interface if available*).";
-        infoArray[8].required = false;
+        infoArray[--totalConfigProps] = new DriverPropertyInfo("PageSize", FETCHPAGESIZEDEFAULT);
+        infoArray[totalConfigProps].description = "Number of HPCC data files (DB tables) or HPCC published queries (DB Stored Procs) displayed.";
+        infoArray[totalConfigProps].required = false;
 
-        infoArray[9] = new DriverPropertyInfo("TargetCluster", CLUSTERDEFAULT);
-        infoArray[9].description = "Target cluster on which to execute ECL code.";
-        infoArray[9].required = false;
+        infoArray[--totalConfigProps] = new DriverPropertyInfo("PageOffset", FETCHPAGEOFFSETDEFAULT);
+        infoArray[totalConfigProps].description = "Starting HPCC data file or HPCC published queries displayed.";
+        infoArray[totalConfigProps].required = false;
 
-        infoArray[10] = new DriverPropertyInfo("QuerySet", QUERYSETDEFAULT);
-        infoArray[10].description = "Queryset from which published query (Stored Procedure) is chosen.";
-        infoArray[10].required = false;
+        infoArray[--totalConfigProps] = new DriverPropertyInfo("password", "");
+        infoArray[totalConfigProps].description = "HPCC password (*Use JDBC client secure interface if available*).";
+        infoArray[totalConfigProps].required = false;
 
-        infoArray[11] = new DriverPropertyInfo("PageSize", FETCHPAGESIZEDEFAULT);
-        infoArray[11].description = "Number of HPCC data files (DB tables) or HPCC published queries (DB Stored Procs) displayed.";
-        infoArray[11].required = false;
+        infoArray[--totalConfigProps] = new DriverPropertyInfo("username", "");
+        infoArray[totalConfigProps].description = "HPCC username (*Use JDBC client secure interface if available*).";
+        infoArray[totalConfigProps].required = false;
 
-        infoArray[12] = new DriverPropertyInfo("PageOffset", FETCHPAGEOFFSETDEFAULT);
-        infoArray[12].description = "Starting HPCC data file or HPCC published queries displayed.";
-        infoArray[12].required = false;
+        infoArray[--totalConfigProps] = new DriverPropertyInfo("WsECLDirectPort", WSECLDIRECTPORTDEFAULT);
+        infoArray[totalConfigProps].description = "WsECLDirect port (required if HPCC configuration does not use default port).";
+        infoArray[totalConfigProps].required = false;
 
-        infoArray[13] = new DriverPropertyInfo("ConnectTimeoutMilli", CONNECTTIMEOUTMILDEFAULT);
-        infoArray[13].description = "HPCC requests connection time out value in milliseconds.";
-        infoArray[13].required = false;
+        infoArray[--totalConfigProps] = new DriverPropertyInfo("WsECLDirectAddress", "myWsECLDirectAddress");
+        infoArray[totalConfigProps].description = "WsECLDirect Address (required if different than ServerAddress).";
+        infoArray[totalConfigProps].required = false;
 
-        infoArray[14] = new DriverPropertyInfo("ReadTimeoutMilli", READTIMEOUTMILDEFAULT);
-        infoArray[14].description = "HPCC requests connection read time out value in milliseconds.";
-        infoArray[14].required = false;
+        infoArray[--totalConfigProps] = new DriverPropertyInfo("WsECLPort", WSECLPORTDEFAULT);
+        infoArray[totalConfigProps].description = "WsECL port (required if HPCC configuration does not use default port).";
+        infoArray[totalConfigProps].required = false;
 
-        infoArray[15] = new DriverPropertyInfo("EclResultLimit", ECLRESULTLIMDEFAULT);
-        infoArray[15].description = "Default limit on number of result records returned.";
-        infoArray[15].required = false;
+        infoArray[--totalConfigProps] = new DriverPropertyInfo("WsECLAddress", "myWsECLAddress");
+        infoArray[totalConfigProps].description = "WsECLAddress Address (required if different than ServerAddress).";
+        infoArray[totalConfigProps].required = false;
 
-        infoArray[16] = new DriverPropertyInfo("LazyLoad", LAZYLOADDEFAULT);
-        String [] boolchoices = {"true", "false"};
-        infoArray[16].choices = boolchoices;
-        infoArray[16].description = "If disabled, all HPCC metadata is loaded and cached at connect time, otherwise HPCC file & published query info is loaded on-demand.";
-        infoArray[16].required = false;
+        infoArray[--totalConfigProps] = new DriverPropertyInfo("WsECLWatchPort", WSECLWATCHPORTDEFAULT);
+        infoArray[totalConfigProps].description = "WsECLWatch port (required if HPCC configuration does not use default port).";
+        infoArray[totalConfigProps].required = false;
 
-        infoArray[17] = new DriverPropertyInfo("LogDebug", "false");
-        infoArray[17].choices = boolchoices;
-        infoArray[17].description = "Trace logging switch.";
-        infoArray[17].required = false;
+        infoArray[--totalConfigProps] = new DriverPropertyInfo("WsECLWatchAddress", "myWsECLWatchAddress");
+        infoArray[totalConfigProps].description = "WsECLWatch address (required if different than ServerAddress).";
+        infoArray[totalConfigProps].required = false;
+
+        infoArray[--totalConfigProps] = new DriverPropertyInfo("ServerAddress", "myHPCCAddress");
+        infoArray[totalConfigProps].description = "Target HPCC ESP Address (used to contact WsECLWatch, WsECLDirect, or WsECL if override not specified).";
+        infoArray[totalConfigProps].required = true;
     }
 
     public DriverPropertyInfo[] getPropertyInfo(String url, Properties info) throws SQLException
