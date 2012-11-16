@@ -406,7 +406,7 @@ public class ECLEngine
                     }
                 }
                 else
-                    HPCCJDBCUtils.traceoutln(Level.WARNING, "Unrecognized function detected!");
+                    HPCCJDBCUtils.traceoutln(Level.WARNING, "Unrecognized function detected: " + col.getColumnName());
             }
             else
             {

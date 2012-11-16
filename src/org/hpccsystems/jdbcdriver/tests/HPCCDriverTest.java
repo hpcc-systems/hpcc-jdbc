@@ -851,6 +851,10 @@ public class HPCCDriverTest
                    params, true, 1, "count having single field payload indexed");
 
             executeFreeHandSQL(propsinfo,
+                    "select  MAX(  distinct ) from tutorial::rp::tutorialperson as persons where  persons.zip  > '33445'  limit 100",
+                    params, false, 0, "count distintc no colum");
+
+            executeFreeHandSQL(propsinfo,
                     "select  count(  distinct  persons.zip) from tutorial::rp::tutorialperson as persons where  persons.zip  > '33445'  limit 100",
                     params, true, 1, "count distintc single field payload indexed");
 
