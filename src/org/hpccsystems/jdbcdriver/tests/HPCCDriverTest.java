@@ -811,6 +811,40 @@ public class HPCCDriverTest
                     params, true, 1, "implicit join");
 
             executeFreeHandSQL(propsinfo,
+                    "select peeps.firstname, " +
+                    "        peeps.lastname, " +
+                    "        peeps.personid, " +
+                    "        accts.account, " +
+                    "        people.state " +
+                    "from progguide::exampledata::people as peeps, " +
+                    "progguide::exampledata::accounts accts, " +
+                    "tutorial::rp::tutorialperson people " +
+                    "where  " +
+                    "       peeps.firstname = 'TIMTOHY' AND " +
+                    "       peeps.lastname = 'BIALES' AND " +
+                    "       peeps.personid = accts.personid and" +
+                    "       peeps.firstname = people.firstname " +
+                    "limit 100",
+                    params, true, 1, "multi-table implicit join");
+
+            executeFreeHandSQL(propsinfo,
+                    "select peeps.firstname, " +
+                    "        peeps.lastname, " +
+                    "        peeps.personid, " +
+                    "        accts.account, " +
+                    "        people.state " +
+                    "from progguide::exampledata::people as peeps, " +
+                    "progguide::exampledata::accounts accts, " +
+                    "tutorial::rp::tutorialperson people " +
+                    "where  " +
+                    "       peeps.firstname = 'TIMTOHY' AND " +
+                    "       peeps.lastname = 'BIALES' or " +
+                    "       peeps.personid = accts.personid and" +
+                    "       peeps.firstname = people.firstname " +
+                    "limit 100",
+                    params, true, 1, "multi-table implicit join no equality in first simple expression");
+
+            executeFreeHandSQL(propsinfo,
                     "select  peeps.gender, peeps.firstname, peeps.lastname from tutorial::rp::tutorialperson as persons, progguide::exampledata::people peeps where  persons.firstname = peeps.firstname and persons.city is not null limit 100",
                     params, true, 1, "implicit join IS NOT NULL filter");
 
@@ -1143,6 +1177,7 @@ public class HPCCDriverTest
                 info.put("LazyLoad", "true");
                 info.put("TraceToFile", "false");
                 info.put("TraceLevel", "boguslevel");
+                info.put("ReadTimeoutMilli", "30000"); //we have a couple of long running queries
                 info.put("TargetCluster", "myroxie"); //queries will run on this HPCC target cluster
                 info.put("QuerySet", "thor"); //published HPCC queries will run from this queryset
                 info.put("WsECLWatchPort", "8010"); //Target HPCC configured to run WsECLWatch on this port

@@ -19,6 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 package org.hpccsystems.jdbcdriver;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 
 public class SQLJoinClause
@@ -58,7 +59,7 @@ public class SQLJoinClause
 
     private JoinType              type;
     private SQLWhereClause        OnClause;
-    private SQLTable              joinTable   = null;
+    private List<SQLTable>        joinTables = new ArrayList<SQLTable>();
 
     public SQLJoinClause()
     {
@@ -95,36 +96,35 @@ public class SQLJoinClause
                 }
                 else
                     throw new SQLException("Error: Invalid join clause found: " + type);
-
             }
             else
                 throw new SQLException("Error: No valid join clause found: " + joinclausestr);
-
 
             String clausesplit[] = joinSplit[1].split("\\s+(?i)on\\s+", 2);
 
             if (clausesplit.length > 1)
             {
+                SQLTable joinTable = null;
                 String splittablefromalias[] = clausesplit[0].trim().split("\\s+(?i)as(\\s+|$)");
                 if (splittablefromalias.length == 1)
                 {
                     String splittablebyblank[] = splittablefromalias[0].trim().split("\\s+");
-                    this.joinTable = new SQLTable(splittablebyblank[0]);
+                    joinTable = new SQLTable(splittablebyblank[0]);
                     if (splittablebyblank.length == 2)
-                        this.joinTable.setAlias(splittablebyblank[1].trim());
+                        joinTable.setAlias(splittablebyblank[1].trim());
                     else if (splittablebyblank.length > 2)
                         throw new SQLException("Error: " + splittablefromalias[0]);
                 }
                 else if (splittablefromalias.length == 2)
                 {
-                    this.joinTable = new SQLTable(splittablefromalias[0].trim());
-                    this.joinTable.setAlias(splittablefromalias[1].trim());
+                    joinTable = new SQLTable(splittablefromalias[0].trim());
+                    joinTable.setAlias(splittablefromalias[1].trim());
                 }
                 else
                     throw new SQLException("Error: Invalid SQL: " + clausesplit[0]);
 
+                joinTables.add(joinTable);
                 parseOnClause(clausesplit[1]);
-
             }
             else
                 throw new SQLException("Error: 'Join' clause does not contain 'On' clause.");
@@ -156,24 +156,29 @@ public class SQLJoinClause
         return type.toECLString();
     }
 
-    public SQLTable getJoinTable()
+    public SQLTable getJoinTable(int tableindex)
     {
-        return joinTable;
+        return joinTables.get(tableindex);
     }
 
-    public void setJoinTable(SQLTable joinTable)
+    public void addJoinTable(SQLTable joinTable)
     {
-        this.joinTable = joinTable;
+        joinTables.add(joinTable);
     }
 
-    public String getJoinTableName()
+    public String getJoinTableName(int tableindex)
     {
-        return joinTable.getName();
+        return joinTables.get(tableindex).getName();
     }
 
-    public String getJoinTableAlias()
+    public String getJoinTableAlias(int tableindex)
     {
-        return joinTable.getAlias();
+        return joinTables.get(tableindex).getAlias();
+    }
+
+    public int getJoinTablesCount()
+    {
+        return joinTables.size();
     }
 
     public void updateFragments(List<SQLTable> sqlTables) throws Exception
@@ -183,7 +188,19 @@ public class SQLJoinClause
     @Override
     public String toString()
     {
-        return getSQLTypeStr() + " " + getJoinTableName() + " ON " + OnClause.fullToString();
+        StringBuilder tmp = new StringBuilder(getSQLTypeStr());
+
+        for(SQLTable table : joinTables)
+        {
+            tmp.append(" ")
+            .append(table.getName())
+            .append(", ");
+        }
+
+        tmp.append(" ON ");
+        tmp.append( OnClause.fullToString());
+
+        return tmp.toString();
     }
 
     public void parseOnClause(String clause) throws SQLException
