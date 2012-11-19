@@ -217,22 +217,40 @@ public class SQLWhereClause
             exp.updateFragmentTables(sqlTables);
     }
 
+    /* Temporary Patch until full logic parser is implemented*/
+    private String handleGroupParens(String group)
+    {
+        String unencapsulated = group.trim();
+        if (group.charAt(0) == '(' && group.charAt(group.length() - 1) == ')')
+        {
+            int secopen = group.indexOf('(', 1);
+            int firstclose = group.indexOf(')', 1);
+            if (secopen < firstclose)
+            {
+                int sectolastclose = group.substring(0, group.length()-1).lastIndexOf(')');
+                int lastopen = group.lastIndexOf('(');
+                if (sectolastclose == -1 || sectolastclose > lastopen )
+                    unencapsulated = HPCCJDBCUtils.getParenContents(group);
+            }
+        }
+        return unencapsulated;
+    }
+
     public void parseWhereClause(String whereclause) throws SQLException
     {
-        whereclause = whereclause.trim();
-        if (whereclause.charAt(0) == '(')
-        {
-            whereclause = HPCCJDBCUtils.getParenContents(whereclause);
-        }
+       whereclause = handleGroupParens(whereclause);
 
         String[] splitedwhereands = whereclause.split(andregex);
 
         for (int i = 0; i < splitedwhereands.length; i++)
         {
-            String splitedwhereandors[] = splitedwhereands[i].split(orregex);
+            splitedwhereands[i] = handleGroupParens(splitedwhereands[i]);
 
+            String splitedwhereandors[] = splitedwhereands[i].split(orregex);
             for (int y = 0; y < splitedwhereandors.length; y++)
             {
+                splitedwhereandors[y] = handleGroupParens(splitedwhereandors[y]);
+
                 SQLExpression exp = new SQLExpression( ExpressionType.LOGICAL_EXPRESSION);
 
                 exp.ParseExpression(splitedwhereandors[y]);
