@@ -20,6 +20,7 @@ package org.hpccsystems.jdbcdriver;
 
 import java.util.List;
 import java.util.StringTokenizer;
+import java.util.logging.Level;
 import java.util.regex.Matcher;
 
 import org.hpccsystems.jdbcdriver.ECLFunction.FunctionType;
@@ -151,7 +152,7 @@ public class SQLFragment
                         ECLFunction func = ECLFunctions.getEclFunction(matcher.group(1));
 
                         if (func == null)
-                            System.out.println("Function found in HAVING clause might not be supported.");
+                            HPCCJDBCUtils.traceoutln(Level.WARNING,  "Function found in HAVING clause might not be supported.");
                         else
                         {
                             if (func.getFunctionType() == FunctionType.CONTENT_MODIFIER)
@@ -189,7 +190,7 @@ public class SQLFragment
         }
         catch (Exception e)
         {
-            System.out.println("Error while parsing SQL fragment: " + fragment);
+            HPCCJDBCUtils.traceoutln(Level.SEVERE,   "Error while parsing SQL fragment: " + fragment);
         }
     }
 
