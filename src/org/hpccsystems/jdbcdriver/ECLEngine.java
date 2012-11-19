@@ -344,174 +344,69 @@ public class ECLEngine
             }
             else if (col.getColumnType() == ColumnType.FUNCTION)
             {
-                if (col.getColumnName().equalsIgnoreCase("COUNT"))
+                ECLFunction func = ECLFunctions.getEclFunction(col.getColumnName());
+                if (func != null)
                 {
-                    List<HPCCColumnMetaData> funccols = null;
-
-                    if (col.isDistinct())
-                    {
-                        StringBuilder cntdedupstr = new StringBuilder(datasource);
-                        cntdedupstr.append("Deduped := DEDUP( ");
-                        cntdedupstr.append(datasource);
-
-                        funccols = col.getFunccols();
-
-                        for (int j = 0; j < funccols.size(); j++)
-                        {
-                            String paramname = funccols.get(j).getColumnName();
-
-                            cntdedupstr.append(", ");
-                            cntdedupstr.append(paramname);
-                        }
-                        cntdedupstr.append(", ALL);\n");
-                        eclEntities.put("COUNTDEDUP", cntdedupstr.toString());
-                    }
-
-                    eclEntities.put("COUNTFN", "TRUE");
-                    selectStructSB.append(col.getAlias() + " := ");
-                    if (sqlParser.hasGroupByColumns())
-                    {
-                        selectStructSB
-                        .append(col.getColumnName()
-                        .toUpperCase())
-                        .append("( GROUP );");
-                    }
-                    else
-                    {
-                        selectStructSB.append(" ScalarOut;");
-                        if (expectedretcolumns.size() == 1)
-                            eclEntities.put("SCALAROUTNAME", col.getColumnName());
-                    }
-
-                    col.setSqlType(java.sql.Types.NUMERIC);
-                }
-                else if (col.getColumnName().equalsIgnoreCase("MAX"))
-                {
-                    eclEntities.put("MAXFN", "TRUE");
-                    selectStructSB.append(col.getAlias() + " := ");
-
-                    if (sqlParser.hasGroupByColumns())
-                    {
-                        selectStructSB.append("MAX( GROUP ");
-                    }
-                    else
-                    {
-                        selectStructSB.append("MAX( ").append(datasource);
-                        if (eclEntities.size() > 0)
-                            addFilterClause(selectStructSB);
-                    }
-
                     List<HPCCColumnMetaData> funccols = col.getFunccols();
-                    if (funccols.size() > 0)
                     {
-                        String paramname = funccols.get(0).getColumnName();
-                        eclEntities.put("FNCOLS", paramname);
-                        if (!paramname.equals("*") && funccols.get(0).getColumnType() != ColumnType.CONSTANT)
+                        selectStructSB.append(col.getAlias() + " := ");
+                        selectStructSB.append(func.getEclFunction()).append("( ");
+
+                        if (sqlParser.hasGroupByColumns())
                         {
-                            selectStructSB.append(", ");
-                            selectStructSB.append(datasource);
-                            selectStructSB.append(".");
-                            selectStructSB.append(paramname);
+                            selectStructSB.append("GROUP ");
                         }
-                    }
-                    selectStructSB.append(" );");
-                }
-                else if (col.getColumnName().equalsIgnoreCase("AVG"))
-                {
-                    eclEntities.put("AVGFN", "TRUE");
-                    selectStructSB.append(col.getAlias() + " := ");
-
-                    if (sqlParser.hasGroupByColumns())
-                    {
-                        selectStructSB.append("AVG( GROUP ");
-                    }
-                    else
-                    {
-                        selectStructSB.append("AVE( ").append(datasource);
-                        if (eclEntities.size() > 0)
-                            addFilterClause(selectStructSB);
-                        if (expectedretcolumns.size() == 1)
-                            eclEntities.put("SCALAROUTNAME", col.getColumnName());
-                    }
-
-                    List<HPCCColumnMetaData> funccols = col.getFunccols();
-                    if (funccols.size() > 0)
-                    {
-                        String paramname = funccols.get(0).getColumnName();
-                        eclEntities.put("FNCOLS", paramname);
-                        if (!paramname.equals("*") && funccols.get(0).getColumnType() != ColumnType.CONSTANT)
+                        else
                         {
-                            selectStructSB.append(", ");
-                            selectStructSB.append(datasource);
-                            selectStructSB.append(".");
-                            selectStructSB.append(paramname);
+                            if (col.isDistinct())
+                            {
+                                selectStructSB.append("DEDUP( ");
+                                selectStructSB.append(datasource);
+                                addFilterClause(selectStructSB);
+
+                                for (int j = 0; j < funccols.size(); j++)
+                                {
+                                    String paramname = funccols.get(j).getColumnName();
+                                    selectStructSB.append(", ");
+                                    selectStructSB.append(paramname);
+                                }
+                                selectStructSB.append(", ALL)");
+                            }
+                            else
+                            {
+                                selectStructSB.append(datasource);
+                                addFilterClause(selectStructSB);
+                            }
                         }
-                    }
-                    selectStructSB.append(" );");
-                }
-                else if (col.getColumnName().equalsIgnoreCase("MIN"))
-                {
-                    eclEntities.put("MINFN", "TRUE");
-                    selectStructSB.append(col.getAlias() + " := ");
 
-                    if (sqlParser.hasGroupByColumns())
-                    {
-                        selectStructSB.append("MIN( GROUP ");
-                    }
-                    else
-                    {
-                        selectStructSB.append("MIN( ").append(datasource);
-                        if (eclEntities.size() > 0)
-                            addFilterClause(selectStructSB);
-                    }
-
-                    List<HPCCColumnMetaData> funccols = col.getFunccols();
-                    if (funccols.size() > 0)
-                    {
-                        String paramname = funccols.get(0).getColumnName();
-                        eclEntities.put("FNCOLS", paramname);
-                        if (!paramname.equals("*") && funccols.get(0).getColumnType() != ColumnType.CONSTANT)
+                        if (!(func.getName().equals("COUNT")) && funccols.size() > 0)
                         {
-                            selectStructSB.append(", ");
-                            selectStructSB.append(datasource);
-                            selectStructSB.append(".");
-                            selectStructSB.append(paramname);
+                            String paramname = funccols.get(0).getColumnName();
+                            if (!paramname.equals("*") && funccols.get(0).getColumnType() != ColumnType.CONSTANT)
+                            {
+                                selectStructSB.append(", ");
+                                selectStructSB.append(datasource);
+                                selectStructSB.append(".");
+                                selectStructSB.append(paramname);
+                            }
                         }
-                    }
-                    selectStructSB.append(" );");
-                }
-                else if (col.getColumnName().equalsIgnoreCase("SUM"))
-                {
-                    eclEntities.put("SUMFN", "TRUE");
-                    selectStructSB.append(col.getAlias() + " := ");
 
-                    selectStructSB.append("SUM( ");
-                    if (sqlParser.hasGroupByColumns())
-                    {
-                        selectStructSB.append(" GROUP ");
-                    }
-                    else
-                    {
-                        selectStructSB.append(datasource);
-                        if (eclEntities.size() > 0)
-                            addFilterClause(selectStructSB);
-                    }
-
-                    List<HPCCColumnMetaData> funccols = col.getFunccols();
-                    if (funccols.size() > 0)
-                    {
-                        String paramname = funccols.get(0).getColumnName();
-                        eclEntities.put("FNCOLS", paramname);
-                        if (!paramname.equals("*") && funccols.get(0).getColumnType() != ColumnType.CONSTANT)
+                        //AS OF community_3.8.6-4 this is causing error:
+                        // (0,0): error C3000: assert(!cond) failed - file: /var/jenkins/workspace/<build number>/HPCC-Platform/ecl/hqlcpp/hqlhtcpp.cpp, line XXXXX
+                        //Bug reported: https://track.hpccsystems.com/browse/HPCC-8268
+                        //Leaving this code out until fix is produced.
+                        /*if (eclEntities.containsKey("PAYLOADINDEX")
+                                && !sqlParser.hasGroupByColumns()
+                                && !col.isDistinct())
                         {
-                            selectStructSB.append(", ");
-                            selectStructSB.append(datasource);
-                            selectStructSB.append(".");
-                            selectStructSB.append(paramname);
-                        }
+                            selectStructSB.append(", KEYED");
+                        }*/
+
+                        selectStructSB.append(" );");
                     }
-                    selectStructSB.append(" );");
                 }
+                else
+                    HPCCJDBCUtils.traceoutln(Level.WARNING, "Unrecognized function detected: " + col.getColumnName());
             }
             else
             {
@@ -545,71 +440,6 @@ public class ECLEngine
 
         if (eclEntities.get("IndexDef") == null)
         {
-            if (!eclEntities.containsKey("GROUPBY"))
-            {
-                if (eclEntities.containsKey("COUNTFN"))
-                {
-                    if (eclEntities.containsKey("COUNTDEDUP"))
-                        eclCode.append(eclEntities.get("COUNTDEDUP"));
-
-                    eclCode.append("ScalarOut := COUNT( ").append(eclEntities.get("SourceDS"));
-                    if (eclEntities.containsKey("COUNTDEDUP"))
-                        eclCode.append("Deduped");
-
-                    if (eclEntities.size() > 0)
-                        addFilterClause(eclCode);
-                    eclCode.append(");\n");
-                }
-                else if (eclEntities.containsKey("SUMFN"))
-                {
-                    eclCode.append("ScalarOut := SUM( ").append(eclEntities.get("SourceDS"));
-                    if (eclEntities.size() > 0)
-                        addFilterClause(eclCode);
-
-                    eclCode.append(" , ");
-                    eclCode.append(eclEntities.get("SourceDS"));
-                    eclCode.append(".");
-                    eclCode.append(eclEntities.get("FNCOLS"));
-                    eclCode.append(");\n");
-                }
-                else if (eclEntities.containsKey("AVGFN"))
-                {
-                    eclCode.append("ScalarOut := AVE( ").append(eclEntities.get("SourceDS"));
-                    if (eclEntities.size() > 0)
-                        addFilterClause(eclCode);
-
-                    eclCode.append(" , ");
-                    eclCode.append(eclEntities.get("SourceDS"));
-                    eclCode.append(".");
-                    eclCode.append(eclEntities.get("FNCOLS"));
-                    eclCode.append(");\n");
-                }
-                else if (eclEntities.containsKey("MAXFN"))
-                {
-                    eclCode.append("ScalarOut := MAX( ").append(eclEntities.get("SourceDS"));
-                    if (eclEntities.size() > 0)
-                        addFilterClause(eclCode);
-
-                    eclCode.append(" , ");
-                    eclCode.append(eclEntities.get("SourceDS"));
-                    eclCode.append(".");
-                    eclCode.append(eclEntities.get("FNCOLS"));
-                    eclCode.append(");\n");
-                }
-                else if (eclEntities.containsKey("MINFN"))
-                {
-                    eclCode.append("ScalarOut := MIN( ").append(eclEntities.get("SourceDS"));
-                    if (eclEntities.size() > 0)
-                        addFilterClause(eclCode);
-
-                    eclCode.append(" , ");
-                    eclCode.append(eclEntities.get("SourceDS"));
-                    eclCode.append(".");
-                    eclCode.append(eclEntities.get("FNCOLS"));
-                    eclCode.append(");\n");
-                }
-            }
-
             if (eclEntities.containsKey("SCALAROUTNAME"))
             {
                 eclCode.append("OUTPUT(ScalarOut ,NAMED(\'");
@@ -667,57 +497,6 @@ public class ECLEngine
 
             if (eclEntities.containsKey("COUNTDEDUP"))
                 eclCode.append(eclEntities.get("COUNTDEDUP"));
-
-            if (!eclEntities.containsKey("GROUPBY"))
-            {
-                if (eclEntities.containsKey("COUNTFN"))
-                {
-                    eclCode.append("ScalarOut := COUNT( ");
-                    eclCode.append(latestDS);
-
-                    if (eclEntities.containsKey("COUNTDEDUP"))
-                        eclCode.append("Deduped );\n");
-                    else
-                        eclCode.append(eclEntities.containsKey("PAYLOADINDEX") == false ? ");\n" : ", KEYED);\n");
-                }
-                if (eclEntities.containsKey("SUMFN"))
-                {
-                    eclCode.append("ScalarOut := SUM( ");
-                    eclCode.append(latestDS).append(", ");
-                    eclCode.append(eclEntities.get("SourceDS"));
-                    eclCode.append(".");
-                    eclCode.append(eclEntities.get("FNCOLS"));
-                    eclCode.append(eclEntities.containsKey("PAYLOADINDEX") == false ? ");" : ", KEYED);\n");
-                }
-                if (eclEntities.containsKey("AVGFN"))
-                {
-                    eclCode.append("ScalarOut := AVE( ");
-                    eclCode.append(latestDS).append(", ");
-                    eclCode.append(eclEntities.get("SourceDS"));
-                    eclCode.append(".");
-                    eclCode.append(eclEntities.get("FNCOLS"));
-                    eclCode.append(eclEntities.containsKey("PAYLOADINDEX") == false ? ");" : ", KEYED);\n");
-                }
-                if (eclEntities.containsKey("MAXFN"))
-                {
-                    eclCode.append("ScalarOut := MAX( ");
-                    eclCode.append(latestDS).append(", ");
-                    eclCode.append(eclEntities.get("SourceDS"));
-                    eclCode.append(".");
-                    eclCode.append(eclEntities.get("FNCOLS"));
-                    eclCode.append(eclEntities.containsKey("PAYLOADINDEX") == false ? ");" : ", KEYED);\n");
-                }
-                if (eclEntities.containsKey("MINFN"))
-                {
-                    eclCode.append("ScalarOut := MIN( ");
-                    eclCode.append(latestDS).append(", ");
-                    eclCode.append(eclEntities.get("SourceDS"));
-                    eclCode.append(".");
-                    eclCode.append(eclEntities.get("FNCOLS"));
-                    eclCode.append(eclEntities.containsKey("PAYLOADINDEX") == false ? ");" : ", KEYED);\n");
-                }
-                eclCode.append("\n");
-            }
 
             if (eclEntities.containsKey("SCALAROUTNAME"))
             {
