@@ -141,48 +141,10 @@ public class SQLExpression
     @Override
     public String toString()
     {
-        StringBuffer tmpsb = new StringBuffer();
-
-        if (prevExpUnifier != null)
-            tmpsb.append(prevExpUnifier);
-
-        switch (operator.getType())
-        {
-            case BINARY:
-                  tmpsb.append(prefix.getValue())
-                  .append(SINGLEBLANKBUFFER)
-                  .append(operator.toString())
-                  .append(SINGLEBLANKBUFFER)
-                  .append(postfix.getValue());
-                  break;
-            case PRE_UNARY:
-                tmpsb.append(SINGLEBLANKBUFFER)
-                 .append(operator.toString())
-                 .append(SINGLEBLANKBUFFER)
-                 .append(prefix.getValue())
-                 .append(SINGLEBLANKBUFFER);
-                break;
-            case POST_UNARY:
-                tmpsb.append(SINGLEBLANKBUFFER)
-                 .append(prefix.getValue())
-                 .append(SINGLEBLANKBUFFER)
-                 .append(operator.toString())
-                 .append(SINGLEBLANKBUFFER);
-                break;
-            case NOOPFALSE:
-                tmpsb.append(" false ");
-                break;
-            case NOOPTRUE:
-                tmpsb.append(" true ");
-                break;
-            case UNKNOWN:
-            default:
-                return "";
-        }
-        return tmpsb.toString();
+        return toStringFull(false);
     }
 
-    public String fullToString()
+    public String toStringFull(boolean outputfull)
     {
         StringBuffer tmpsb = new StringBuffer();
 
@@ -192,22 +154,22 @@ public class SQLExpression
         switch (operator.getType())
         {
             case BINARY:
-                tmpsb.append(getFullPrefix())
+                tmpsb.append(outputfull ? getFullPrefix() : prefix.getValue())
                  .append(SINGLEBLANKBUFFER)
                  .append(operator.toString())
                  .append(SINGLEBLANKBUFFER)
-                 .append(getFullPostfix());
+                 .append(outputfull ? getFullPostfix() : postfix.getValue());
            break;
             case PRE_UNARY:
                 tmpsb.append(SINGLEBLANKBUFFER)
                  .append(operator.toString())
                  .append(SINGLEBLANKBUFFER)
-                 .append(getFullPrefix())
+                 .append(outputfull ? getFullPrefix() : prefix.getValue())
                  .append(SINGLEBLANKBUFFER);
            break;
             case POST_UNARY:
                 tmpsb.append(SINGLEBLANKBUFFER)
-                 .append(getFullPrefix())
+                 .append(outputfull ? getFullPrefix() : prefix.getValue())
                  .append(SINGLEBLANKBUFFER)
                  .append(operator.toString())
                  .append(SINGLEBLANKBUFFER);

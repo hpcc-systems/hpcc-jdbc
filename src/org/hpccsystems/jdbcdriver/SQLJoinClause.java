@@ -190,11 +190,13 @@ public class SQLJoinClause
     {
         StringBuilder tmp = new StringBuilder(getSQLTypeStr());
 
+        int i = 0;
         for(SQLTable table : joinTables)
         {
-            tmp.append(" ")
-            .append(table.getName())
-            .append(", ");
+            tmp.append(" ").append(table.getName());
+            if ( i < joinTables.size()-1)
+                tmp.append(", ");
+            i++;
         }
 
         tmp.append(" ON ");

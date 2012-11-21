@@ -112,7 +112,7 @@ public class SQLWhereClause
         String clause = new String("");
         for (SQLExpression exp : expressions)
         {
-            clause += exp.fullToString();
+            clause += exp.toStringFull(true);
         }
         return clause;
     }
