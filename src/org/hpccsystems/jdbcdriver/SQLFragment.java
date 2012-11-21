@@ -90,7 +90,7 @@ public class SQLFragment
 
     private void handleFieldType(String fragment)
     {
-        String fragsplit[] = fragment.split("\\.", 2);
+        String fragsplit[] = fragment.split(HPCCJDBCUtils.DOTSEPERATORREGEX, 2);
         if (fragsplit.length == 1)
         {
             setValue(fragsplit[0]);

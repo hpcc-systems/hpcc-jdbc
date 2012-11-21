@@ -32,7 +32,6 @@ import java.util.regex.Pattern;
 
 import org.hpccsystems.jdbcdriver.ECLFunction.FunctionType;
 import org.hpccsystems.jdbcdriver.HPCCColumnMetaData.ColumnType;
-import org.hpccsystems.jdbcdriver.SQLExpression.ExpressionType;
 
 /**
  * @author rpastrana
@@ -449,7 +448,9 @@ public class SQLParser
                     throw new SQLException("Implicit and Explicit JOIN not currently supported");
 
                 joinClause = new SQLJoinClause(SQLJoinClause.JoinType.INNER_JOIN);
-                joinClause.setJoinTable(sqlTables.get(1));
+
+                for (int i = 1; i < sqlTables.size(); i++)
+                    joinClause.addJoinTable(sqlTables.get(i));
 
                 if (wherePos != -1)
                 {
@@ -601,7 +602,7 @@ public class SQLParser
             joinClause = new SQLJoinClause();
 
             joinClause.parse(joinOnClause);
-            sqlTables.add(joinClause.getJoinTable());
+            sqlTables.add(joinClause.getJoinTable(0));
         }
         else
             throw new SQLException("Error: parsing 'Join' clause.");
@@ -722,14 +723,10 @@ public class SQLParser
             if( whereClause != null && whereClause.getExpressionsCount() > 0)
             {
                 Iterator<SQLExpression> expressionit = whereClause.getExpressions();
-
                 while (expressionit.hasNext())
                 {
                     SQLExpression exp = expressionit.next();
-                    if (exp.getExpressionType() == ExpressionType.LOGICAL_EXPRESSION)
-                    {
-                            paramIndex = exp.setParameterizedNames(paramIndex);
-                    }
+                    paramIndex = exp.setParameterizedNames(paramIndex);
                 }
             }
             parameterizedCount = paramIndex - 1;
@@ -761,9 +758,9 @@ public class SQLParser
         return whereClause.containsKey(name);
     }
 
-    public String getWhereClauseStringTranslateSource(HashMap<String, String> map)
+    public String getWhereClauseStringTranslateSource(HashMap<String, String> map, boolean ignoreMisTranslations)
     {
-        return whereClause.toStringTranslateSource(map);
+        return whereClause.toStringTranslateSource(map, ignoreMisTranslations);
     }
 
     public String getWhereClauseString()
@@ -788,7 +785,7 @@ public class SQLParser
             String curColName = selectColumns.get(i).getColumnName();
             if (curColName.contains("*"))
             {
-                String nameSplit [] = curColName.split("\\.");
+                String nameSplit [] = curColName.split(HPCCJDBCUtils.DOTSEPERATORREGEX);
 
                 if (nameSplit.length <= 0 || nameSplit.length >= 3)
                 {
@@ -853,7 +850,7 @@ public class SQLParser
         //This will be the default table name.
         String tableName = sqlTables.get(0).getName();
 
-        String colsplit[] = fieldName.split("\\.");
+        String colsplit[] = fieldName.split(HPCCJDBCUtils.DOTSEPERATORREGEX);
 
         if (colsplit.length == 2)
         {

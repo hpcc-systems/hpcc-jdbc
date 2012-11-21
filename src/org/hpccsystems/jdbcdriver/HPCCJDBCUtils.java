@@ -33,6 +33,8 @@ import java.util.regex.Pattern;
 
 public class HPCCJDBCUtils
 {
+    public static final String DOTSEPERATORREGEX = "\\.";
+
     public static String newLine = System.getProperty("line.separator");
     public static String fileSep = System.getProperty("file.separator");;
     public static final String HPCCCATALOGNAME = "HPCC System";
