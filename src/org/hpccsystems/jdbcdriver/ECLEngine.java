@@ -398,13 +398,13 @@ public class ECLEngine
             {
                 selectStructSB.append(col.getEclType())
                               .append(" ")
-                              .append(col.getColumnName())
+                              .append(col.getColumnNameOrAlias())
                               .append(" := ")
                               .append(col.getConstantValue())
                               .append("; ");
 
                 if (i == 0 && expectedretcolumns.size() == 1)
-                    eclEntities.put("SCALAROUTNAME", col.getColumnName());
+                    eclEntities.put("SCALAROUTNAME", col.getColumnNameOrAlias());
             }
             else if (col.getColumnType() == ColumnType.FUNCTION)
             {
@@ -477,7 +477,7 @@ public class ECLEngine
                 eclEntities.put("NONSCALAREXPECTED", "TRUE");
                 selectStructSB.append(col.getEclType())
                 .append(" ")
-                .append(col.getColumnName())
+                .append(col.getColumnNameOrAlias())
                 .append(" := ");
                 if (col.hasContentModifier())
                     selectStructSB.append(col.getContentModifierStr()).append("( ");

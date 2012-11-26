@@ -782,6 +782,41 @@ public class HPCCDriverTest
             params.add("'33445'");
             params.add("'90210'");
 
+            executeFreeHandSQL(propsinfo,"select 1 as ONE", params, true, 1, "Select single numeric constant Aliased");
+            executeFreeHandSQL(propsinfo,"select 1 as ONE,2,3 as THREE,4", params, true, 1, "Select four numeric constants Aliased");
+
+            executeFreeHandSQL(propsinfo,
+                    "select  peeps.gender as Sex, peeps.firstname AS NAME, peeps.lastname, peeps.lastname AS LNAME2 from progguide::exampledata::people peeps where ( peeps.firstname = 'TIMTOHY' ) limit 100 ",
+                    params, true, 1, "duplicate column, one aliased");
+
+            executeFreeHandSQL(propsinfo,
+                    "select  peeps.gender as Sex, peeps.firstname AS NAME, peeps.lastname, peeps.lastname AS LNAME2 from progguide::exampledata::people peeps where ( peeps.firstname = 'TIMTOHY' ) order by firstname limit 100 ",
+                    params, true, 1, "duplicate column, one aliased");
+
+            executeFreeHandSQL(propsinfo,
+                    "select  peeps.gender as Sex, peeps.firstname AS NAME, peeps.lastname, peeps.lastname AS LNAME2 from progguide::exampledata::people peeps where ( peeps.firstname = 'TIMTOHY' ) order by NAME limit 100 ",
+                    params, true, 1, "duplicate column, one aliased order by alias name");
+
+            executeFreeHandSQL(propsinfo,
+                    "select  peeps.gender as Sex, peeps.firstname AS NAME, peeps.lastname, peeps.lastname AS LNAME2 from progguide::exampledata::people peeps where ( peeps.firstname = 'TIMTOHY' ) group by NAME limit 100 ",
+                    params, true, 1, "duplicate column, one aliased order by group by alias name");
+
+            executeFreeHandSQL(propsinfo,
+                    "select  peeps.gender as Sex, peeps.firstname AS NAME, peeps.lastname, peeps.lastname AS LNAME2 from progguide::exampledata::people peeps where ( peeps.firstname = 'TIMTOHY' ) group by firstname limit 100 ",
+                    params, true, 1, "duplicate column, one aliased order by group by field name");
+
+            executeFreeHandSQL(propsinfo,
+                    "select  peeps.gender as Sex, peeps.firstname AS NAME, peeps.lastname, peeps.lastname AS LNAME2 from progguide::exampledata::people peeps where ( peeps.firstname = 'TIMTOHY' ) group by firstnamex limit 100 ",
+                    params, false, 0, "duplicate column, one aliased order by group by invalid field name");
+
+            executeFreeHandSQL(propsinfo,
+                    "select  peeps.gender as Sex, peeps.firstname AS NAME, peeps.lastname, peeps.lastname AS LNAME2 from progguide::exampledata::people peeps where ( peeps.firstname = 'TIMTOHY' ) group by xyz.firstname limit 100 ",
+                    params, false, 0, "duplicate column, one aliased order by group by invalid field table name");
+
+            executeFreeHandSQL(propsinfo,
+                    "select  peeps.gender as Sex, peeps.firstname AS NAME, peeps.lastname AS LNAME, peeps.lastname AS LNAME2 from progguide::exampledata::people peeps where ( peeps.firstname = 'TIMTOHY' ) limit 100 ",
+                    params, true, 1, "duplicate column, both aliased");
+
             executeFreeHandSQL(propsinfo,"select 1", params, true, 1, "Select single numeric constant");
             executeFreeHandSQL(propsinfo,"select 1,2,3,4", params, true, 1, "Select four numeric constants");
             executeFreeHandSQL(propsinfo,"select '1a'", params, true, 1, "Select single string constant");
