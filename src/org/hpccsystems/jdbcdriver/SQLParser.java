@@ -290,16 +290,16 @@ public class SQLParser
                 if (splittablefromalias.length == 1)
                 {
                     String splittablebyblank[] = splittablefromalias[0].trim().split("\\s+");
-                    queryTable = new SQLTable(splittablebyblank[0].trim());
+                    queryTable = new SQLTable(HPCCJDBCUtils.handleQuotedString(splittablebyblank[0]));
                     if (splittablebyblank.length == 2)
-                        queryTable.setAlias(splittablebyblank[1].trim());
+                        queryTable.setAlias(HPCCJDBCUtils.handleQuotedString(splittablebyblank[1]));
                     else if (splittablebyblank.length > 2)
                         throw new SQLException("Invalid SQL: " + splittablefromalias[0]);
                 }
                 else if (splittablefromalias.length == 2)
                 {
-                    queryTable = new SQLTable(splittablefromalias[0].trim());
-                    queryTable.setAlias(splittablefromalias[1].trim());
+                    queryTable = new SQLTable(HPCCJDBCUtils.handleQuotedString(splittablefromalias[0]));
+                    queryTable.setAlias(HPCCJDBCUtils.handleQuotedString(splittablefromalias[1]));
                 }
                 else
                     throw new SQLException("Invalid SQL: " + fullTableName);
@@ -409,7 +409,7 @@ public class SQLParser
                 colmetadata.setTableName(sqlTables.get(0).getName());
 
                 if (colassplit.length > 1)
-                    colmetadata.setAlias(colassplit[1].trim());
+                    colmetadata.setAlias(HPCCJDBCUtils.handleQuotedString(colassplit[1]));
 
                 selectColumns.add(colmetadata);
             }
@@ -866,18 +866,22 @@ public class SQLParser
         String fieldName = column.getColumnName();
         String colsplit[] = fieldName.split(HPCCJDBCUtils.DOTSEPERATORREGEX);
 
-        if (colsplit.length == 2)
+        if (colsplit.length == 1)
+        {
+            fieldName = HPCCJDBCUtils.handleQuotedString(colsplit[0]);
+        }
+        else if (colsplit.length == 2)
         {
             try
             {
-                searchForPossibleTableName(colsplit[0]);
+                searchForPossibleTableName(HPCCJDBCUtils.handleQuotedString(colsplit[0]));
             }
             catch (Exception e)
             {
                 throw new SQLException("Invalid column found: " + fieldName);
             }
 
-            fieldName = colsplit[1];
+            fieldName = HPCCJDBCUtils.handleQuotedString(colsplit[1]);
         }
         else if (colsplit.length > 2)
             throw new SQLException("Invalid column found: " + fieldName);
@@ -910,18 +914,22 @@ public class SQLParser
 
         String colsplit[] = fieldName.split(HPCCJDBCUtils.DOTSEPERATORREGEX);
 
-        if (colsplit.length == 2)
+        if (colsplit.length == 1)
+        {
+            fieldName = HPCCJDBCUtils.handleQuotedString(colsplit[0]);
+        }
+        else if (colsplit.length == 2)
         {
             try
             {
-                tableName = searchForPossibleTableName(colsplit[0]);
+                tableName = searchForPossibleTableName(HPCCJDBCUtils.handleQuotedString(colsplit[0]));
             }
             catch (Exception e)
             {
                 throw new SQLException("Invalid column found: " + fieldName);
             }
 
-            fieldName = colsplit[1];
+            fieldName = HPCCJDBCUtils.handleQuotedString(colsplit[1]);
         }
         else if (colsplit.length > 2)
             throw new SQLException("Invalid column found: " + fieldName);
