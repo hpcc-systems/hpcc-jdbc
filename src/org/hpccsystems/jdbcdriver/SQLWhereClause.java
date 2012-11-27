@@ -24,24 +24,21 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 
-import org.hpccsystems.jdbcdriver.SQLExpression.ExpressionType;
 import org.hpccsystems.jdbcdriver.SQLFragment.FragmentType;
 
 public class SQLWhereClause
 {
     private List<SQLExpression> expressions;
     private List<String>        expressionUniqueColumnNames;
-    private int                 expressionsCount;
-    private int                 operatorsCount;
     private boolean             orOperatorUsed;
 
-    public final static SQLExpression andOperatorExp = new SQLExpression(SQLOperator.and);
-    public final static SQLExpression orOperatorExp = new SQLExpression(SQLOperator.or);
+    public final static SQLOperator andOperator = new SQLOperator(SQLOperator.and);
+    public final static SQLOperator orOperator = new SQLOperator(SQLOperator.or);
 
     private final static String otherThanQuote = " [^\'] ";
     private final static String quotedString = String.format(" \' %s* \' ", otherThanQuote);
 
-    private final static String andregex =
+    public final static String andregex =
             "(?x) "+                    // enable comments, ignore white spaces
             "\\s+(?i)and\\s+"+          // match an isolated, case insensitive AND
             "(?="+                      // start positive look ahead
@@ -53,7 +50,7 @@ public class SQLWhereClause
             "$"+                        // match the end of the string
             ")";                        // stop positive look ahead
 
-    private final static String orregex =
+    public final static String orregex =
             "(?x) "+                    // enable comments, ignore white spaces
             "\\s+(?i)or\\s+"+           // match an isolated, case insensitive OR
             "(?="+                      // start positive look ahead
@@ -69,35 +66,23 @@ public class SQLWhereClause
     {
         expressions = new ArrayList<SQLExpression>();
         expressionUniqueColumnNames = new ArrayList<String>();
-        expressionsCount = 0;
-        operatorsCount = 0;
         orOperatorUsed = false;
     }
 
     public void addExpression(SQLExpression expression)
     {
         expressions.add(expression);
-        if (expression.getExpressionType() == ExpressionType.LOGICAL_EXPRESSION)
+
+        if (expression.getPrefixType() == FragmentType.FIELD || expression.getPrefixType() == FragmentType.FIELD_CONTENT_MODIFIER)
         {
-            expressionsCount++;
-
-            if (expression.getPrefixType() == FragmentType.FIELD || expression.getPrefixType() == FragmentType.FIELD_CONTENT_MODIFIER)
-            {
-                if (!expressionUniqueColumnNames.contains(expression.getPrefixValue()))
-                    expressionUniqueColumnNames.add(expression.getPrefixValue());
-            }
-
-            if (expression.getPostfixType() == FragmentType.FIELD || expression.getPostfixType() == FragmentType.FIELD_CONTENT_MODIFIER)
-            {
-                if (!expressionUniqueColumnNames.contains(expression.getPostfixValue()))
-                    expressionUniqueColumnNames.add(expression.getPostfixValue());
-            }
+            if (!expressionUniqueColumnNames.contains(expression.getPrefixValue()))
+                expressionUniqueColumnNames.add(expression.getPrefixValue());
         }
-        else
+
+        if (expression.getPostfixType() == FragmentType.FIELD || expression.getPostfixType() == FragmentType.FIELD_CONTENT_MODIFIER)
         {
-            operatorsCount++;
-            if (expression.getOperator().getValue().equals(SQLOperator.or))
-                orOperatorUsed = true;
+            if (!expressionUniqueColumnNames.contains(expression.getPostfixValue()))
+                expressionUniqueColumnNames.add(expression.getPostfixValue());
         }
     }
 
@@ -108,12 +93,7 @@ public class SQLWhereClause
 
     public int getExpressionsCount()
     {
-        return expressionsCount;
-    }
-
-    public int getOperatorsCount()
-    {
-        return operatorsCount;
+        return expressions.size();
     }
 
     @Override
@@ -132,17 +112,22 @@ public class SQLWhereClause
         String clause = new String("");
         for (SQLExpression exp : expressions)
         {
-            clause += exp.fullToString();
+            clause += exp.toStringFull(true);
         }
         return clause;
     }
 
-    public String toStringTranslateSource(HashMap<String, String> map)
+    public String toStringTranslateSource(HashMap<String, String> map, boolean ignoreMisTranslations)
     {
         String clause = new String("");
+        String expstr = null;
+
         for (SQLExpression exp : expressions)
         {
-            clause += exp.toStringTranslateSource(map);
+            expstr = exp.toStringTranslateSource(map, ignoreMisTranslations);
+
+            if (expstr != null)
+                clause += expstr;
         }
         return clause;
     }
@@ -154,13 +139,10 @@ public class SQLWhereClause
         int i = 0;
         for (SQLExpression exp : expressions)
         {
-            if (exp.getExpressionType() == ExpressionType.LOGICAL_EXPRESSION)
-            {
-                if (exp.getPrefixType() == FragmentType.FIELD || exp.getPrefixType() == FragmentType.FIELD_CONTENT_MODIFIER)
-                    colnames[i++] = exp.getPrefixValue();
-                if (exp.getPostfixType() == FragmentType.FIELD || exp.getPostfixType() == FragmentType.FIELD_CONTENT_MODIFIER)
-                    colnames[i++] = exp.getPostfixValue();
-            }
+            if (exp.getPrefixType() == FragmentType.FIELD || exp.getPrefixType() == FragmentType.FIELD_CONTENT_MODIFIER)
+                colnames[i++] = exp.getPrefixValue();
+            if (exp.getPostfixType() == FragmentType.FIELD || exp.getPostfixType() == FragmentType.FIELD_CONTENT_MODIFIER)
+                colnames[i++] = exp.getPostfixValue();
         }
 
         return colnames;
@@ -171,16 +153,12 @@ public class SQLWhereClause
         String expstr = "";
         for (SQLExpression exp : expressions)
         {
-            if (exp.getExpressionType() == ExpressionType.LOGICAL_EXPRESSION)
+            if(exp.getPrefixType() == FragmentType.FIELD && exp.getPrefixValue().equals(colname) ||
+               exp.getPostfixType() == FragmentType.FIELD && exp.getPostfixValue().equals(colname))
             {
-
-                if(exp.getPrefixType() == FragmentType.FIELD && exp.getPrefixValue().equals(colname) ||
-                   exp.getPostfixType() == FragmentType.FIELD && exp.getPostfixValue().equals(colname))
-                {
-                    if (expstr.length() != 0)
-                        expstr += " AND ";
-                    expstr += exp.toString();
-                }
+                if (expstr.length() != 0)
+                    expstr += " AND ";
+                expstr += exp.toString();
             }
         }
 
@@ -242,27 +220,57 @@ public class SQLWhereClause
 
         String[] splitedwhereands = whereclause.split(andregex);
 
-        for (int i = 0; i < splitedwhereands.length; i++)
+        for (int andsIndex = 0; andsIndex < splitedwhereands.length; andsIndex++)
         {
-            splitedwhereands[i] = handleGroupParens(splitedwhereands[i]);
+            splitedwhereands[andsIndex] = handleGroupParens(splitedwhereands[andsIndex]);
 
-            String splitedwhereandors[] = splitedwhereands[i].split(orregex);
-            for (int y = 0; y < splitedwhereandors.length; y++)
+            String splitedwhereandors[] = splitedwhereands[andsIndex].split(orregex);
+
+            for (int orsIndex = 0; orsIndex < splitedwhereandors.length; orsIndex++)
             {
-                splitedwhereandors[y] = handleGroupParens(splitedwhereandors[y]);
+                splitedwhereandors[orsIndex] = handleGroupParens(splitedwhereandors[orsIndex]);
+                SQLExpression exp = new SQLExpression();
 
-                SQLExpression exp = new SQLExpression( ExpressionType.LOGICAL_EXPRESSION);
-
-                exp.ParseExpression(splitedwhereandors[y]);
+                exp.ParseExpression(splitedwhereandors[orsIndex]);
 
                 addExpression(exp);
 
-                if (y < splitedwhereandors.length - 1)
-                    addExpression(orOperatorExp);
+                //First expressions don't need previous unifier
+                if (orsIndex > 0)
+                {
+                    orOperatorUsed = true;
+                    exp.setPreviousExpUnifier(orOperator);
+                }
+                else
+                {
+                    if (andsIndex > 0)
+                        exp.setPreviousExpUnifier(andOperator);
+                }
             }
-
-            if (i < splitedwhereands.length - 1)
-                addExpression(andOperatorExp);
         }
+    }
+
+    public boolean containsEqualityCondition(HashMap<String, String> map, String first, String second)
+    {
+        boolean andsmatch = false;
+        SQLOperator prevunifier = null;
+        for (SQLExpression exp : expressions)
+        {
+            prevunifier = exp.getPreviousExpUnifier();
+            boolean localmatch = exp.isEqualityCondition(map, first, second);
+
+            if (prevunifier == null || prevunifier.equals(andOperator))
+                andsmatch |= localmatch;
+            else if (prevunifier != null && prevunifier.equals(orOperator))
+            {
+                if (!andsmatch || !localmatch)
+                {
+                    return false;
+                }
+
+                andsmatch = false;
+            }
+        }
+        return andsmatch;
     }
 }

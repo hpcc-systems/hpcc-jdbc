@@ -48,7 +48,7 @@ public class SQLColumn
 
     public SQLColumn(String fullname, int coltype, int position)
     {
-        String[] nameparts = name.split("\\.");
+        String[] nameparts = name.split(HPCCJDBCUtils.DOTSEPERATORREGEX);
         if (nameparts.length > 1)
         {
             parenttable = nameparts[0];
@@ -67,7 +67,7 @@ public class SQLColumn
     public SQLColumn(String fullname, int position)
     {
 
-        String[] nameparts = fullname.split("\\.");
+        String[] nameparts = fullname.split(HPCCJDBCUtils.DOTSEPERATORREGEX);
         if (nameparts.length > 1)
         {
             parenttable = nameparts[0];

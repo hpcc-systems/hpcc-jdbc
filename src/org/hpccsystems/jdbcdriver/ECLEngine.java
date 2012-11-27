@@ -118,7 +118,7 @@ public class ECLEngine
         HashMap<String, String> eclDSSourceMapping = new HashMap<String, String>();
 
         DFUFile indexFileToUse = null;
-        int totalParamCount = 0;
+        int totalWhereClauseExpressions = 0;
         boolean isPayloadIndex = false;
         String indexPosField = null;
 
@@ -139,18 +139,22 @@ public class ECLEngine
 
         addFileColsToAvailableCols(hpccQueryFile, availablecols);
 
-        if (sqlParser.hasJoinClause())
+        SQLJoinClause joinclause = sqlParser.getJoinClause();
+        if (joinclause != null)
         {
-            String joinTableName = sqlParser.getJoinClause().getJoinTableName();
-            if (!dbMetadata.tableExists("", joinTableName))
-                throw new SQLException("Invalid or forbidden Join table found: " + joinTableName);
+            //TODO is there a way to prevent processing join here, and later on??
+            for (int i = 0; i < joinclause.getJoinTablesCount(); i++)
+            {
+                String joinTableName = joinclause.getJoinTableName(i);
+                if (!dbMetadata.tableExists("", joinTableName))
+                    throw new SQLException("Invalid or forbidden Join table found: " + joinTableName);
 
-            DFUFile joinTableFile = dbMetadata.getDFUFile(joinTableName);
-            if (!joinTableFile.hasFileRecDef())
-                throw new SQLException("Cannot query: " + joinTableName
-                        + " because it does not contain an ECL record definition.");
+                DFUFile joinTableFile = dbMetadata.getDFUFile(joinTableName);
+                if (!joinTableFile.hasFileRecDef())
+                    throw new SQLException("Cannot query: "+ joinTableName+" because it does not contain an ECL record definition.");
 
-            addFileColsToAvailableCols(joinTableFile, availablecols);
+                addFileColsToAvailableCols(joinTableFile, availablecols);
+            }
 
             avoidindex = true; // will not be using index
 
@@ -184,9 +188,7 @@ public class ECLEngine
             tmpindexname = findAppropriateIndex(hpccQueryFile.getRelatedIndexesList(), expectedretcolumns, sqlParser);
         }
 
-        totalParamCount = sqlParser.getWhereClauseExpressionsCount();
-
-        eclEntities.put("PARAMCOUNT", Integer.toString(totalParamCount));
+        totalWhereClauseExpressions = sqlParser.getWhereClauseExpressionsCount();
 
         if (tmpindexname != null)
         {
@@ -204,7 +206,7 @@ public class ECLEngine
             eclDSSourceMapping.put(queryFileName, "IdxDS");
 
             StringBuffer idxsetupstr = new StringBuffer();
-            idxsetupstr.append("Idx := INDEX(Tbl1DS, {")
+            idxsetupstr.append("Idx := INDEX(TblDS0, {")
                     .append(indexFileToUse.getKeyedFieldsAsDelmitedString(',', null)).append("}");
 
             if (indexFileToUse.getNonKeyedColumnsCount() > 0)
@@ -226,7 +228,7 @@ public class ECLEngine
             else
             {
                 HPCCJDBCUtils.traceoutln(Level.INFO,  " Not as PAYLOAD");
-                idxsetupstr.append("IdxDS := FETCH(Tbl1DS, Idx( ").append(keyedAndWild.toString())
+                idxsetupstr.append("IdxDS := FETCH(TblDS0, Idx( ").append(keyedAndWild.toString())
                         .append("), RIGHT.").append(indexFileToUse.getIdxFilePosField()).append(");\n");
             }
             eclEntities.put("IndexRead", idxsetupstr.toString());
@@ -238,84 +240,146 @@ public class ECLEngine
         {
             if (indexFileToUse != null && indexPosField != null)
                 eclCode.append(hpccQueryFile.getFileRecDefwithIndexpos(
-                        indexFileToUse.getFieldMetaData(indexPosField), "Tbl1RecDef"));
+                        indexFileToUse.getFieldMetaData(indexPosField), "TblDS0RecDef"));
             else
-                eclCode.append(hpccQueryFile.getFileRecDef("Tbl1RecDef"));
+                eclCode.append(hpccQueryFile.getFileRecDef("TblDS0RecDef"));
             eclCode.append("\n");
         }
         else
             throw new SQLException("Target HPCC file (" + queryFileName + ") does not contain ECL record definition");
 
         if (!eclDSSourceMapping.containsKey(queryFileName))
-            eclDSSourceMapping.put(queryFileName, "Tbl1DS");
+            eclDSSourceMapping.put(queryFileName, "TblDS0");
 
         if (!hpccQueryFile.isKeyFile())
-            eclCode.append("Tbl1DS := DATASET(\'~").append(hpccQueryFile.getFullyQualifiedName())
-                    .append("\', Tbl1RecDef,").append(hpccQueryFile.getFormat()).append(");\n");
+            eclCode.append("TblDS0 := DATASET(\'~").append(hpccQueryFile.getFullyQualifiedName())
+                    .append("\', TblDS0RecDef,").append(hpccQueryFile.getFormat()).append(");\n");
         else
         {
-            eclCode.append("Tbl1DS := INDEX( ");
+            eclCode.append("TblDS0 := INDEX( ");
             eclCode.append('{');
-            eclCode.append(hpccQueryFile.getKeyedFieldsAsDelmitedString(',', "Tbl1RecDef"));
+            eclCode.append(hpccQueryFile.getKeyedFieldsAsDelmitedString(',', "TblDS0RecDef"));
             eclCode.append("},{");
-            eclCode.append(hpccQueryFile.getNonKeyedFieldsAsDelmitedString(',', "Tbl1RecDef"));
+            eclCode.append(hpccQueryFile.getNonKeyedFieldsAsDelmitedString(',', "TblDS0RecDef"));
             eclCode.append("},");
             eclCode.append("\'~").append(hpccQueryFile.getFullyQualifiedName()).append("\');\n");
         }
 
-        if (sqlParser.hasJoinClause())
+        if (joinclause != null)
         {
-            String hpccJoinFileName = HPCCJDBCUtils.handleQuotedString(sqlParser.getJoinClause()
-                    .getJoinTableName()).toUpperCase();
+            int joinsCount = joinclause.getJoinTablesCount();
 
-            if (!dbMetadata.tableExists("", hpccJoinFileName))
-                throw new SQLException("Invalid Join table found: " + hpccJoinFileName);
-
-            DFUFile hpccJoinFile = dbMetadata.getDFUFile(hpccJoinFileName);
-
-            if (hpccJoinFile.hasFileRecDef())
-            {
-                // if (indexfiletouse != null && indexposfield != null)
-                // eclcode.append(hpccQueryFile.getFileRecDefwithIndexpos(indexfiletouse.getFieldMetaData(indexposfield),
-                // "Tbl1RecDef"));
-                // else
-                eclCode.append(hpccJoinFile.getFileRecDef("\nTbl2RecDef"));
-                eclCode.append("\n");
-            }
-            else
-                throw new SQLException("Target HPCC file (" + hpccJoinFile + ") does not contain ECL record definition");
-
-            eclDSSourceMapping.put(hpccJoinFileName, "Tbl2DS");
-
-            if (!hpccJoinFile.isKeyFile())
-                eclCode.append("Tbl2DS := DATASET(\'~").append(hpccJoinFile.getFullyQualifiedName())
-                        .append("\', Tbl2RecDef,").append(hpccJoinFile.getFormat()).append(");\n");
-            else
-            {
-                eclCode.append("Tbl2DS := INDEX( ");
-                eclCode.append('{');
-                eclCode.append(hpccJoinFile.getKeyedFieldsAsDelmitedString(',', "Tbl2RecDef"));
-                eclCode.append("},{");
-                eclCode.append(hpccJoinFile.getNonKeyedFieldsAsDelmitedString(',', "Tbl2RecDef"));
-                eclCode.append("},");
-                eclCode.append("\'~").append(hpccJoinFile.getFullyQualifiedName()).append("\');\n");
-            }
-
-            HashMap<String, String> translator = new HashMap<String, String>(2);
+            HashMap<String, String> translator = new HashMap<String, String>();
 
             translator.put(queryFileName, "LEFT");
-            translator.put(hpccJoinFileName, "RIGHT");
+            /*
+             * Each join table triggers a new Join comprised of either the querytable or
+             * the previous join, and the current join table.
+             *
+             * In order to achieve this, the following is performed for each jointable:
+             * Define the tables's record definition: TblDSXRecDef := RECORD fields END;
+             * Create Dataset based on the table's content:
+             *  If the table is not indexed:
+             *   TblDSX := DATASET(\'~HPCCFILENAME', TblDSXRecDef, FILEFORMAT)
+             *  If the table is indexed:
+             *   TblDSX := INDEX({KEYEDFIELDS}, {NONKEYEDFIELDS}, \'~HPCCFILENAME')
+             */
+            for (int joinTableIndex = 0; joinTableIndex < joinsCount; joinTableIndex++)
+            {
+                String hpccJoinFileName = HPCCJDBCUtils.handleQuotedString(joinclause
+                        .getJoinTableName(joinTableIndex)).toUpperCase();
 
-            eclCode.append("\n").append("JndDS := JOIN(").append(" Tbl1DS").append(", Tbl2DS").append(", ")
-                    .append(sqlParser.getJoinClause().getOnClause().toStringTranslateSource(translator));
+                if (!dbMetadata.tableExists("", hpccJoinFileName))
+                    throw new SQLException("Invalid Join table found: " + hpccJoinFileName);
 
-            if (totalParamCount > 0)
-                eclCode.append(" AND ").append(sqlParser.getWhereClauseStringTranslateSource(translator));
-            eclCode.append(", ").append(sqlParser.getJoinClause().getECLTypeStr()).append(" );\n");
+                DFUFile hpccJoinFile = dbMetadata.getDFUFile(hpccJoinFileName);
 
-            eclDSSourceMapping.put(queryFileName, "JndDS");
-            eclDSSourceMapping.put(hpccJoinFileName, "JndDS");
+                String currntTblDS = "TblDS" + (joinTableIndex+1);
+                String currntTblRecDef = currntTblDS + "RecDef";
+                String currntJoin = "JndDS" + (joinTableIndex+1);
 
+                if (hpccJoinFile.hasFileRecDef())
+                {
+                    //Not currently supporting index fetches for join operations
+                    // if (indexfiletouse != null && indexposfield != null)
+                    // eclcode.append(hpccQueryFile.getFileRecDefwithIndexpos(indexfiletouse.getFieldMetaData(indexposfield),
+                    // "TblDS0RecDef"));
+                    // else
+                    eclCode.append(hpccJoinFile.getFileRecDef("\n" + currntTblRecDef));
+                    eclCode.append("\n");
+                }
+                else
+                    throw new SQLException("Target HPCC file (" + hpccJoinFile + ") does not contain ECL record definition");
+
+                eclDSSourceMapping.put(hpccJoinFileName, currntTblDS);
+
+                if (!hpccJoinFile.isKeyFile())
+                {
+                    eclCode.append(currntTblDS + " := DATASET(\'~")
+                            .append(hpccJoinFile.getFullyQualifiedName())
+                            .append("\', ")
+                            .append(currntTblRecDef)
+                            .append(",")
+                            .append(hpccJoinFile.getFormat())
+                            .append(");\n");
+                }
+                else
+                {
+                    eclCode.append(currntTblDS)
+                            .append(" := INDEX( ")
+                            .append('{')
+                            .append(hpccJoinFile.getKeyedFieldsAsDelmitedString(',', currntTblRecDef))
+                            .append("},{")
+                            .append(hpccJoinFile.getNonKeyedFieldsAsDelmitedString(',', currntTblRecDef))
+                            .append("},\'~")
+                            .append(hpccJoinFile.getFullyQualifiedName())
+                            .append("\');\n");
+                }
+
+                eclCode.append("\n").append(currntJoin).append(" := JOIN( ");
+
+                translator.put(hpccJoinFileName, "RIGHT");
+
+                if(joinTableIndex == 0)
+                {
+                    //First Join, previous DS is TblDS0
+                    eclCode.append("TblDS0");
+                }
+                else
+                {
+                    //N+1th Join, previous DS is JndDSN
+                    eclCode.append("JndDS" + joinTableIndex);
+                }
+
+                String translatedAndFilteredOnClause = joinclause.getOnClause().toStringTranslateSource(translator, false);
+
+                eclCode.append(", ")
+                        .append(currntTblDS)
+                        .append(", ")
+                        .append(translatedAndFilteredOnClause);
+
+                if (totalWhereClauseExpressions > 0)
+                {
+                    eclCode.append(" AND ").append(sqlParser.getWhereClauseStringTranslateSource(translator, false));
+                }
+
+                eclCode.append(", ").append(joinclause.getECLTypeStr());
+
+                if (!joinclause.getOnClause().containsEqualityCondition(translator, "LEFT", "RIGHT"))
+                {
+                    HPCCJDBCUtils.logger.log(Level.WARNING, "Warning: No Join EQUALITY CONDITION detected!, using ECL ALL option");
+                    eclCode.append(", ALL");
+                }
+
+                eclCode.append(" );\n");
+
+                //move this file to LEFT for possible next iteration
+                translator.put(hpccJoinFileName, "LEFT");
+
+                eclDSSourceMapping.put(hpccJoinFileName, "JndDS"+joinsCount);
+            }
+
+            eclDSSourceMapping.put(queryFileName, "JndDS"+joinsCount);
             eclEntities.put("JoinQuery", "1");
         }
 
