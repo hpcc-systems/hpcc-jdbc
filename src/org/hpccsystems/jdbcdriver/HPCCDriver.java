@@ -226,9 +226,10 @@ public class HPCCDriver implements Driver
 
     private static void initializePropInfo()
     {
-        int totalConfigProps = 18;
-        infoArray = new DriverPropertyInfo[totalConfigProps];
+        String [] boolchoices = new String [] {"true", "false"};
 
+        int totalConfigProps = 19;
+        infoArray = new DriverPropertyInfo[totalConfigProps];
 
         infoArray[--totalConfigProps] = new DriverPropertyInfo("ConnectTimeoutMilli", CONNECTTIMEOUTMILDEFAULT);
         infoArray[totalConfigProps].description = "HPCC requests connection time out value in milliseconds.";
@@ -237,6 +238,11 @@ public class HPCCDriver implements Driver
         infoArray[--totalConfigProps] = new DriverPropertyInfo("ReadTimeoutMilli", READTIMEOUTMILDEFAULT);
         infoArray[totalConfigProps].description = "HPCC requests connection read time out value in milliseconds.";
         infoArray[totalConfigProps].required = false;
+
+        infoArray[--totalConfigProps] = new DriverPropertyInfo("LazyLoad", LAZYLOADDEFAULT);
+        infoArray[totalConfigProps].description = "If disabled, all HPCC metadata loaded and cached at connect time; otherwise HPCC file, and published query info is loaded on-demand";
+        infoArray[totalConfigProps].required = false;
+        infoArray[totalConfigProps].choices = boolchoices;
 
         infoArray[--totalConfigProps] = new DriverPropertyInfo("EclResultLimit", ECLRESULTLIMDEFAULT);
         infoArray[totalConfigProps].description = "Default limit on number of result records returned.";
@@ -250,7 +256,7 @@ public class HPCCDriver implements Driver
         infoArray[--totalConfigProps] = new DriverPropertyInfo("TraceToFile", TRACETOFILEDEFAULT);
         infoArray[totalConfigProps].description = "false -> System.out, true -> " + HPCCJDBCUtils.workingDir +  HPCCJDBCUtils.traceFileName;
         infoArray[totalConfigProps].required = false;
-        infoArray[totalConfigProps].choices = new String [] {"true", "false"};
+        infoArray[totalConfigProps].choices = boolchoices;
 
         infoArray[--totalConfigProps] = new DriverPropertyInfo("TargetCluster", CLUSTERDEFAULT);
         infoArray[totalConfigProps].description = "Target cluster on which to execute ECL code.";
