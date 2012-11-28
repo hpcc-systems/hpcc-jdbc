@@ -48,13 +48,13 @@ public class SQLParser
     }
 
     private List<SQLTable>           sqlTables;
-    private SQLType                 sqlType;
+    private SQLType                  sqlType;
     private LinkedList<HPCCColumnMetaData> selectColumns;
     private SQLWhereClause           whereClause;
     private SQLJoinClause            joinClause = null;
     private SQLWhereClause           havingClause = null;
-    private SQLFragment[]            groupByFragments;
-    private SQLFragment[]            orderByFragments;
+    private List<HPCCColumnMetaData> groupByFragments;
+    private List<HPCCColumnMetaData> orderByFragments;
     private String[]                 procInParamValues = null;
     private String                   storedProcName;
     private int                      limit = -1;
@@ -95,23 +95,7 @@ public class SQLParser
         insql = HPCCJDBCUtils.removeAllNewLines(insql);
         String insqlupcase = insql.toUpperCase();
 
-        if (insql.matches("^(?i)alter\\s+(.*?)"))
-        {
-            throw new SQLException("ALTER TABLE statements are not supported.");
-        }
-        else if (insql.matches("^(?i)drop\\s+(.*?)"))
-        {
-            throw new SQLException("DROP statements are not supported.");
-        }
-        else if (insql.matches("^(?i)insert\\s+(.*?)"))
-        {
-            throw new SQLException("INSERT statements are not supported.");
-        }
-        else if (insql.matches("^(?i)update\\s+(.*?)"))
-        {
-            throw new SQLException("UPDATE statements are not supported.");
-        }
-        else if (insql.matches("^(?i)call\\s+(.*?)"))
+        if (insql.matches("^(?i)call\\s+(.*?)"))
         {
             sqlType = SQLType.CALL;
             int callstrpos = insqlupcase.lastIndexOf("CALL ");
@@ -229,9 +213,8 @@ public class SQLParser
             {
                 StringTokenizer tokenizer = new StringTokenizer(orderByToken, ",");
 
-                orderByFragments = new SQLFragment[tokenizer.countTokens()];
+                orderByFragments = new ArrayList<HPCCColumnMetaData>();
 
-                int i = 0;
                 while (tokenizer.hasMoreTokens())
                 {
                     String orderbycolumn = tokenizer.nextToken().trim();
@@ -248,12 +231,12 @@ public class SQLParser
                         orderbycolumn = orderbycolumn.substring(0, dirPos).trim();
                     }
 
-                    SQLFragment frag = new SQLFragment(orderbycolumn);
+                    HPCCColumnMetaData order = new HPCCColumnMetaData(orderbycolumn, 0, java.sql.Types.OTHER);
 
                     if (!orderbyascending)
-                        frag.setValue("-"+frag.getValue());
+                        order.setSortAscending(false);
 
-                    orderByFragments[i++] = frag;
+                    orderByFragments.add(order);
                 }
             }
 
@@ -269,12 +252,11 @@ public class SQLParser
                 }
 
                 StringTokenizer tokenizer = new StringTokenizer(groupByToken, ",");
-                groupByFragments = new SQLFragment[tokenizer.countTokens()];
-                int i = 0;
+                groupByFragments = new ArrayList<HPCCColumnMetaData>();
 
                 while (tokenizer.hasMoreTokens())
                 {
-                    groupByFragments[i++] = new SQLFragment(tokenizer.nextToken().trim());;
+                    groupByFragments.add(new HPCCColumnMetaData(tokenizer.nextToken().trim(), 0, java.sql.Types.OTHER));
                 }
             }
 
@@ -515,6 +497,22 @@ public class SQLParser
                 throw new SQLException(e.getMessage());
             }
         }
+        else if (insql.matches("^(?i)alter\\s+(.*?)"))
+        {
+            throw new SQLException("ALTER TABLE statements are not supported.");
+        }
+        else if (insql.matches("^(?i)drop\\s+(.*?)"))
+        {
+            throw new SQLException("DROP statements are not supported.");
+        }
+        else if (insql.matches("^(?i)insert\\s+(.*?)"))
+        {
+            throw new SQLException("INSERT statements are not supported.");
+        }
+        else if (insql.matches("^(?i)update\\s+(.*?)"))
+        {
+            throw new SQLException("UPDATE statements are not supported.");
+        }
         else
             throw new SQLException("Invalid SQL found - only supports CALL and/or SELECT statements.");
     }
@@ -619,12 +617,12 @@ public class SQLParser
 
     public int orderByCount()
     {
-        return orderByFragments == null ? 0 : orderByFragments.length;
+        return orderByFragments == null ? 0 : orderByFragments.size();
     }
 
     public boolean hasOrderByColumns()
     {
-        return orderByFragments != null && orderByFragments.length > 0 ? true : false;
+        return orderByFragments != null && orderByFragments.size() > 0 ? true : false;
     }
 
     public String getOrderByString()
@@ -635,10 +633,12 @@ public class SQLParser
     public String getOrderByString(char delimiter)
     {
         StringBuilder tmp = new StringBuilder("");
-        for (int i = 0; i < orderByFragments.length; i++)
+        int orderbycount = orderByFragments.size();
+        for (int i = 0; i < orderbycount; i++)
         {
-            tmp.append(orderByFragments[i].getValue());
-            if (i != orderByFragments.length - 1)
+            HPCCColumnMetaData ordercol = orderByFragments.get(i);
+            tmp.append((ordercol.isSortAscending() ? "" : "-") + ordercol.getColumnNameOrAlias());
+            if (i != orderbycount - 1)
                 tmp.append(delimiter);
         }
         return tmp.toString();
@@ -652,10 +652,12 @@ public class SQLParser
     public String getGroupByString(char delimiter)
     {
         StringBuilder tmp = new StringBuilder("");
-        for (int i = 0; i < groupByFragments.length; i++)
+
+        int groupbycount = groupByFragments.size();
+        for (int i = 0; i < groupbycount; i++)
         {
-            tmp.append(groupByFragments[i].getValue());
-            if (i != groupByFragments.length - 1)
+            tmp.append(groupByFragments.get(i).getColumnName());
+            if (i != groupbycount - 1)
                 tmp.append(delimiter);
         }
         return tmp.toString();
@@ -663,7 +665,7 @@ public class SQLParser
 
     public boolean hasGroupByColumns()
     {
-        return groupByFragments != null && groupByFragments.length > 0 ? true : false;
+        return groupByFragments != null && groupByFragments.size() > 0 ? true : false;
     }
 
     public boolean hasLimitBy()
@@ -840,7 +842,63 @@ public class SQLParser
         if (selectColsContainWildcard)
             expandWildCardColumn(availableCols);
 
+        if (orderByFragments != null)
+        {
+            for (HPCCColumnMetaData ordercol : orderByFragments)
+            {
+                verifyColAndDisabiguateName(ordercol);
+            }
+        }
+
+        if (groupByFragments != null)
+        {
+            for (HPCCColumnMetaData ordercol : groupByFragments)
+            {
+                verifyColAndDisabiguateName(ordercol);
+            }
+        }
+
         columnsVerified = true;
+    }
+
+    public void verifyColAndDisabiguateName(HPCCColumnMetaData column)  throws SQLException
+    {
+        String fieldName = column.getColumnName();
+        String colsplit[] = fieldName.split(HPCCJDBCUtils.DOTSEPERATORREGEX);
+
+        if (colsplit.length == 2)
+        {
+            try
+            {
+                searchForPossibleTableName(colsplit[0]);
+            }
+            catch (Exception e)
+            {
+                throw new SQLException("Invalid column found: " + fieldName);
+            }
+
+            fieldName = colsplit[1];
+        }
+        else if (colsplit.length > 2)
+            throw new SQLException("Invalid column found: " + fieldName);
+
+        //boolean found = false;
+        for (HPCCColumnMetaData selcol : selectColumns)
+        {
+            String selcolname = selcol.getColumnName();
+            String selcolalias = selcol.getAlias();
+            if (selcolname.equalsIgnoreCase(fieldName) ||
+                (selcolalias != null && selcolalias.equalsIgnoreCase(fieldName)))
+            {
+                column.setColumnName(selcolname);
+                if (selcolalias != null)
+                    column.setAlias(selcolalias);
+          //      found = true;
+                break;
+            }
+        }
+        //if (!found)
+        //    throw new SQLException("Invalid column found: " + fieldName);
     }
 
     public void verifyAndProcessAllColumn(HPCCColumnMetaData column, HashMap<String, HPCCColumnMetaData> availableCols)  throws SQLException
@@ -917,10 +975,10 @@ public class SQLParser
     */
     private String searchForPossibleTableName(String searchname) throws SQLException
     {
-        for (int i = 0; i < sqlTables.size(); i++)
+        for (SQLTable currTable : sqlTables)
         {
-            SQLTable currTable = sqlTables.get(i);
-            if (searchname.equals(currTable.getAlias()) || searchname.equals(currTable.getName()))
+            if (searchname.equalsIgnoreCase(currTable.getAlias()) ||
+                searchname.equalsIgnoreCase(currTable.getName()))
                 return currTable.getName();
         }
 

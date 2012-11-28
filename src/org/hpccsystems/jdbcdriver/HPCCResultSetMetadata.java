@@ -43,12 +43,7 @@ public class HPCCResultSetMetadata implements ResultSetMetaData
         {
             col.setIndex(colIndex++);
 
-            columnListHash.put(col.getColumnName().toUpperCase(), col);
-
-            if (!columnListHash.containsKey(col.getColumnNameOrAlias()))
-            {
-                columnListHash.put(col.getColumnNameOrAlias().toUpperCase(), col);
-            }
+            columnListHash.put(col.getColumnNameOrAlias().toUpperCase(), col);
         }
     }
 
