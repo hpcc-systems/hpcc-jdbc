@@ -49,11 +49,12 @@ public class HPCCColumnMetaData
     private int                      paramType;
     private String                   javaClassName;
     private String                   constantValue = null;
-    private ColumnType              columnType;
+    private ColumnType               columnType;
     private String                   alias = null;
     private List<HPCCColumnMetaData> funccols = null;
     private boolean                  isDistinct = false;
     private ECLFunction              contentModifier = null;
+    private boolean                  sortAscending = true;
 
     public HPCCColumnMetaData(String columnName, int index, int sqlType, String constant, String eclType)
     {
@@ -290,6 +291,16 @@ public class HPCCColumnMetaData
     public void setContentModifier(ECLFunction contentModifier)
     {
         this.contentModifier = contentModifier;
+    }
+
+    public boolean isSortAscending()
+    {
+        return sortAscending;
+    }
+
+    public void setSortAscending(boolean sortAscending)
+    {
+        this.sortAscending = sortAscending;
     }
 
     @Override
