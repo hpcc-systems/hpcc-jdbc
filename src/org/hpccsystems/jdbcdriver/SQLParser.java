@@ -287,21 +287,21 @@ public class SQLParser
                 queryTable = null;
 
                 String splittablefromalias[] = selTables.nextToken().trim().split("\\s+(?i)as(\\s+|$)");
-                if (splittablefromalias.length == 1)
+                if (splittablefromalias.length == 1) //Only table name found (no AS keyword)
                 {
                     String splittablebyblank[] = splittablefromalias[0].trim().split("\\s+");
                     queryTable = new SQLTable(HPCCJDBCUtils.handleQuotedString(splittablebyblank[0]));
-                    if (splittablebyblank.length == 2)
+                    if (splittablebyblank.length == 2) //Blank space(s) found, table name and alias detected.
                         queryTable.setAlias(HPCCJDBCUtils.handleQuotedString(splittablebyblank[1]));
-                    else if (splittablebyblank.length > 2)
+                    else if (splittablebyblank.length > 2) //Too many breaks found.
                         throw new SQLException("Invalid SQL: " + splittablefromalias[0]);
                 }
-                else if (splittablefromalias.length == 2)
+                else if (splittablefromalias.length == 2) //Table name and alias found
                 {
                     queryTable = new SQLTable(HPCCJDBCUtils.handleQuotedString(splittablefromalias[0]));
                     queryTable.setAlias(HPCCJDBCUtils.handleQuotedString(splittablefromalias[1]));
                 }
-                else
+                else //Multiple 'AS' keywords found?
                     throw new SQLException("Invalid SQL: " + fullTableName);
 
                 sqlTables.add(queryTable);
