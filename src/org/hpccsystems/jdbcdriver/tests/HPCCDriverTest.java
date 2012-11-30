@@ -786,6 +786,10 @@ public class HPCCDriverTest
             executeFreeHandSQL(propsinfo,"select 1 as ONE,2,3 as THREE,4", params, true, 1, "Select four numeric constants Aliased");
 
             executeFreeHandSQL(propsinfo,
+                    "select  \"peeps\".\"lastname\" as 'name',  \"progguide::exampledata::people\".\"lastname\" as 'lname', 'lastname'  from \"progguide::exampledata::people\" as \"peeps\" where \"peeps\".\"lastname\" = \"COOLING\" ORDER BY 'firstname' GROUP BY \"peeps\".\"lastname\" limit 100 ",
+                    params, true, 1, "duplicate column, one aliased");
+
+            executeFreeHandSQL(propsinfo,
                     "select  peeps.gender as Sex, peeps.firstname AS NAME, peeps.lastname, peeps.lastname AS LNAME2 from progguide::exampledata::people peeps where ( peeps.firstname = 'TIMTOHY' ) limit 100 ",
                     params, true, 1, "duplicate column, one aliased");
 

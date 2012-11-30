@@ -260,13 +260,14 @@ public class HPCCJDBCUtils
 
     public static boolean isLiteralString(String str)
     {
-        String trimmed = str.trim();
-        if (trimmed.charAt(0) != '\'' && trimmed.charAt(0) != '\"')
-            return false;
-        if (trimmed.charAt(trimmed.length() - 1) != '\'' && trimmed.charAt(trimmed.length() - 1) != '\"')
-            return false;
+        boolean match = QUOTEDSTRPATTERN.matcher(str).matches();
 
-        return true;
+        if (match)
+        {
+           return !QUOTEDFULLFIELDPATTERN.matcher(str).matches();
+        }
+
+        return match;
     }
 
     public static boolean isNumeric(String str)
@@ -375,6 +376,9 @@ public class HPCCJDBCUtils
         else
             return result.toString();
     }
+
+    private final static Pattern QUOTEDFULLFIELDPATTERN = Pattern.compile(
+            "\\s*(\"|\')(.*?){1}(\\.)(.*?){1}(\"|\')\\s*",Pattern.DOTALL);
 
     private final static Pattern QUOTEDSTRPATTERN = Pattern.compile(
             "\\s*(\"|\')(.*?)(\"|\')\\s*",Pattern.DOTALL);

@@ -93,12 +93,12 @@ public class SQLFragment
         String fragsplit[] = fragment.split(HPCCJDBCUtils.DOTSEPERATORREGEX, 2);
         if (fragsplit.length == 1)
         {
-            setValue(fragsplit[0]);
+            setValue(HPCCJDBCUtils.handleQuotedString(fragsplit[0]));
         }
         else
         {
-            setParent(fragsplit[0]);
-            setValue(fragsplit[1]);
+            setParent(HPCCJDBCUtils.handleQuotedString(fragsplit[0]));
+            setValue(HPCCJDBCUtils.handleQuotedString(fragsplit[1]));
         }
     }
 
