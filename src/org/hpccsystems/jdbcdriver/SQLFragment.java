@@ -37,7 +37,8 @@ public class SQLFragment
         LIST,
         CONTENT_MODIFIER,
         FIELD_CONTENT_MODIFIER,
-        AGGREGATE_FUNCTION;
+        AGGREGATE_FUNCTION,
+        BOOLEAN;
     }
 
     private String fnname   =   null;
@@ -114,6 +115,7 @@ public class SQLFragment
                     fragment = HPCCJDBCUtils.replaceSQLwithECLEscapeChar(fragment);
                 case NUMERIC_FRAGMENT:
                 case PARAMETERIZED:
+                case BOOLEAN:
                     setValue(fragment);
                     break;
                 case FIELD:
@@ -171,6 +173,7 @@ public class SQLFragment
                                     case LITERAL_STRING:
                                     case NUMERIC_FRAGMENT:
                                     case PARAMETERIZED:
+                                    case BOOLEAN:
                                         setValue(subfragment);
                                         break;
                                 }
@@ -216,6 +219,10 @@ public class SQLFragment
         else if (HPCCJDBCUtils.isLiteralString(fragStr))
         {
             return FragmentType.LITERAL_STRING;
+        }
+        else if (HPCCJDBCUtils.isBooleanKeyWord(fragStr))
+        {
+            return FragmentType.BOOLEAN;
         }
         else if (HPCCJDBCUtils.isNumeric(fragStr))
         {

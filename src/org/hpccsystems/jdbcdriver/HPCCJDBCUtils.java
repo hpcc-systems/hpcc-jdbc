@@ -451,6 +451,7 @@ public class HPCCJDBCUtils
     private static HashMap<String, Integer> mapECLTypeNameToSQLType = new HashMap<String, Integer>();
     static
     {
+        mapECLTypeNameToSQLType.put("BOOLEAN", java.sql.Types.BOOLEAN);
         mapECLTypeNameToSQLType.put("STRING", java.sql.Types.VARCHAR);
         mapECLTypeNameToSQLType.put("QSTRING", java.sql.Types.VARCHAR);
         mapECLTypeNameToSQLType.put("FLOAT", java.sql.Types.FLOAT);
@@ -656,5 +657,13 @@ public class HPCCJDBCUtils
             }
         }
         throw new IllegalArgumentException(enumclass.getName() +".'" + strvalue + "' is not valid.");
+    }
+
+    public static final Pattern BOOLEANPATTERN = Pattern.compile(
+            "((?i)true|(?i)false)",Pattern.DOTALL);
+
+    public static boolean isBooleanKeyWord(String str)
+    {
+       return BOOLEANPATTERN.matcher(str).matches();
     }
 }
