@@ -470,6 +470,7 @@ public class HPCCJDBCUtils
         mapECLTypeNameToSQLType.put("GYEARMONTH", java.sql.Types.DATE);
         mapECLTypeNameToSQLType.put("GMONTHDAY", java.sql.Types.DATE);
         mapECLTypeNameToSQLType.put("DURATION", java.sql.Types.VARCHAR);
+        mapECLTypeNameToSQLType.put("STRING1", java.sql.Types.CHAR);
     }
 
     private static Pattern TRAILINGNUMERICPATTERN = Pattern.compile(
@@ -477,14 +478,24 @@ public class HPCCJDBCUtils
 
     public static int mapECLtype2SQLtype(String ecltype)
     {
-        String postfix = ecltype.substring(ecltype.lastIndexOf(':') + 1);
-
-        Matcher m = TRAILINGNUMERICPATTERN.matcher(postfix.toUpperCase());
-
-        int ftype = java.sql.Types.OTHER;
-        if (m.matches() && mapECLTypeNameToSQLType.containsKey(m.group(2)))
-            ftype = mapECLTypeNameToSQLType.get(m.group(2));
-        return ftype;
+        if (mapECLTypeNameToSQLType.containsKey(ecltype))
+        {
+            return mapECLTypeNameToSQLType.get(ecltype); //let's try to find the type as is
+        }
+        else
+        {
+            int ftype = java.sql.Types.OTHER;
+            String postfixUpper = ecltype.substring(ecltype.lastIndexOf(':') + 1).toUpperCase();
+            if (mapECLTypeNameToSQLType.containsKey(postfixUpper))
+                return mapECLTypeNameToSQLType.get(postfixUpper);
+            else
+            {
+                Matcher m = TRAILINGNUMERICPATTERN.matcher(postfixUpper);
+                if (m.matches() && mapECLTypeNameToSQLType.containsKey(m.group(2)))
+                    ftype = mapECLTypeNameToSQLType.get(m.group(2));
+                return ftype;
+            }
+        }
     }
 
     public enum EclTypes
@@ -589,7 +600,7 @@ public class HPCCJDBCUtils
     private final static HashMap<Integer, String> mapSQLtypeCodeToJavaClass = new HashMap<Integer, String>();
     static
     {
-        mapSQLtypeCodeToJavaClass.put(java.sql.Types.CHAR,          "java.lang.String");
+        mapSQLtypeCodeToJavaClass.put(java.sql.Types.CHAR,          "java.lang.Character");
         mapSQLtypeCodeToJavaClass.put(java.sql.Types.VARCHAR,       "java.lang.String");
         mapSQLtypeCodeToJavaClass.put(java.sql.Types.LONGVARCHAR,   "java.lang.String");
         mapSQLtypeCodeToJavaClass.put(java.sql.Types.NUMERIC,       "java.math.BigDecimal");

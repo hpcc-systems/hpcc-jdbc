@@ -141,10 +141,10 @@ public class HPCCResultSet implements ResultSet
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet close");
         closed = true;
-        lastResult = null;
-        rows = null;
-        index = -1;
-        resultMetadata = null;
+        //lastResult = null;
+        //rows = null;
+        //index = -1;
+        //resultMetadata = null;
     }
 
     public boolean wasNull() throws SQLException

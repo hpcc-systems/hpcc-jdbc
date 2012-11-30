@@ -48,6 +48,8 @@ public class HPCCConnection implements Connection
     private HPCCDatabaseMetaData metadata;
     private Properties           connectionProps;
     private Properties           clientInfo;
+    private SQLWarning           warnings = null;
+    private String               catalog = HPCCJDBCUtils.HPCCCATALOGNAME;
 
     public HPCCConnection(Properties props)
     {
@@ -146,13 +148,11 @@ public class HPCCConnection implements Connection
     public void commit() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST,  "HPCCConnection: commit Not supported yet.");
-        throw new UnsupportedOperationException("HPCCConnection: commit Not supported yet.");
     }
 
     public void rollback() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST,  "HPCCConnection: rollback Not supported yet.");
-        throw new UnsupportedOperationException("HPCCConnection: rollback Not supported yet.");
     }
 
     public void close() throws SQLException
@@ -183,12 +183,13 @@ public class HPCCConnection implements Connection
     public void setCatalog(String catalog) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCConnection: setCatalog Not supported yet.");
+        this.catalog = catalog;
     }
 
     public String getCatalog() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCConnection: getCatalog()");
-        return "HPCC Catalog";
+        return catalog;
     }
 
     public void setTransactionIsolation(int level) throws SQLException
@@ -206,7 +207,7 @@ public class HPCCConnection implements Connection
     public SQLWarning getWarnings() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST,  "HPCCConnection: getWarnings");
-        return null;
+        return warnings;
     }
 
     public void clearWarnings() throws SQLException

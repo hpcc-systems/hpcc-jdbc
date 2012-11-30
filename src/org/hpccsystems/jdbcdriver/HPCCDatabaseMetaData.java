@@ -455,14 +455,18 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public String getDatabaseProductName() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getDatabaseProductName: HPCC");
-        return "HPCC - Version " + HPCCBuildVersionFull;
+        // Some ODBC/JDBC bridges/clients do not like non-alpha chars.
+        // Apparently Easysoft's ODBC/JDBC gateway crashes when "-" of " " is in
+        // the name
+        return "HPCC Systems";
     }
 
     @Override
     public String getDatabaseProductVersion() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getDatabaseProductVersion");
-        return HPCCBuildVersionFull;
+        // Some ODBC/JDBC bridges/clients do not like alpha chars.
+        return HPCCBuildMajor + "." + HPCCBuildMinor;
     }
 
     @Override
@@ -567,7 +571,8 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public String getIdentifierQuoteString() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getIdentifierQuoteString");
-        return "";
+        // return "\'"; //OpenLink seems to require a valid quote
+        return "'"; // Easysoft seems to crash if driver returns anything but ""
     }
 
     @Override
@@ -735,7 +740,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public boolean supportsNonNullableColumns() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsNonNullableColumns");
-        return false;
+        return true;
     }
 
     @Override
@@ -756,7 +761,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public boolean supportsExtendedSQLGrammar() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsExtendedSQLGrammar");
-        return true;
+        return false;
     }
 
     @Override
@@ -791,57 +796,60 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public boolean supportsOuterJoins() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsOuterJoins");
-        return false;
+        return true;
     }
 
     @Override
     public boolean supportsFullOuterJoins() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsFullOuterJoins");
-        return false;
+        return true;
     }
 
     @Override
     public boolean supportsLimitedOuterJoins() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsLimitedOuterJoins");
-        return false;
+        return true;
     }
 
     @Override
     public String getSchemaTerm() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getSchemaTerm");
-        return "schema";
+        return "Schema";
     }
 
     @Override
     public String getProcedureTerm() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getProcedureTerm");
-        return "NULL";
+        // Easysoft's 2.3.0 gateway seems to crash if return is not ""
+        return "PublishedQuery";
     }
 
     @Override
     public String getCatalogTerm() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getCatalogTerm");
-        // this will be the cluster name for now
-        return "NULL";
+        return "Catalog";
     }
 
     @Override
     public boolean isCatalogAtStart() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData isCatalogAtStart");
-        return false;
+        return true;
     }
 
     @Override
     public String getCatalogSeparator() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getCatalogSeparator");
-        return "NULL";
+        // Easysoft's 2_3_0 gateway seems to crash if return anything other than
+        // ""
+        // Will not report Catalog seperator since HPCC systems is lone catalog.
+        return "";
     }
 
     @Override
@@ -1142,21 +1150,21 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public int getMaxStatements() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getMaxStatements");
-        return 100;
+        return 1;
     }
 
     @Override
     public int getMaxTableNameLength() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getMaxTableNameLength 10240");
-        return 100;
+        return 1024;
     }
 
     @Override
     public int getMaxTablesInSelect() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getMaxTablesInSelect");
-        return 1;
+        return 2;
     }
 
     @Override
@@ -1436,19 +1444,17 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         ArrayList<String> rowValues = new ArrayList<String>();
         if (table != null)
         {
-            rowValues.add(table.getClusterName());
-            rowValues.add(table.getFullyQualifiedName());
-            rowValues.add(table.getFullyQualifiedName());
-            rowValues.add("TABLE");
-            rowValues.add(table.getDescription()
-                    + (table.hasRelatedIndexes() ? "Has " + table.getRelatedIndexesCount() + " related Indexes" : "")
-                    + (table.isKeyFile() ? "-Keyed File " : "") + (table.isSuperFile() ? "-SuperFile " : "")
-                    + (table.isFromRoxieCluster() ? "-FromRoxieCluster" : ""));
-            rowValues.add(null);
-            rowValues.add(null);
-            rowValues.add(null);
-            rowValues.add(null);
-            rowValues.add(null);
+            /* 1 */rowValues.add(HPCCJDBCUtils.HPCCCATALOGNAME);
+            /* 2 */rowValues.add(null);
+            /* 3 */rowValues.add(table.getFullyQualifiedName());
+            /* 4 */rowValues.add("TABLE");
+            /* 5 */rowValues.add("HPCC File "+ table.getDescription());
+            /* 6 */rowValues.add("");
+            /* 7 */rowValues.add("");
+            /* 8 */rowValues.add("");
+            /* 9 */rowValues.add("");
+            /* 10 */rowValues.add("");
+            /* 11 */rowValues.add("");
         }
         return rowValues;
     }
@@ -1481,7 +1487,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
 
         ArrayList<String> rowValues = new ArrayList<String>();
         catalogs.add(rowValues);
-        rowValues.add("");
+        rowValues.add("HPCC System");
 
         return new HPCCResultSet(catalogs, metacols, "Catalogs");
     }
