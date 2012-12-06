@@ -571,8 +571,10 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public String getIdentifierQuoteString() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getIdentifierQuoteString");
-        // return "\'"; //OpenLink seems to require a valid quote
-        return "'"; // Easysoft seems to crash if driver returns anything but ""
+        // OpenLink seems to require a valid quote
+        // Observed instances where Easysoft's ODBC/JDBC bridge crashed if driver returned anything but ""
+        // The issue was resolved after receiving an update from Easysoft.
+        return "'";
     }
 
     @Override
@@ -824,7 +826,6 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public String getProcedureTerm() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getProcedureTerm");
-        // Easysoft's 2.3.0 gateway seems to crash if return is not ""
         return "PublishedQuery";
     }
 

@@ -182,7 +182,7 @@ public class HPCCConnection implements Connection
 
     public void setCatalog(String catalog) throws SQLException
     {
-        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCConnection: setCatalog Not supported yet.");
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCConnection: setCatalog.");
         this.catalog = catalog;
     }
 

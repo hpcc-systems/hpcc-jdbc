@@ -484,16 +484,19 @@ public class HPCCJDBCUtils
         }
         else
         {
-            int ftype = java.sql.Types.OTHER;
             String postfixUpper = ecltype.substring(ecltype.lastIndexOf(':') + 1).toUpperCase();
             if (mapECLTypeNameToSQLType.containsKey(postfixUpper))
                 return mapECLTypeNameToSQLType.get(postfixUpper);
             else
             {
+                //TRAILINGNUMERICPATTERN attemps to match optional leading spaces
+                //followed by a string of alphas, followed by optional string of numerics
+                //then we look up the string of alphas in the known ECL type map (group(2))
                 Matcher m = TRAILINGNUMERICPATTERN.matcher(postfixUpper);
                 if (m.matches() && mapECLTypeNameToSQLType.containsKey(m.group(2)))
-                    ftype = mapECLTypeNameToSQLType.get(m.group(2));
-                return ftype;
+                    return mapECLTypeNameToSQLType.get(m.group(2));
+                else
+                    return java.sql.Types.OTHER;
             }
         }
     }
