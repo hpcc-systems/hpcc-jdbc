@@ -787,7 +787,31 @@ public class HPCCDriverTest
 
             executeFreeHandSQL(propsinfo,
                     "select  \"peeps\".\"lastname\" as 'name',  \"progguide::exampledata::people\".\"lastname\" as 'lname', 'lastname'  from \"progguide::exampledata::people\" as \"peeps\" where \"peeps\".\"lastname\" = \"COOLING\" ORDER BY 'firstname' GROUP BY \"peeps\".\"lastname\" limit 100 ",
-                    params, true, 1, "duplicate column, one aliased");
+                    params, true, 1, "fully quoted test");
+
+            executeFreeHandSQL(propsinfo,
+                    "select firstname from badword::search::bool AS badwords where foundword  =  TruE",
+                    params, true, 1, "boolean test true");
+
+            executeFreeHandSQL(propsinfo,
+                    "select firstname from badword::search::bool AS badwords where foundword  =  false",
+                    params, true, 1, "boolean test false");
+
+            executeFreeHandSQL(propsinfo,
+                    "select firstname from badword::search::bool AS badwords where foundword  =  false and foundword  =  tRUE",
+                    params, true, 0, "boolean test true and false");
+
+            executeFreeHandSQL(propsinfo,
+                    "select firstname from badword::search::bool AS badwords where foundword  =  false or foundword  =  tRUE",
+                    params, true, 1, "boolean test true or false");
+
+            executeFreeHandSQL(propsinfo,
+                    "select firstname from badword::search::bool AS badwords where foundword  =  0",
+                    params, false, 0, "bad boolean test, use numeric");
+
+            executeFreeHandSQL(propsinfo,
+                    "select firstname from badword::search::bool AS badwords where foundword  =  'true'",
+                    params, false, 0, "bad boolean test, used literal");
 
             executeFreeHandSQL(propsinfo,
                     "select  peeps.gender as Sex, peeps.firstname AS NAME, peeps.lastname, peeps.lastname AS LNAME2 from progguide::exampledata::people peeps where ( peeps.firstname = 'TIMTOHY' ) limit 100 ",
