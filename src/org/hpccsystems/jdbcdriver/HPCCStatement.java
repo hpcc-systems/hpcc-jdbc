@@ -195,7 +195,7 @@ public class HPCCStatement implements Statement
 
     public void setMaxRows(int max) throws SQLException
     {
-        throw new UnsupportedOperationException(className + ": setMaxRows(int max) Not supported yet.");
+        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setMaxRows(int max) Not supported yet.");
     }
 
     public void setEscapeProcessing(boolean enable) throws SQLException
