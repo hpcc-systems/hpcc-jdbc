@@ -30,8 +30,9 @@ public class HPCCResultSetMetadata implements ResultSetMetaData
 
     private List<HPCCColumnMetaData> columnList;
     private String                   tableName;
-    private String                   schemaName  = "HPCC";
-    private String                   catalogName = "roxie";
+    //CHANGED FOR ODBC TESTING
+    private String                   schemaName  = "";
+    private String                   catalogName = HPCCJDBCUtils.HPCCCATALOGNAME;
     private HashMap<String, HPCCColumnMetaData> columnListHash = null;
 
     private void generateExpectedRetColsHash()
