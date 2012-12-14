@@ -434,7 +434,7 @@ public class ECLEngine
                                     selectStructSB.append(", ");
                                     selectStructSB.append(paramname);
                                 }
-                                selectStructSB.append(", ALL)");
+                                selectStructSB.append(", HASH)");
                             }
                             else
                             {
@@ -532,7 +532,10 @@ public class ECLEngine
 
                 if (sqlParser.isSelectDistinct())
                 {
-                    eclCode.append(latestDS).append("Deduped := Dedup( ").append(latestDS).append(", ALL);\n");
+                    eclCode.append(latestDS)
+                    .append("Deduped := Dedup( ")
+                    .append(latestDS)
+                    .append(", HASH);\n");
                     latestDS += "Deduped";
                 }
 
@@ -584,7 +587,11 @@ public class ECLEngine
 
                 if (sqlParser.isSelectDistinct())
                 {
-                    eclCode.append(latestDS).append("Deduped := Dedup( ").append(latestDS).append(", ALL);\n");
+                    eclCode.append(latestDS)
+                    .append("Deduped := Dedup( ")
+                    .append(latestDS)
+                    .append(", HASH);\n");
+
                     latestDS += "Deduped";
                 }
 
