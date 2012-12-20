@@ -1,4 +1,4 @@
-body {
+﻿body {
     font-family: serif;
     font-size: 10pt;
     color: black;
@@ -154,7 +154,6 @@ div.list-of-equations dl,
 div.list-of-procedures dl {
     margin-top: 0;
     margin-bottom: 0;
-    
 }
 
 div.toc dt,
@@ -166,7 +165,6 @@ div.list-of-equations dt,
 div.list-of-procedures dt {
     margin-top: 0.25ex;
     margin-bottom: 0.25ex;
-    
 }
 
 div.toc dd,
@@ -178,14 +176,12 @@ div.list-of-equations dd,
 div.list-of-procedures dd {
     margin-top: 0;
     margin-bottom: 0;
-    
 }
 
 div.toc span.part,
 div.toc span.chapter,
 div.toc span.appendix {
     font-weight: bold;
-    
 }
 
 div.attribution {
@@ -258,6 +254,14 @@ acronym {
     font-weight: bold;
 }
 
+span.code {
+    font-family: monospace;
+}
+span.codebold {
+    font-family: monospace;
+    font-weight: bold;
+}
+
 span.bluebold {
     font-weight: bold;
     color: #00008B;
@@ -323,6 +327,10 @@ span.guilabel {
     font-weight: bold;
 }
 
+span.term
+{
+      font-family: sans-serif;
+}
 pre.programlisting {
   margin-left: 3.25em;
 }
