@@ -121,13 +121,17 @@ public class SQLWhereClause
     {
         String clause = new String("");
         String expstr = null;
-
+        boolean foundFirstExpression = false;
         for (SQLExpression exp : expressions)
         {
-            expstr = exp.toStringTranslateSource(map, ignoreMisTranslations);
+            expstr = exp.toStringTranslateSource(map, !foundFirstExpression, ignoreMisTranslations);
 
             if (expstr != null)
+            {
                 clause += expstr;
+                if (!foundFirstExpression)
+                    foundFirstExpression = true;
+            }
         }
         return clause;
     }
