@@ -188,11 +188,11 @@ public class SQLExpression
         return tmpsb.toString();
     }
 
-    public String toStringTranslateSource(HashMap<String, String> map, boolean ignoreMisTraslations)
+    public String toStringTranslateSource(HashMap<String, String> map, boolean ignoreprevunifier, boolean ignoreMisTraslations)
     {
             StringBuffer tmpsb = new StringBuffer();
 
-            if (prevExpUnifier != null)
+            if (!ignoreprevunifier && prevExpUnifier != null )
                 tmpsb.append(prevExpUnifier);
 
             String prefixtranslate = map.get(prefix.getParent());
