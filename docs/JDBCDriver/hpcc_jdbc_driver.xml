@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN"
-"http://www.oasis-open.org/docbook/xml/4.1.2/docbookx.dtd">
-<book lang="en_US">
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+"http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<book lang="en_US" xml:base="../">
   <bookinfo>
     <title>HPCC JDBC Driver</title>
 
@@ -32,15 +32,15 @@
       <para></para>
     </legalnotice>
 
-    <xi:include href="../common/Version.xml" xpointer="FooterInfo"
+    <xi:include href="common/Version.xml" xpointer="FooterInfo"
                 xmlns:xi="http://www.w3.org/2001/XInclude" />
 
-    <xi:include href="../common/Version.xml" xpointer="DateVer"
+    <xi:include href="common/Version.xml" xpointer="DateVer"
                 xmlns:xi="http://www.w3.org/2001/XInclude" />
 
     <corpname>HPCC Systems</corpname>
 
-    <xi:include href="../common/Version.xml" xpointer="Copyright"
+    <xi:include href="common/Version.xml" xpointer="Copyright"
                 xmlns:xi="http://www.w3.org/2001/XInclude" />
 
     <mediaobject role="logo">
@@ -55,7 +55,7 @@
 
     <para>Java Database Connectivity (<emphasis role="bold">JDBC</emphasis>)
     is a standard Java API that enables Java applications or client tools that
-    support JDBC to access a data from a<emphasis> presumably
+    support JDBC to access data from a<emphasis> presumably
     </emphasis>SQL-compliant data source via the SQL language.</para>
 
     <para><emphasis role="bold">JDBC</emphasis> makes it possible to write a
@@ -66,11 +66,10 @@
     popular data sources; now the HPCC platform is available as a data
     source.</para>
 
-    <sect1 role="nobrk">
-      <title>The HPCC JDBC driver exposes HPCC logical files as RDB
-      Tables</title>
+    <para>The HPCC JDBC Driver exposes HPCC logical files as RDB
+    tables.</para>
 
-      <itemizedlist mark="bullet">
+    <para><itemizedlist mark="bullet">
         <listitem>
           <para>HPCC Logical File &lt;-&gt; RDB Table</para>
         </listitem>
@@ -104,9 +103,7 @@
           <para>Provides means for utilizing HPCC index files for faster
           reads.</para>
         </listitem>
-      </itemizedlist>
-
-      <figure>
+      </itemizedlist><figure>
         <title>An example SQL Client interface connected to an HPCC Platform
         with the JDBC driver</title>
 
@@ -115,14 +112,13 @@
             <imagedata fileref="images/jdbc01.jpg" />
           </imageobject>
         </mediaobject>
-      </figure>
-    </sect1>
+      </figure></para>
   </chapter>
 
   <chapter>
     <title>Installation</title>
 
-    <para>The HPCC JDBC driver is distributed in a single JAVA jar
+    <para>The HPCC JDBC driver is distributed in a self-contained JAVA jar
     file.</para>
 
     <para>Follow the instructions for your SQL client for installation.</para>
@@ -146,12 +142,14 @@
     attributes:</para>
 
     <para><informaltable colsep="1" frame="all" rowsep="1">
-        <tgroup cols="3">
+        <tgroup cols="4">
           <colspec colwidth="131.40pt" />
 
-          <colspec colwidth="303.90pt" />
+          <colspec colwidth="315pt" />
 
-          <colspec colwidth="169.20pt" />
+          <colspec colwidth="95.5pt" />
+
+          <colspec colwidth="40pt" />
 
           <thead>
             <row>
@@ -160,6 +158,8 @@
               <entry>Description</entry>
 
               <entry>Default Value</entry>
+
+              <entry>Req.</entry>
             </row>
           </thead>
 
@@ -170,6 +170,8 @@
               <entry>Target HPCC address</entry>
 
               <entry>“localhost”</entry>
+
+              <entry>Yes</entry>
             </row>
 
             <row>
@@ -178,6 +180,8 @@
               <entry>Target HPCC WsECLWatch address</entry>
 
               <entry>ServerAddress Value</entry>
+
+              <entry>No</entry>
             </row>
 
             <row>
@@ -186,6 +190,8 @@
               <entry>Target HPCC WsECLWatch port</entry>
 
               <entry>8010</entry>
+
+              <entry>No</entry>
             </row>
 
             <row>
@@ -194,6 +200,8 @@
               <entry>Target HPCC WsECL Address</entry>
 
               <entry>ServerAddress Value</entry>
+
+              <entry>No</entry>
             </row>
 
             <row>
@@ -202,6 +210,8 @@
               <entry>Target HPCC WsECL port</entry>
 
               <entry>8002</entry>
+
+              <entry>No</entry>
             </row>
 
             <row>
@@ -210,6 +220,8 @@
               <entry>Target HPCC WsECLDirectAddress</entry>
 
               <entry>ServerAddress Value</entry>
+
+              <entry>No</entry>
             </row>
 
             <row>
@@ -218,6 +230,8 @@
               <entry>Target HPCC WsECLDirect port</entry>
 
               <entry>8010</entry>
+
+              <entry>No</entry>
             </row>
 
             <row>
@@ -226,6 +240,8 @@
               <entry>User name on Target HPCC, if needed</entry>
 
               <entry>“”</entry>
+
+              <entry>No</entry>
             </row>
 
             <row>
@@ -234,6 +250,8 @@
               <entry>Password on Target HPCC, if needed</entry>
 
               <entry>“”</entry>
+
+              <entry>No</entry>
             </row>
 
             <row>
@@ -243,14 +261,31 @@
               reported as result of GetTables, or GetProcs</entry>
 
               <entry>100</entry>
+
+              <entry>No</entry>
             </row>
 
             <row>
               <entry>ConnectTimeoutMilli</entry>
 
-              <entry>JDBC driver -&gt; HPCC connection timeout</entry>
+              <entry align="left">Timeout value to establish connection to
+              HPCC (in milliseconds)</entry>
 
               <entry>1000</entry>
+
+              <entry>No</entry>
+            </row>
+
+            <row>
+              <entry>ReadTimeoutMilli</entry>
+
+              <entry align="left">HPCC Connection <emphasis
+              role="bold">read</emphasis> timeout value (in
+              milliseconds)</entry>
+
+              <entry>1500</entry>
+
+              <entry>No</entry>
             </row>
 
             <row>
@@ -260,6 +295,8 @@
               records)</entry>
 
               <entry>100</entry>
+
+              <entry>No</entry>
             </row>
 
             <row>
@@ -269,22 +306,53 @@
               connect time)</entry>
 
               <entry>“true”</entry>
+
+              <entry>No</entry>
             </row>
 
             <row>
-              <entry>Cluster</entry>
+              <entry>TargetCluster</entry>
 
               <entry>ECLDirect target cluster</entry>
 
               <entry>“hthor”</entry>
+
+              <entry>No</entry>
             </row>
 
             <row>
               <entry>QuerySet</entry>
 
-              <entry>Target published query QuerySet</entry>
+              <entry>Target published query (stored procedure)
+              QuerySet</entry>
 
               <entry>“hthor”</entry>
+
+              <entry>No</entry>
+            </row>
+
+            <row>
+              <entry>TraceToFile</entry>
+
+              <entry align="left">When true, tracing is directed to file
+              <emphasis role="bold">./HPCCJDBC.log</emphasis>, otherwise trace
+              is sent to standard output (stdout)</entry>
+
+              <entry>"false"</entry>
+
+              <entry>No</entry>
+            </row>
+
+            <row>
+              <entry>TraceLevel</entry>
+
+              <entry align="left">Trace Logging level, as defined in
+              java.util.logging.level. Valid values: ALL, SEVERE, WARNING,
+              INFO, FINEST, OFF</entry>
+
+              <entry>INFO</entry>
+
+              <entry>No</entry>
             </row>
           </tbody>
         </tgroup>
@@ -294,7 +362,7 @@
   </chapter>
 
   <chapter>
-    <title>Using the HPCC JDBC data source</title>
+    <title>Using HPCC as a JDBC data source</title>
 
     <para>Once connected, the HPCC JDBC driver will process submitted SQL
     statements and generate dynamic ECL code. The code is submitted to and
@@ -306,13 +374,14 @@
           <term>Note:</term>
 
           <listitem>
-            <para>The HPCC JDBC driver only supports files which contain the
-            record definition in the logical file’s metadata. Sprayed files do
-            not contain this metadata. This metadata exists on any file or
-            index which is written to the HPCC Distributed File System.
-            Sprayed data files typically undergo some processing and an OUTPUT
-            of the transformed data to disk before use, so this should not
-            interfere with the driver’s usefulness.</para>
+            <para>The HPCC JDBC driver <emphasis role="bold">only supports
+            files which contain the record definition in the logical file’s
+            metadata.</emphasis> Sprayed files do not contain this metadata.
+            This metadata exists on any file or index which is written to the
+            HPCC Distributed File System. Sprayed data files typically undergo
+            some processing and an OUTPUT of the transformed data to disk
+            before use, so this should not interfere with the driver’s
+            usefulness.</para>
           </listitem>
         </varlistentry>
       </variablelist></para>
@@ -456,20 +525,26 @@
     <sect1>
       <title>SELECT</title>
 
-      <para><emphasis role="bold">select
-      </emphasis><emphasis>colummList</emphasis> <emphasis
-      role="bold">from</emphasis> <emphasis>tableName </emphasis>[ <emphasis
-      role="bold">[as]</emphasis><emphasis> alias] </emphasis>[USE
+      <para><emphasis role="bold">select [</emphasis>distinct<emphasis
+      role="bold">]</emphasis> <emphasis>colummList</emphasis> <emphasis
+      role="bold">from</emphasis> <emphasis>tableList </emphasis><emphasis>
+      </emphasis><emphasis role="bold">[</emphasis>USE
       INDEX<emphasis>(indexFileName</emphasis> | 0
-      <emphasis>)</emphasis>]</para>
+      <emphasis>)</emphasis><emphasis role="bold">]</emphasis></para>
 
-      <para>[<emphasis role="bold">where</emphasis> <emphasis>filterCondition]
-      </emphasis>[<emphasis role="bold">group by</emphasis>
-      <emphasis>fieldName</emphasis>]</para>
+      <para><emphasis role="bold">[where</emphasis>
+      <emphasis>logicalExpression</emphasis><emphasis role="bold">]</emphasis>
+      <emphasis role="bold">[group by</emphasis>
+      <emphasis>columnList<superscript>1</superscript></emphasis><emphasis
+      role="bold">]</emphasis> <emphasis role="bold">[having</emphasis>
+      <emphasis>logicalExpression<superscript>2</superscript></emphasis><emphasis
+      role="bold">]</emphasis></para>
 
-      <para>[<emphasis role="bold">order by</emphasis> <emphasis>columnNames
-      </emphasis>[asc | desc]<emphasis> </emphasis>] [<emphasis
-      role="bold">LIMIT</emphasis><emphasis> limitNumber</emphasis>]</para>
+      <para><emphasis role="bold">[order by</emphasis>
+      <emphasis>columnList<superscript>1</superscript> </emphasis>[asc |
+      desc]<emphasis> </emphasis>] <emphasis
+      role="bold">[LIMIT</emphasis><emphasis> limitNumber</emphasis><emphasis
+      role="bold">]</emphasis></para>
 
       <para><informaltable colsep="0" frame="none" rowsep="0">
           <tgroup cols="2">
@@ -481,10 +556,16 @@
               <row>
                 <entry><emphasis>columnList</emphasis></entry>
 
-                <entry>The column(s) to return (comma-separated list) . In
+                <entry>columnreference1[,columnreference2,columnreference3,...,columnreference<emphasis>n</emphasis>]</entry>
+              </row>
+
+              <row>
+                <entry></entry>
+
+                <entry>The column(s) to return (comma-separated list). In
                 addition, these aggregate functions are supported : COUNT,
-                SUM, MIN, and MAX,. These work in a similar manner as their
-                ECL counterparts.</entry>
+                SUM, MIN, MAX, and AVG. These work in a similar manner as
+                their ECL counterparts.</entry>
               </row>
 
               <row>
@@ -494,9 +575,75 @@
               </row>
 
               <row>
-                <entry><emphasis>tableName</emphasis></entry>
+                <entry>columnreference</entry>
 
-                <entry>The name of the Logical file on the HPCC</entry>
+                <entry>[tablename.]columnname[ [AS] alias ]</entry>
+              </row>
+
+              <row>
+                <entry><emphasis></emphasis></entry>
+
+                <entry></entry>
+              </row>
+
+              <row>
+                <entry><emphasis>distinct</emphasis></entry>
+
+                <entry>[distinct] col1, col2,...
+                col<emphasis>n</emphasis></entry>
+              </row>
+
+              <row>
+                <entry><emphasis></emphasis></entry>
+
+                <entry>The result set will only contain distinct (unique)
+                values.</entry>
+              </row>
+
+              <row>
+                <entry></entry>
+
+                <entry></entry>
+              </row>
+
+              <row>
+                <entry><emphasis>tableList</emphasis></entry>
+
+                <entry>tableref1[,tableref2,tableref3,...,tableref<emphasis>n</emphasis>]</entry>
+              </row>
+
+              <row>
+                <entry></entry>
+
+                <entry>One or more tables, separated by commas.</entry>
+              </row>
+
+              <row>
+                <entry></entry>
+
+                <entry><emphasis role="bold">NOTE: </emphasis>A table list
+                with multiple tables creates an (one or more) implicit inner
+                join using the where clause logical expression as the join
+                condition which must contain an equality condition.</entry>
+              </row>
+
+              <row>
+                <entry></entry>
+
+                <entry></entry>
+              </row>
+
+              <row>
+                <entry>tableref</entry>
+
+                <entry>tableName[ [AS] alias ]</entry>
+              </row>
+
+              <row>
+                <entry></entry>
+
+                <entry>The Name of the table as referenced, optionally
+                defining its alias.</entry>
               </row>
 
               <row>
@@ -508,8 +655,8 @@
               <row>
                 <entry><emphasis>alias</emphasis></entry>
 
-                <entry>Optional. The alias to use to refer to the Logical file
-                specified in the tableName</entry>
+                <entry>The alias used to refer to the corresponding table or
+                field reference.</entry>
               </row>
 
               <row>
@@ -519,10 +666,10 @@
               </row>
 
               <row>
-                <entry><emphasis>filterCondition</emphasis></entry>
+                <entry><emphasis>logicalExpression</emphasis></entry>
 
-                <entry>Optional. Filter condition is based on standard SQL
-                filtering syntax.</entry>
+                <entry>logical expression based on standard SQL filtering
+                syntax.</entry>
               </row>
 
               <row>
@@ -543,6 +690,13 @@
 
                 <entry>Where a simple predicate is columnname operator
                 value</entry>
+              </row>
+
+              <row>
+                <entry></entry>
+
+                <entry>BOOLEAN Only supports <emphasis>True</emphasis> or
+                <emphasis>False</emphasis> do not use Y, N, 0, or 1</entry>
               </row>
 
               <row>
@@ -591,28 +745,15 @@
               <row>
                 <entry></entry>
 
-                <entry></entry>
-              </row>
-
-              <row>
-                <entry><emphasis>fieldName</emphasis></entry>
-
-                <entry>Optional. The name of the field to use for
-                grouping.</entry>
+                <entry>IN(value1,value2,...,value<emphasis>n</emphasis>) where
+                values are comma separated homogeneous types.</entry>
               </row>
 
               <row>
                 <entry></entry>
 
-                <entry></entry>
-              </row>
-
-              <row>
-                <entry><emphasis>columnNames</emphasis></entry>
-
-                <entry>Optional. The columns upon which to sort
-                (comma-separated list). Optionally, specify ASC for ascending
-                (default) or DESC for descending.</entry>
+                <entry>NOT IN(value1,value2,...,value<emphasis>n</emphasis>)
+                where values are comma separated homogeneous types.</entry>
               </row>
 
               <row>
@@ -624,9 +765,62 @@
               <row>
                 <entry><emphasis>limitNumber</emphasis></entry>
 
-                <entry>Optional. The number of rows to return. This overrides
-                the driver’s configuration attribute (EclResultLimit ) but
-                cannot be set to ALL.</entry>
+                <entry>The number of rows to return. This overrides the
+                driver’s configuration attribute (EclResultLimit ) but cannot
+                be set to ALL.</entry>
+              </row>
+
+              <row>
+                <entry></entry>
+              </row>
+
+              <row>
+                <entry></entry>
+
+                <entry><superscript>1</superscript>Aliasing not
+                supported</entry>
+              </row>
+
+              <row>
+                <entry></entry>
+
+                <entry><superscript>2</superscript>Can only contain references
+                to aggregate functions<superscript> </superscript>if used with
+                <emphasis>having</emphasis> clause.</entry>
+              </row>
+
+              <row>
+                <entry></entry>
+
+                <entry>Aggregate functions can only be expressed in
+                filterConditions by using <emphasis>Group by </emphasis>and
+                <emphasis>having</emphasis></entry>
+              </row>
+
+              <row>
+                <entry></entry>
+
+                <entry><emphasis role="bold">Examples:</emphasis></entry>
+              </row>
+
+              <row>
+                <entry></entry>
+
+                <entry>Select * from tableList where Sum(F1 &gt; 100) /* is
+                NOT SUPPORTED */</entry>
+              </row>
+
+              <row>
+                <entry></entry>
+
+                <entry>Select * from tableList Group byF1 Haveing Sum (F1 &gt;
+                100) /* IS SUPPORTED */</entry>
+              </row>
+
+              <row>
+                <entry></entry>
+
+                <entry></entry>
               </row>
             </tbody>
           </tgroup>
@@ -652,10 +846,7 @@ Jane Row FL </programlisting>
       <para><emphasis role="bold">select
       </emphasis><emphasis>columnList</emphasis> <emphasis role="bold"> from
       </emphasis><emphasis>tableName </emphasis><emphasis role="bold">USE
-      </emphasis></para>
-
-      <para><emphasis
-      role="bold">INDEX(</emphasis><emphasis>hpcc::index::file::name</emphasis><emphasis
+      INDEX(</emphasis><emphasis>hpcc::index::file::name</emphasis><emphasis
       role="bold">) where </emphasis><emphasis>filterCondition
       </emphasis></para>
 
@@ -681,9 +872,11 @@ Jane Row FL 33024
 
       <para><emphasis role="bold">select
       </emphasis><emphasis>colummList</emphasis> <emphasis
-      role="bold">from</emphasis> <emphasis>tableName [</emphasis><emphasis
-      role="bold">as</emphasis><emphasis> alias]</emphasis><emphasis
-      role="bold"> </emphasis></para>
+      role="bold">from</emphasis> <emphasis>tableName <emphasis
+      role="bold">[</emphasis></emphasis><emphasis
+      role="bold">as</emphasis><emphasis> alias<emphasis
+      role="bold">]</emphasis></emphasis><emphasis role="bold">
+      </emphasis></para>
 
       <para><emphasis role="bold">[</emphasis>&lt;outer | inner &gt; <emphasis
       role="bold">JOIN </emphasis><emphasis>join TableName
@@ -713,7 +906,16 @@ Jane Row FL 33024
               <row>
                 <entry><emphasis>columnList</emphasis></entry>
 
-                <entry>The columns to return .</entry>
+                <entry>columnreference1[,columnreference2,columnreference3,...,columnreference<emphasis>n</emphasis>]</entry>
+              </row>
+
+              <row>
+                <entry></entry>
+
+                <entry>The column(s) to return (comma-separated list). In
+                addition, these aggregate functions are supported : COUNT,
+                SUM, MIN, MAX, and AVG. These work in a similar manner as
+                their ECL counterparts.</entry>
               </row>
 
               <row>
@@ -723,9 +925,29 @@ Jane Row FL 33024
               </row>
 
               <row>
-                <entry><emphasis>tableName</emphasis></entry>
+                <entry>columnreference</entry>
 
-                <entry>The name of the logical file on the HPCC</entry>
+                <entry>[tablename.]columnname[ [AS] alias ]</entry>
+              </row>
+
+              <row>
+                <entry><emphasis></emphasis></entry>
+
+                <entry></entry>
+              </row>
+
+              <row>
+                <entry><emphasis>distinct</emphasis></entry>
+
+                <entry>[distinct] col1, col2,...
+                col<emphasis>n</emphasis></entry>
+              </row>
+
+              <row>
+                <entry><emphasis></emphasis></entry>
+
+                <entry>The result set will only contain distinct (unique)
+                values.</entry>
               </row>
 
               <row>
@@ -737,8 +959,8 @@ Jane Row FL 33024
               <row>
                 <entry><emphasis>alias</emphasis></entry>
 
-                <entry>Optional. The alias to use to refer to the Logical file
-                specified in the tableName</entry>
+                <entry>The alias used to refer to the corresponding table or
+                field reference.</entry>
               </row>
 
               <row>
@@ -775,7 +997,7 @@ Jane Row FL 33024
                 <entry><emphasis>joinCondition</emphasis></entry>
 
                 <entry>Specifies the relationship between columns in the
-                joined tables.</entry>
+                joined tables using logical expression.</entry>
               </row>
 
               <row>
@@ -785,9 +1007,9 @@ Jane Row FL 33024
               </row>
 
               <row>
-                <entry><emphasis>filterCondition</emphasis></entry>
+                <entry><emphasis>logicalExpression</emphasis></entry>
 
-                <entry>Filter condition is based on standard SQL filtering
+                <entry>logical expression based on standard SQL filtering
                 syntax.</entry>
               </row>
 
@@ -809,6 +1031,13 @@ Jane Row FL 33024
 
                 <entry>Where a simple predicate is columnname operator
                 value</entry>
+              </row>
+
+              <row>
+                <entry></entry>
+
+                <entry>BOOLEAN Only supports <emphasis>True</emphasis> or
+                <emphasis>False</emphasis> do not use Y, N, 0, or 1</entry>
               </row>
 
               <row>
@@ -857,27 +1086,15 @@ Jane Row FL 33024
               <row>
                 <entry></entry>
 
-                <entry></entry>
-              </row>
-
-              <row>
-                <entry><emphasis>fieldName</emphasis></entry>
-
-                <entry>Optional. The name of the field to use for
-                grouping.</entry>
+                <entry>IN(value1,value2,...,value<emphasis>n</emphasis>) where
+                values are comma separated homogeneous types.</entry>
               </row>
 
               <row>
                 <entry></entry>
 
-                <entry></entry>
-              </row>
-
-              <row>
-                <entry><emphasis>columnNames</emphasis></entry>
-
-                <entry>Optional. The columns upon which to sort
-                (comma-separated list) .</entry>
+                <entry>NOT IN(value1,value2,...,value<emphasis>n</emphasis>)
+                where values are comma separated homogeneous types.</entry>
               </row>
 
               <row>
@@ -893,6 +1110,53 @@ Jane Row FL 33024
                 the driver’s configuration attribute (<emphasis
                 role="code">EclResultLimit </emphasis>) but cannot be set to
                 ALL.</entry>
+              </row>
+
+              <row>
+                <entry></entry>
+              </row>
+
+              <row>
+                <entry></entry>
+
+                <entry><superscript>1</superscript>Aliasing not
+                supported</entry>
+              </row>
+
+              <row>
+                <entry></entry>
+
+                <entry><superscript>2</superscript>Can only contain references
+                to aggregate functions<superscript> </superscript>if used with
+                <emphasis>having</emphasis> clause.</entry>
+              </row>
+
+              <row>
+                <entry></entry>
+
+                <entry>Aggregate functions can only be expressed in
+                filterConditions by using <emphasis>Group by </emphasis>and
+                <emphasis>having</emphasis></entry>
+              </row>
+
+              <row>
+                <entry></entry>
+
+                <entry><emphasis role="bold">Examples:</emphasis></entry>
+              </row>
+
+              <row>
+                <entry></entry>
+
+                <entry>Select * from tableList where Sum(F1 &gt; 100) /* is
+                NOT SUPPORTED */</entry>
+              </row>
+
+              <row>
+                <entry></entry>
+
+                <entry>Select * from tableList Group byF1 Having Sum (F1 &gt;
+                100) /* IS SUPPORTED */</entry>
               </row>
             </tbody>
           </tgroup>
@@ -914,11 +1178,11 @@ Jane Row FL 33024
       <para>For example, the table <emphasis role="bold">persons</emphasis>
       has columns Firstname(String) and Zip (numeric)</para>
 
-      <para><programlisting>Select Firstname from persons where Firstname = ‘Jim’ and zip &gt; 33445 &lt;= works  
+      <para><programlisting>Select Firstname from persons where Firstname = ‘Jim’ and zip &gt; 33445    /* works  */ 
 
-Select Firstname from persons where Firstname = Jim and zip &gt; 33445 &lt;= doesn’t work 
+Select Firstname from persons where Firstname = Jim and zip &gt; 33445     /* doesn’t work */
 
-Select Firstname from persons where Firstname = ‘Jim’ and zip &gt; ‘33445’ &lt;= doesn’t work</programlisting></para>
+Select Firstname from persons where Firstname = ‘Jim’ and zip &gt; ‘33445’   /* doesn’t work */</programlisting></para>
 
       <para></para>
     </sect1>
@@ -926,21 +1190,23 @@ Select Firstname from persons where Firstname = ‘Jim’ and zip &gt; ‘33445�
     <sect1>
       <title>Supported Aggregate Functions</title>
 
-      <para><emphasis role="bold"> </emphasis><emphasis
-      role="bold">[COUNT</emphasis>(<emphasis>columnName</emphasis>)<emphasis
-      role="bold">]</emphasis>,</para>
+      <para><emphasis
+      role="bold">COUNT</emphasis>([DISTINCT]<emphasis>columnName</emphasis>)</para>
 
       <para><emphasis
-      role="bold">[SUM</emphasis>(<emphasis>columnName</emphasis>)<emphasis
-      role="bold">]</emphasis>,</para>
+      role="bold">DISTINCT</emphasis>(<emphasis>columnName</emphasis>)</para>
 
       <para><emphasis
-      role="bold">[MIN</emphasis>(<emphasis>columnName</emphasis>)<emphasis
-      role="bold">]</emphasis>,</para>
+      role="bold">SUM</emphasis>(<emphasis>columnName</emphasis>)</para>
 
       <para><emphasis
-      role="bold">[MAX</emphasis>(<emphasis>columnName</emphasis>)<emphasis
-      role="bold">]</emphasis></para>
+      role="bold">MIN</emphasis>(<emphasis>columnName</emphasis>)</para>
+
+      <para><emphasis
+      role="bold">MAX</emphasis>(<emphasis>columnName</emphasis>)</para>
+
+      <para><emphasis
+      role="bold">AVG</emphasis>(<emphasis>columnName</emphasis>)</para>
 
       <para>These aggregate functions are supported. They behave as their ECL
       counterparts. See the <emphasis role="bold">ECL Language
@@ -957,6 +1223,13 @@ Select Firstname from persons where Firstname = ‘Jim’ and zip &gt; ‘33445�
                 <entry>COUNT</entry>
 
                 <entry>Counts the occurrences of columnName in the
+                result</entry>
+              </row>
+
+              <row>
+                <entry>DISTINCT</entry>
+
+                <entry>Returns only distinct values of columnName in the
                 result</entry>
               </row>
 
@@ -982,6 +1255,13 @@ Select Firstname from persons where Firstname = ‘Jim’ and zip &gt; ‘33445�
               </row>
 
               <row>
+                <entry>AVG</entry>
+
+                <entry>Returns the average of the values of columnName in the
+                result</entry>
+              </row>
+
+              <row>
                 <entry>columnName</entry>
 
                 <entry>The column to aggregate</entry>
@@ -994,7 +1274,107 @@ Select Firstname from persons where Firstname = ‘Jim’ and zip &gt; ‘33445�
 
       <para><programlisting>Select fname, lname, state, COUNT(zip) from TutorialPerson where zip=’33024’</programlisting></para>
 
-      <para></para>
+      <sect2>
+        <title>Supported String Modifiers</title>
+
+        <para><emphasis
+        role="bold">UPPER</emphasis>(<emphasis>columnName</emphasis>)</para>
+
+        <para><emphasis
+        role="bold">LOWER</emphasis>(<emphasis>columnName</emphasis>)</para>
+
+        <para></para>
+
+        <informaltable colsep="0" frame="none" rowsep="0">
+          <tgroup cols="2">
+            <colspec colwidth="119.65pt" />
+
+            <colspec />
+
+            <tbody>
+              <row>
+                <entry>UPPER</entry>
+
+                <entry>returns with all lower case characters converted to
+                upper case.</entry>
+              </row>
+
+              <row>
+                <entry>LOWER</entry>
+
+                <entry>returns with all upper case characters converted to
+                lower case.</entry>
+              </row>
+
+              <row>
+                <entry>columnName</entry>
+
+                <entry>The column to aggregate</entry>
+              </row>
+            </tbody>
+          </tgroup>
+        </informaltable>
+      </sect2>
     </sect1>
   </chapter>
+
+  <appendix>
+    <title>Java Example</title>
+
+    <para><programlisting>/* Obtain instance of JDBC Driver */
+Driver jdbcdriver = DriverManager.getDriver("jdbc:hpcc");
+        
+/* Establish Connection */
+       
+HPCCConnection connection = null;
+ try
+ {
+        
+/*populate JAVA properties object with pertinent connection options */
+   Properties connprops = new Properties();
+   connprops.put("ServerAddress", "192.168.124.128");
+
+/*or create JDBC connection url string with pertinent connection options*/
+   String jdbcurl = "jdbc:hpcc;ServerAddress=192.168.124.128";
+
+/*provide all necessary connection properties either by URL, or props object */
+    connection = (HPCCConnection) driver.connect(jdbcurl, connprops);
+  }
+ 
+   catch (Exception e) { System.out.println("Error");}
+/* create HPCCStatement object for single use SQL query execution */
+
+   HPCCStatement stmt = (HPCCStatement) connection.createStatement();
+
+/* Create your SQL query */
+   String mysql = "select * from tablename as mytab limit 10";
+
+/* Execute your SQL query */
+   HPCCResultSet res1 = (HPCCResultSet) stmt.executeQuery(mysql);
+
+/*Do something with your results */
+   printOutResultSet(res1);
+
+/* Or create a prepared statement for multiple execution and parameterization */
+   String myprepsql = "select * from persons_table persons where zip= ? limit 100";
+   HPCCPreparedStatement prepstmt =
+(HPCCPreparedStatement)createPrepStatement(connection, myprepsql);
+
+/* provide parameter values and execute */
+   for (int i = 33445; i &lt; 33448; i++)
+   {
+    prepstmt.clearParameters();
+    prepstmt.setString(1, "'" + Integer.toString(i, 10) + "'");
+    HPCCResultSet qrs = (HPCCResultSet) ((HPCCPreparedStatement) prepstmt).executeQuery();
+
+/*Do something with your results */
+    printOutResultSet(qrs);
+   }
+
+
+</programlisting>More code samples available from:</para>
+
+    <para><ulink
+    url="https://github.com/hpcc-systems/hpcc-jdbc/blob/master/src/org/hpccsystems/jdbcdriver/tests/HPCCDriverTest.java">https://github.com/hpcc-systems/hpcc-jdbc/blob/master/src/org/hpccsystems/jdbcdriver/tests/HPCCDriverTest.java</ulink></para>
+  </appendix>
 </book>
