@@ -188,7 +188,7 @@ public class SQLExpression
         return tmpsb.toString();
     }
 
-    public String toStringTranslateSource(HashMap<String, String> map, boolean ignoreprevunifier, boolean ignoreMisTraslations)
+    public String toStringTranslateSource(HashMap<String, String> map, boolean ignoreprevunifier, boolean ignoreMisTraslations, boolean forHaving)
     {
             StringBuffer tmpsb = new StringBuffer();
 
@@ -206,8 +206,11 @@ public class SQLExpression
                 case BINARY:
                     if (prefixtranslate != null)
                     {
-                        tmpsb.append(prefixtranslate);
-                        tmpsb.append(PARENTFIELDSEP);
+                        if (prefix.getType() != FragmentType.FUNCTION_FIELD_PARAMETER)
+                        {
+                            tmpsb.append(prefixtranslate);
+                            tmpsb.append(PARENTFIELDSEP);
+                        }
                     }
                     else if (prefix.getParent() != null && prefix.getParent().length() > 0)
                     {
@@ -215,38 +218,52 @@ public class SQLExpression
                         tmpsb.append(PARENTFIELDSEP);
                     }
 
-                    tmpsb.append(prefix.getValue()).append(SINGLEBLANKBUFFER).append(operator.toString()).append(SINGLEBLANKBUFFER);
+                    tmpsb.append(prefix.getValue(prefixtranslate, forHaving))
+                    .append(SINGLEBLANKBUFFER)
+                    .append(operator.toString())
+                    .append(SINGLEBLANKBUFFER);
+
                     if (postfixtranslate != null)
                     {
-                        tmpsb.append(postfixtranslate);
-                        tmpsb.append(PARENTFIELDSEP);
+                        //if post is a function, don't translate the function, translate its contents
+                        if (postfix.getType() != FragmentType.FUNCTION_FIELD_PARAMETER)
+                        {
+                            tmpsb.append(postfixtranslate);
+                            tmpsb.append(PARENTFIELDSEP);
+                        }
                     }
                     else if (postfix.getParent() != null && postfix.getParent().length() > 0)
                     {
                         tmpsb.append(postfix.getParent());
                         tmpsb.append(PARENTFIELDSEP);
                     }
-                    tmpsb.append(postfix.getValue());
+                    tmpsb.append(postfix.getValue(postfixtranslate, forHaving));
                     break;
                 case PRE_UNARY:
                     tmpsb.append(SINGLEBLANKBUFFER).append(operator.toString()).append(SINGLEBLANKBUFFER);
                     if (prefixtranslate != null)
                     {
-                        tmpsb.append(prefixtranslate);
-                        tmpsb.append(PARENTFIELDSEP);
+                        if (prefix.getType() != FragmentType.FUNCTION_FIELD_PARAMETER)
+                        {
+                            tmpsb.append(prefixtranslate);
+                            tmpsb.append(PARENTFIELDSEP);
+                        }
                     }
                     else if (prefix.getParent() != null && prefix.getParent().length() > 0)
                     {
                         tmpsb.append(prefix.getParent());
                         tmpsb.append(PARENTFIELDSEP);
                     }
-                    tmpsb.append(prefix.getValue()).append(SINGLEBLANKBUFFER);
+                    tmpsb.append(prefix.getValue(postfixtranslate, forHaving)).append(SINGLEBLANKBUFFER);
                     break;
                 case POST_UNARY:
                     if (prefixtranslate != null)
                     {
-                        tmpsb.append(prefixtranslate);
-                        tmpsb.append(PARENTFIELDSEP);
+                        if (prefix.getType() != FragmentType.FUNCTION_FIELD_PARAMETER)
+                        {
+                            tmpsb.append(prefixtranslate);
+                            tmpsb.append(PARENTFIELDSEP);
+                        }
                     }
                     else if (prefix.getParent() != null && prefix.getParent().length() > 0)
                     {
@@ -254,7 +271,7 @@ public class SQLExpression
                         tmpsb.append(PARENTFIELDSEP);
                     }
 
-                    tmpsb.append(prefix.getValue()).append(SINGLEBLANKBUFFER);
+                    tmpsb.append(prefix.getValue(postfixtranslate, forHaving)).append(SINGLEBLANKBUFFER);
                     tmpsb.append(operator.toString()).append(SINGLEBLANKBUFFER);
 
                     break;
@@ -265,7 +282,6 @@ public class SQLExpression
                     tmpsb.append(" true ");
                     break;
             }
-
             return tmpsb.toString();
     }
 
@@ -304,10 +320,10 @@ public class SQLExpression
 
     public void updateFragmentTables(List<SQLTable> sqlTables) throws Exception
     {
-        if (postfix.getType() == FragmentType.FIELD || postfix.getType() == FragmentType.FIELD_CONTENT_MODIFIER || postfix.getType() == FragmentType.AGGREGATE_FUNCTION)
+        if (postfix.getType() == FragmentType.FIELD || postfix.getType() == FragmentType.FUNCTION_FIELD_PARAMETER || postfix.getType() == FragmentType.FUNCTION)
             postfix.updateFragmentColumParent(sqlTables);
 
-        if (prefix.getType() == FragmentType.FIELD || prefix.getType() == FragmentType.FIELD_CONTENT_MODIFIER)
+        if (prefix.getType() == FragmentType.FIELD || prefix.getType() == FragmentType.FUNCTION_FIELD_PARAMETER)
             prefix.updateFragmentColumParent(sqlTables);
     }
 

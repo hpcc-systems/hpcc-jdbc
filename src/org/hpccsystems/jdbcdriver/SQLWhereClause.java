@@ -73,13 +73,13 @@ public class SQLWhereClause
     {
         expressions.add(expression);
 
-        if (expression.getPrefixType() == FragmentType.FIELD || expression.getPrefixType() == FragmentType.FIELD_CONTENT_MODIFIER)
+        if (expression.getPrefixType() == FragmentType.FIELD || expression.getPrefixType() == FragmentType.FUNCTION_FIELD_PARAMETER)
         {
             if (!expressionUniqueColumnNames.contains(expression.getPrefixValue()))
                 expressionUniqueColumnNames.add(expression.getPrefixValue());
         }
 
-        if (expression.getPostfixType() == FragmentType.FIELD || expression.getPostfixType() == FragmentType.FIELD_CONTENT_MODIFIER)
+        if (expression.getPostfixType() == FragmentType.FIELD || expression.getPostfixType() == FragmentType.FUNCTION_FIELD_PARAMETER)
         {
             if (!expressionUniqueColumnNames.contains(expression.getPostfixValue()))
                 expressionUniqueColumnNames.add(expression.getPostfixValue());
@@ -117,14 +117,14 @@ public class SQLWhereClause
         return clause;
     }
 
-    public String toStringTranslateSource(HashMap<String, String> map, boolean ignoreMisTranslations)
+    public String toStringTranslateSource(HashMap<String, String> map, boolean ignoreMisTranslations, boolean forHaving)
     {
         String clause = new String("");
         String expstr = null;
         boolean foundFirstExpression = false;
         for (SQLExpression exp : expressions)
         {
-            expstr = exp.toStringTranslateSource(map, !foundFirstExpression, ignoreMisTranslations);
+            expstr = exp.toStringTranslateSource(map, !foundFirstExpression, ignoreMisTranslations, forHaving);
 
             if (expstr != null)
             {
@@ -143,9 +143,9 @@ public class SQLWhereClause
         int i = 0;
         for (SQLExpression exp : expressions)
         {
-            if (exp.getPrefixType() == FragmentType.FIELD || exp.getPrefixType() == FragmentType.FIELD_CONTENT_MODIFIER)
+            if (exp.getPrefixType() == FragmentType.FIELD || exp.getPrefixType() == FragmentType.FUNCTION_FIELD_PARAMETER)
                 colnames[i++] = exp.getPrefixValue();
-            if (exp.getPostfixType() == FragmentType.FIELD || exp.getPostfixType() == FragmentType.FIELD_CONTENT_MODIFIER)
+            if (exp.getPostfixType() == FragmentType.FIELD || exp.getPostfixType() == FragmentType.FUNCTION_FIELD_PARAMETER)
                 colnames[i++] = exp.getPostfixValue();
         }
 

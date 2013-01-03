@@ -297,15 +297,15 @@ public class HPCCJDBCUtils
          return matcher.matches();
     }
 
-    public final static Pattern AGGFUNCPATTERN = Pattern.compile(
+    public final static Pattern FUNCPATTERN = Pattern.compile(
             "\\s*(.*?)(\\()(.*?)(\\))\\s*",Pattern.DOTALL);
 
-    public static boolean isAggFunction(String aggfunstr)
+    public static boolean isFunction(String aggfunstr)
     {
         if (aggfunstr == null)
             return false;
 
-        Matcher matcher = AGGFUNCPATTERN.matcher(aggfunstr);
+        Matcher matcher = FUNCPATTERN.matcher(aggfunstr);
 
          return matcher.matches();
     }
