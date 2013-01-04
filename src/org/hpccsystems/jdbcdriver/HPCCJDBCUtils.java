@@ -472,10 +472,11 @@ public class HPCCJDBCUtils
         mapECLTypeNameToSQLType.put("GMONTHDAY", java.sql.Types.DATE);
         mapECLTypeNameToSQLType.put("DURATION", java.sql.Types.VARCHAR);
         mapECLTypeNameToSQLType.put("STRING1", java.sql.Types.CHAR);
+        mapECLTypeNameToSQLType.put("REAL", java.sql.Types.REAL);
     }
 
     private static Pattern TRAILINGNUMERICPATTERN = Pattern.compile(
-            "(.*\\s+?)*([A-Z]+)([0-9]+)*",Pattern.DOTALL);
+            "(.*\\s+?)*([A-Z]+)([0-9]+(_[0-9]+)?)*",Pattern.DOTALL);
 
     public static int mapECLtype2SQLtype(String ecltype)
     {
