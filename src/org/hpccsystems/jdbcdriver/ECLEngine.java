@@ -116,6 +116,7 @@ public class ECLEngine
 
         HashMap<String, String> eclEntities = new HashMap<String, String>();
         HashMap<String, String> eclDSSourceMapping = new HashMap<String, String>();
+        HashMap<String, String> translator = null;
 
         DFUFile indexFileToUse = null;
         int totalWhereClauseExpressions = 0;
@@ -228,8 +229,11 @@ public class ECLEngine
             else
             {
                 HPCCJDBCUtils.traceoutln(Level.INFO,  " Not as PAYLOAD");
-                idxsetupstr.append("IdxDS := FETCH(TblDS0, Idx( ").append(keyedAndWild.toString())
-                        .append("), RIGHT.").append(indexFileToUse.getIdxFilePosField()).append(");\n");
+                idxsetupstr.append("IdxDS := FETCH(TblDS0, Idx( ")
+                           .append(keyedAndWild.toString())
+                           .append("), RIGHT.")
+                           .append(indexFileToUse.getIdxFilePosField())
+                           .append(");\n");
             }
             eclEntities.put("IndexRead", idxsetupstr.toString());
         }
@@ -269,9 +273,9 @@ public class ECLEngine
         {
             int joinsCount = joinclause.getJoinTablesCount();
 
-            HashMap<String, String> translator = new HashMap<String, String>();
-
+            translator = new HashMap<String, String>();
             translator.put(queryFileName, "LEFT");
+
             /*
              * Each join table triggers a new Join comprised of either the querytable or
              * the previous join, and the current join table.
@@ -351,7 +355,7 @@ public class ECLEngine
                     eclCode.append("JndDS" + joinTableIndex);
                 }
 
-                String translatedAndFilteredOnClause = joinclause.getOnClause().toStringTranslateSource(translator, false);
+                String translatedAndFilteredOnClause = joinclause.getOnClause().toStringTranslateSource(translator, false, false);
 
                 eclCode.append(", ")
                         .append(currntTblDS)
@@ -360,7 +364,7 @@ public class ECLEngine
 
                 if (totalWhereClauseExpressions > 0)
                 {
-                    eclCode.append(" AND ").append(sqlParser.getWhereClauseStringTranslateSource(translator, false));
+                    eclCode.append(" AND ").append(sqlParser.getWhereClauseStringTranslateSource(translator, false, false));
                 }
 
                 eclCode.append(", ").append(joinclause.getECLTypeStr());
@@ -385,14 +389,197 @@ public class ECLEngine
 
         eclEntities.put("SourceDS", eclDSSourceMapping.get(queryFileName));
 
+        if (sqlParser.hasOrderByColumns())
+            eclEntities.put("ORDERBY", sqlParser.getOrderByString());
+        if (sqlParser.hasGroupByColumns())
+            eclEntities.put("GROUPBY", sqlParser.getGroupByString());
+        if (sqlParser.hasLimitBy())
+            eclEntities.put("LIMIT", Integer.toString(sqlParser.getLimit()));
+
+        if (eclEntities.get("IndexDef") == null)
+        {
+            if (eclEntities.containsKey("SCALAROUTNAME"))
+            {
+                eclCode.append("OUTPUT(ScalarOut ,NAMED(\'");
+                eclCode.append(eclEntities.get("SCALAROUTNAME"));
+                eclCode.append("\'));");
+            }
+            else
+            {
+                String latestDS = eclEntities.get("SourceDS");
+
+                //Create filtered DS if there's a where clause, and no join clause,
+                //because filtering is applied while performing join.
+                if (sqlParser.getWhereClause() != null && !eclEntities.containsKey("JoinQuery"))
+                {
+                    latestDS += "Filtered";
+                    eclCode.append(latestDS).append(" := ");
+                    eclCode.append(eclEntities.get("SourceDS"));
+
+                    addFilterClause(eclCode);
+                    eclCode.append(";\n");
+                }
+
+                // If group by contains HAVING clause, use ECL 'HAVING'
+                // function,
+                // otherwise group can be done implicitly in table step.
+                // since the implicit approach has better performance.
+                if (eclEntities.containsKey("GROUPBY") && sqlParser.hasHavingClause())
+                {
+                    eclCode.append(latestDS).append("Grouped").append(" := GROUP( ");
+                    eclCode.append(latestDS);
+                    eclCode.append(", ");
+                    eclCode.append(eclEntities.get("GROUPBY"));
+                    eclCode.append(", ALL);\n");
+
+                    latestDS += "Grouped";
+
+                    if (appendTranslatedHavingClause(eclCode, latestDS))
+                        latestDS += "Having";
+                }
+
+                createSelectStruct(eclEntities, latestDS);
+                eclCode.append(eclEntities.get("SELECTSTRUCT"));
+
+                eclCode.append(latestDS).append("Table").append(" := TABLE( ");
+                eclCode.append(latestDS);
+
+                eclCode.append(", SelectStruct ");
+
+                if (eclEntities.containsKey("GROUPBY") && !sqlParser.hasHavingClause())
+                {
+                    eclCode.append(", ");
+                    eclCode.append(eclEntities.get("GROUPBY"));
+                }
+                eclCode.append(");\n");
+
+                latestDS += "Table";
+
+                if (sqlParser.isSelectDistinct())
+                {
+                    eclCode.append(latestDS)
+                    .append("Deduped := Dedup( ")
+                    .append(latestDS)
+                    .append(", HASH);\n");
+                    latestDS += "Deduped";
+                }
+
+                eclCode.append("OUTPUT(CHOOSEN(");
+                if (eclEntities.containsKey("ORDERBY"))
+                    eclCode.append("SORT( ");
+
+                eclCode.append(latestDS);
+                if (eclEntities.containsKey("ORDERBY"))
+                {
+                    eclCode.append(",");
+                    eclCode.append(eclEntities.get("ORDERBY"));
+                    eclCode.append(")");
+                }
+            }
+        }
+        else
+        // use index
+        {
+            //Not creating a filtered DS because filtering is applied while
+            //performing index read/fetch.
+            eclCode.append(eclEntities.get("IndexDef"));
+            eclCode.append(eclEntities.get("IndexRead"));
+            String latestDS = "IdxDS";
+
+            if (eclEntities.containsKey("COUNTDEDUP"))
+                eclCode.append(eclEntities.get("COUNTDEDUP"));
+
+            if (eclEntities.containsKey("SCALAROUTNAME"))
+            {
+                eclCode.append("OUTPUT(ScalarOut ,NAMED(\'");
+                eclCode.append(eclEntities.get("SCALAROUTNAME"));
+                eclCode.append("\'));\n");
+            }
+            else
+            {
+                // If group by contains HAVING clause, use ECL 'HAVING' function,
+                // otherwise group can be done implicitly in table step.
+                // since the implicit approach has better performance.
+                if (eclEntities.containsKey("GROUPBY") && sqlParser.hasHavingClause())
+                {
+                    eclCode.append(latestDS).append("Grouped").append(" := GROUP( ");
+                    eclCode.append(latestDS);
+                    eclCode.append(", ");
+                    eclCode.append(eclEntities.get("GROUPBY"));
+                    eclCode.append(", ALL);\n");
+
+                    latestDS += "Grouped";
+
+                    if (appendTranslatedHavingClause(eclCode, latestDS))
+                        latestDS += "Having";
+                }
+
+                createSelectStruct(eclEntities, latestDS);
+
+                eclCode.append(eclEntities.get("SELECTSTRUCT"));
+
+                eclCode.append(latestDS)
+                .append("Table := TABLE(")
+                .append(latestDS)
+                .append(", SelectStruct ");
+
+                if (eclEntities.containsKey("GROUPBY") && !sqlParser.hasHavingClause())
+                {
+                    eclCode.append(", ");
+                    eclCode.append(eclEntities.get("GROUPBY"));
+                }
+                eclCode.append(");\n");
+                latestDS += "Table";
+
+                if (sqlParser.isSelectDistinct())
+                {
+                    eclCode.append(latestDS)
+                    .append("Deduped := Dedup( ")
+                    .append(latestDS)
+                    .append(", HASH);\n");
+
+                    latestDS += "Deduped";
+                }
+
+                if (eclEntities.containsKey("ORDERBY"))
+                {
+                    eclCode.append(latestDS).append("Sorted := SORT( ").append(latestDS).append(", ");
+                    eclCode.append(eclEntities.get("ORDERBY"));
+                    eclCode.append(");\n");
+                    latestDS += "Sorted";
+                }
+
+                eclCode.append("OUTPUT(CHOOSEN(");
+                eclCode.append(latestDS);
+            }
+        }
+
+        if (!eclEntities.containsKey("SCALAROUTNAME"))
+        {
+            eclCode.append(",");
+            if (!eclEntities.containsKey("NONSCALAREXPECTED") && !sqlParser.hasGroupByColumns())
+                eclCode.append("1");
+            else if (eclEntities.containsKey("LIMIT"))
+                eclCode.append(eclEntities.get("LIMIT"));
+            else
+                eclCode.append(hpccConnProps.getProperty("EclResultLimit"));
+
+            eclCode.append("),NAMED(\'")
+                    .append(SELECTOUTPUTNAME)
+                    .append("\'));");
+
+            expectedDSName = SELECTOUTPUTNAME;
+        }
+    }
+
+    public void createSelectStruct(HashMap<String, String> eclEntities, String datasource)
+    {
         StringBuilder selectStructSB = new StringBuilder("SelectStruct := RECORD\n");
 
         for (int i = 0; i < expectedretcolumns.size(); i++)
         {
             selectStructSB.append(" ");
             HPCCColumnMetaData col = expectedretcolumns.get(i);
-
-            String datasource = eclDSSourceMapping.get(col.getTableName().toUpperCase());
 
             if (col.getColumnType() == ColumnType.CONSTANT)
             {
@@ -494,138 +681,6 @@ public class ECLEngine
         selectStructSB.append("END;\n");
 
         eclEntities.put("SELECTSTRUCT", selectStructSB.toString());
-
-        if (sqlParser.hasOrderByColumns())
-            eclEntities.put("ORDERBY", sqlParser.getOrderByString());
-        if (sqlParser.hasGroupByColumns())
-            eclEntities.put("GROUPBY", sqlParser.getGroupByString());
-        if (sqlParser.hasLimitBy())
-            eclEntities.put("LIMIT", Integer.toString(sqlParser.getLimit()));
-
-        if (eclEntities.get("IndexDef") == null)
-        {
-            if (eclEntities.containsKey("SCALAROUTNAME"))
-            {
-                eclCode.append("OUTPUT(ScalarOut ,NAMED(\'");
-                eclCode.append(eclEntities.get("SCALAROUTNAME"));
-                eclCode.append("\'));");
-            }
-            else
-            {
-                String latestDS = "DSTable";
-
-                eclCode.append(eclEntities.get("SELECTSTRUCT"));
-
-                eclCode.append(latestDS).append(" := TABLE( ");
-                eclCode.append(eclEntities.get("SourceDS"));
-                if (eclEntities.size() > 0 && !eclEntities.containsKey("JoinQuery"))
-                    addFilterClause(eclCode);
-
-                eclCode.append(", SelectStruct ");
-
-                if (eclEntities.containsKey("GROUPBY"))
-                {
-                    eclCode.append(", ");
-                    eclCode.append(eclEntities.get("GROUPBY"));
-                }
-                eclCode.append(");\n");
-
-                if (sqlParser.isSelectDistinct())
-                {
-                    eclCode.append(latestDS)
-                    .append("Deduped := Dedup( ")
-                    .append(latestDS)
-                    .append(", HASH);\n");
-                    latestDS += "Deduped";
-                }
-
-                eclCode.append("OUTPUT(CHOOSEN(");
-                if (eclEntities.containsKey("ORDERBY"))
-                    eclCode.append("SORT( ");
-
-                eclCode.append(latestDS);
-                if (eclEntities.size() > 0 && !eclEntities.containsKey("JoinQuery"))
-                    addHavingClause(eclCode);
-
-                if (eclEntities.containsKey("ORDERBY"))
-                {
-                    eclCode.append(",");
-                    eclCode.append(eclEntities.get("ORDERBY"));
-                    eclCode.append(")");
-                }
-            }
-        }
-        else
-        // use index
-        {
-            eclCode.append(eclEntities.get("IndexDef"));
-            eclCode.append(eclEntities.get("IndexRead"));
-            String latestDS = "IdxDS";
-
-            if (eclEntities.containsKey("COUNTDEDUP"))
-                eclCode.append(eclEntities.get("COUNTDEDUP"));
-
-            if (eclEntities.containsKey("SCALAROUTNAME"))
-            {
-                eclCode.append("OUTPUT(ScalarOut ,NAMED(\'");
-                eclCode.append(eclEntities.get("SCALAROUTNAME"));
-                eclCode.append("\'));\n");
-            }
-            else
-            {
-                eclCode.append(eclEntities.get("SELECTSTRUCT"));
-
-                eclCode.append(latestDS).append("Table := TABLE(").append(latestDS).append(", SelectStruct ");
-                latestDS += "Table";
-
-                if (eclEntities.containsKey("GROUPBY"))
-                {
-                    eclCode.append(", ");
-                    eclCode.append(eclEntities.get("GROUPBY"));
-                }
-                eclCode.append(");\n");
-
-                if (sqlParser.isSelectDistinct())
-                {
-                    eclCode.append(latestDS)
-                    .append("Deduped := Dedup( ")
-                    .append(latestDS)
-                    .append(", HASH);\n");
-
-                    latestDS += "Deduped";
-                }
-
-                if (eclEntities.containsKey("ORDERBY"))
-                {
-                    eclCode.append(latestDS).append("Sorted := SORT( ").append(latestDS).append(", ");
-                    eclCode.append(eclEntities.get("ORDERBY"));
-                    eclCode.append(");\n");
-                    latestDS += "Sorted";
-                }
-
-                eclCode.append("OUTPUT(CHOOSEN(");
-                eclCode.append(latestDS);
-
-                addHavingClause(eclCode);
-            }
-        }
-
-        if (!eclEntities.containsKey("SCALAROUTNAME"))
-        {
-            eclCode.append(",");
-            if (!eclEntities.containsKey("NONSCALAREXPECTED") && !sqlParser.hasGroupByColumns())
-                eclCode.append("1");
-            else if (eclEntities.containsKey("LIMIT"))
-                eclCode.append(eclEntities.get("LIMIT"));
-            else
-                eclCode.append(hpccConnProps.getProperty("EclResultLimit"));
-
-            eclCode.append("),NAMED(\'")
-                    .append(SELECTOUTPUTNAME)
-                    .append("\'));");
-
-            expectedDSName = SELECTOUTPUTNAME;
-        }
     }
 
     public void generateECL() throws SQLException
@@ -942,14 +997,32 @@ public class ECLEngine
         }
     }
 
-    private void addHavingClause(StringBuilder sb)
+    private boolean appendTranslatedHavingClause(StringBuilder sb, String latesDSName)
     {
         if (sqlParser.hasHavingClause())
         {
-            sb.append("( ");
-            sb.append(sqlParser.getHavingClause().toString());
-            sb.append(" )");
+            HashMap<String, String> translator = new HashMap<String, String>();
+            List<SQLTable> sqltables = sqlParser.getSQLTables();
+            for(SQLTable table : sqltables)
+            {
+                translator.put(table.getName().toUpperCase(), "LEFT");
+            }
+
+            String havingclause = sqlParser.getHavingClause().toStringTranslateSource(translator, false, true);
+
+            if (havingclause.length() > 0)
+            {
+                sb.append(latesDSName).append("Having").append(" := HAVING( ");
+                sb.append(latesDSName);
+                sb.append(", ");
+                sb.append(havingclause);
+                sb.append(" );\n");
+
+                return true;
+            }
         }
+
+        return false;
     }
 
     public NodeList executeCall( Map inParameters)
