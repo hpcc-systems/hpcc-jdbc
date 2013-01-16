@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 
 import org.hpccsystems.jdbcdriver.SQLFragment.FragmentType;
+import org.hpccsystems.jdbcdriver.SQLOperator.OperatorType;
 
 public class SQLExpression
 {
@@ -55,11 +56,12 @@ public class SQLExpression
 
         String splitedsqlexp[] = operator.splitExpressionFragment(trimmedExpression);
 
-        setPrefix(splitedsqlexp[0].trim());
+        if (operator.isBinary() || operator.getType() == OperatorType.POST_UNARY)
+            setPrefix(splitedsqlexp[0].trim());
 
         setOperator(operator);
 
-        if (operator.isBinary())
+        if (operator.isBinary() || operator.getType() == OperatorType.PRE_UNARY)
         {
             if (splitedsqlexp.length == 2)
                 setPostfix(splitedsqlexp[1].trim());
@@ -164,7 +166,7 @@ public class SQLExpression
                 tmpsb.append(SINGLEBLANKBUFFER)
                  .append(operator.toString())
                  .append(SINGLEBLANKBUFFER)
-                 .append(outputfull ? getFullPrefix() : prefix.getValue())
+                 .append(outputfull ? getFullPostfix() : postfix.getValue())
                  .append(SINGLEBLANKBUFFER);
            break;
             case POST_UNARY:
@@ -241,20 +243,21 @@ public class SQLExpression
                     break;
                 case PRE_UNARY:
                     tmpsb.append(SINGLEBLANKBUFFER).append(operator.toString()).append(SINGLEBLANKBUFFER);
-                    if (prefixtranslate != null)
+                    //if (prefixtranslate != null)
+                    if (postfixtranslate != null)
                     {
-                        if (prefix.getType() != FragmentType.FUNCTION_FIELD_PARAMETER)
+                        if (postfix.getType() != FragmentType.FUNCTION_FIELD_PARAMETER)
                         {
-                            tmpsb.append(prefixtranslate);
+                            tmpsb.append(postfixtranslate);
                             tmpsb.append(PARENTFIELDSEP);
                         }
                     }
-                    else if (prefix.getParent() != null && prefix.getParent().length() > 0)
+                    else if (postfix.getParent() != null && postfix.getParent().length() > 0)
                     {
-                        tmpsb.append(prefix.getParent());
+                        tmpsb.append(postfix.getParent());
                         tmpsb.append(PARENTFIELDSEP);
                     }
-                    tmpsb.append(prefix.getValue(postfixtranslate, forHaving)).append(SINGLEBLANKBUFFER);
+                    tmpsb.append(postfix.getValue(postfixtranslate, forHaving)).append(SINGLEBLANKBUFFER);
                     break;
                 case POST_UNARY:
                     if (prefixtranslate != null)
@@ -271,7 +274,7 @@ public class SQLExpression
                         tmpsb.append(PARENTFIELDSEP);
                     }
 
-                    tmpsb.append(prefix.getValue(postfixtranslate, forHaving)).append(SINGLEBLANKBUFFER);
+                    tmpsb.append(prefix.getValue(prefixtranslate, forHaving)).append(SINGLEBLANKBUFFER);
                     tmpsb.append(operator.toString()).append(SINGLEBLANKBUFFER);
 
                     break;

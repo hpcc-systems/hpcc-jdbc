@@ -308,7 +308,7 @@ public class SQLFragment
 
     public String getFnname()
     {
-        return function.getName();
+        return (function != null) ? function.getName() : "";
     }
 
     public void setFunction(ECLFunction func)
