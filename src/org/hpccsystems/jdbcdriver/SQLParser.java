@@ -72,6 +72,9 @@ public class SQLParser
     public final static Pattern DISTINCTPATTERN = Pattern.compile(
             "\\s*(?i)distinct\\s+(.*?)",Pattern.DOTALL);
 
+    public static final Pattern ASCDESCPATERN = Pattern.compile(
+            "\\s*(.*?)\\s*(?i)(asc|desc)\\s*",Pattern.DOTALL);
+
     public void process(String insql) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.INFO,  "INCOMING SQL: " + insql);
@@ -168,8 +171,8 @@ public class SQLParser
             {
                 if (limitPos != -1)
                 {
-                    limit = Integer.valueOf(insqlupcase.substring(limitPos + 6).trim());
-                    insqlupcase = insqlupcase.substring(0, limitPos);
+                    limit = Integer.valueOf(insql.substring(limitPos + 6).trim());
+                    insql = insql.substring(0, limitPos);
                 }
             }
             catch (NumberFormatException ne)
@@ -184,29 +187,29 @@ public class SQLParser
             {
                 if (orderPos == -1)
                 {
-                    groupByToken = insqlupcase.substring(groupPos + 10);
+                    groupByToken = insql.substring(groupPos + 10);
                 }
                 else
                 {
-                    groupByToken = insqlupcase.substring(groupPos + 10, orderPos);
-                    orderByToken = insqlupcase.substring(orderPos + 10);
+                    groupByToken = insql.substring(groupPos + 10, orderPos);
+                    orderByToken = insql.substring(orderPos + 10);
                 }
 
-                insqlupcase = insqlupcase.substring(0, groupPos);
+                insql = insql.substring(0, groupPos);
 
             }
             else if (orderPos != -1 && (groupPos == -1 || orderPos < groupPos))
             {
                 if (groupPos == -1)
                 {
-                    orderByToken = insqlupcase.substring(orderPos + 10);
+                    orderByToken = insql.substring(orderPos + 10);
                 }
                 else
                 {
-                    orderByToken = insqlupcase.substring(orderPos + 10, groupPos);
-                    groupByToken = insqlupcase.substring(groupPos + 10);
+                    orderByToken = insql.substring(orderPos + 10, groupPos);
+                    groupByToken = insql.substring(groupPos + 10);
                 }
-                insqlupcase = insqlupcase.substring(0, orderPos);
+                insql = insql.substring(0, orderPos);
             }
 
             if (orderByToken.length() > 0)
@@ -220,18 +223,15 @@ public class SQLParser
                     String orderbycolumn = tokenizer.nextToken().trim();
                     boolean orderbyascending = true;
 
-                    int dirPos = orderbycolumn.lastIndexOf("ASC");
-                    if (dirPos == -1)
-                        dirPos = orderbycolumn.lastIndexOf("DESC");
+                    Matcher matcher = ASCDESCPATERN.matcher(orderbycolumn);
 
-                    // not else if from above if!!
-                    if (dirPos != -1)
+                    if (matcher.matches())
                     {
-                        orderbyascending = orderbycolumn.contains("ASC");
-                        orderbycolumn = orderbycolumn.substring(0, dirPos).trim();
+                        orderbycolumn = matcher.group(1).trim();
+                        orderbyascending = matcher.group(2).trim().equalsIgnoreCase("ASC");
                     }
 
-                    HPCCColumnMetaData order = new HPCCColumnMetaData(orderbycolumn, 0, java.sql.Types.OTHER);
+                    HPCCColumnMetaData order = new HPCCColumnMetaData(orderbycolumn.toUpperCase(), 0, java.sql.Types.OTHER);
 
                     if (!orderbyascending)
                         order.setSortAscending(false);
@@ -251,7 +251,7 @@ public class SQLParser
                     parseHavingClause(matcher.group(2));
                 }
 
-                StringTokenizer tokenizer = new StringTokenizer(groupByToken, ",");
+                StringTokenizer tokenizer = new StringTokenizer(groupByToken.toUpperCase(), ",");
                 groupByFragments = new ArrayList<HPCCColumnMetaData>();
 
                 while (tokenizer.hasMoreTokens())
@@ -260,7 +260,6 @@ public class SQLParser
                 }
             }
 
-            insql = insql.substring(0, insqlupcase.length());
             String fullTableName = null;
 
             if (joinPos != -1)
@@ -409,7 +408,7 @@ public class SQLParser
                 colmetadata.setTableName(sqlTables.get(0).getName());
 
                 if (colassplit.length > 1)
-                    colmetadata.setAlias(HPCCJDBCUtils.handleQuotedString(colassplit[1]));
+                    colmetadata.setAlias(HPCCJDBCUtils.handleQuotedString(colassplit[1].trim()));
 
                 selectColumns.add(colmetadata);
             }
@@ -458,7 +457,7 @@ public class SQLParser
                     String strWhere = insql.substring(wherePos + 7);
                     whereClause.parseWhereClause(strWhere);
 
-                    insqlupcase = insqlupcase.substring(0, wherePos);
+                    insql = insql.substring(0, wherePos);
                 }
             }
 
@@ -468,7 +467,7 @@ public class SQLParser
 
                 if (inJoinPos != -1)
                 {
-                    parseJoinClause(insql.substring(inJoinPos, insqlupcase.length()));
+                    parseJoinClause(insql.substring(inJoinPos, insql.length()));
                 }
                 else
                 {
@@ -476,11 +475,11 @@ public class SQLParser
 
                     if (outJoinPos != -1)
                     {
-                        parseJoinClause((insql.substring(outJoinPos, insqlupcase.length())));
+                        parseJoinClause((insql.substring(outJoinPos, insql.length())));
                     }
                     else
                     {
-                        parseJoinClause((insql.substring(joinPos, insqlupcase.length())));
+                        parseJoinClause((insql.substring(joinPos, insql.length())));
                     }
                 }
             }
@@ -488,6 +487,9 @@ public class SQLParser
             try
             {
                 whereClause.updateFragmentColumnsParent(sqlTables);
+
+                if (havingClause != null)
+                    havingClause.updateFragmentColumnsParent(sqlTables);
 
                 assignParameterIndexes();
 
@@ -656,6 +658,9 @@ public class SQLParser
         int groupbycount = groupByFragments.size();
         for (int i = 0; i < groupbycount; i++)
         {
+            /* Use column name, not alias b/c grouping is performed before
+             * result table is created (which uses aliases)
+             * */
             tmp.append(groupByFragments.get(i).getColumnName());
             if (i != groupbycount - 1)
                 tmp.append(delimiter);
@@ -760,9 +765,9 @@ public class SQLParser
         return whereClause.containsKey(name);
     }
 
-    public String getWhereClauseStringTranslateSource(HashMap<String, String> map, boolean ignoreMisTranslations)
+    public String getWhereClauseStringTranslateSource(HashMap<String, String> map, boolean ignoreMisTranslations, boolean forHaving)
     {
-        return whereClause.toStringTranslateSource(map, ignoreMisTranslations);
+        return whereClause.toStringTranslateSource(map, ignoreMisTranslations, forHaving);
     }
 
     public String getWhereClauseString()
@@ -1026,5 +1031,10 @@ public class SQLParser
     public SQLWhereClause getHavingClause()
     {
         return havingClause;
+    }
+
+    public List<SQLTable> getSQLTables()
+    {
+        return sqlTables;
     }
 }

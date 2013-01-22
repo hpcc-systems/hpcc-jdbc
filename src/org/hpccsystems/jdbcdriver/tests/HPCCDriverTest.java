@@ -877,6 +877,27 @@ public class HPCCDriverTest
                     "select peeps.firstname, " +
                     "        peeps.lastname, " +
                     "        peeps.personid, " +
+                    "        MAX(accts.account), " +
+                    "        people.state, " +
+                    "        peeps.zip " +
+                    "from progguide::exampledata::people as peeps, " +
+                    "progguide::exampledata::accounts accts, " +
+                    "tutorial::rp::tutorialperson people " +
+                    "where  " +
+                    "       peeps.firstname = 'TIMTOHY' AND " +
+                    "       peeps.lastname = 'WARESK' AND " +
+                    "       peeps.personid = accts.personid and" +
+                    "       peeps.firstname = people.firstname " +
+                    "group by zip having MAX(accts.account) >= '3303222948' " +
+                    //"group by zip having accts.account >= 0 " +
+
+                    "limit 100",
+                    params, true, 1, "multi-table implicit join having clause");
+
+            executeFreeHandSQL(propsinfo,
+                    "select peeps.firstname, " +
+                    "        peeps.lastname, " +
+                    "        peeps.personid, " +
                     "        accts.account, " +
                     "        people.state " +
                     "from progguide::exampledata::people as peeps, " +
@@ -932,12 +953,24 @@ public class HPCCDriverTest
                     params, true, 1, "select upper(col) where ");
 
             executeFreeHandSQL(propsinfo,
-                    "select  count( persons.city)  from tutorial::rp::tutorialperson as persons where  persons.city  > 'DELRAY' group by city having count(city) < 22 limit 100",
-                    params, true, 1, "count having single field scalar output");
+                    "select  count( persons.city), zip  from tutorial::rp::tutorialperson as persons limit 100",
+                    params, true, 1, "simple select count ");
 
             executeFreeHandSQL(propsinfo,
-                    "select  count( persons.zip), zip  from tutorial::rp::tutorialperson as persons where  persons.zip  > '33445' group by zip having count(zip) > 20 limit 100",
+                    "select  count( persons.city), zip  from tutorial::rp::tutorialperson as persons where  persons.city  > 'DELRAY' group by city having persons.zip <= '99000' limit 100",
+                    params, true, 1, "count having clause withou agg function ");
+
+            executeFreeHandSQL(propsinfo,
+                    "select  count( persons.city)  from tutorial::rp::tutorialperson as persons where  persons.city  > 'DELRAY' group by city having count(persons.city) < 22 limit 100",
+                    params, true, 1, "count having count single field scalar output");
+
+            executeFreeHandSQL(propsinfo,
+                    "select  count( persons.zip), zip  from tutorial::rp::tutorialperson as persons where  persons.zip  > '33445' group by zip having max(zip) > '99000' limit 100",
                     params, true, 1, "count having single field payload indexed");
+
+            executeFreeHandSQL(propsinfo,
+                    "select  count( persons.zip), zip , city  from tutorial::rp::tutorialperson as persons where  persons.zip  > '33445' group by zip having max(zip) > '99000' limit 100",
+                    params, true, 1, "count having single field index fetch");
 
             executeFreeHandSQL(propsinfo,
                     "select  count( persons.city), city  from tutorial::rp::tutorialperson as persons where  persons.city  > 'DELRAY' group by zip having count(city) < 22 limit 100",
