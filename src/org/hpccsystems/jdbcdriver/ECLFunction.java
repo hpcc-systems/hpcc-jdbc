@@ -33,16 +33,18 @@ public class ECLFunction
     private HPCCColumnMetaData returnType;
     private FunctionType       functionType;
     private String             eclFunction;
+    private boolean            returnsSameAsArgumentType;
 
-    public ECLFunction(String thename, boolean acceptswild, HPCCColumnMetaData returntype, boolean multipleInput, boolean emptyInput, FunctionType fntype, String eclfunc)
+    public ECLFunction(String thename, boolean acceptswild, HPCCColumnMetaData returntype, boolean multipleinput, boolean emptyInput, FunctionType fntype, String eclfunc, boolean returnssameasarg)
     {
         name = thename;
         acceptsWilCard = acceptswild;
         returnType = returntype;
-        acceptsMultipleInputs = multipleInput;
+        acceptsMultipleInputs = multipleinput;
         acceptsEmptyInput = emptyInput;
         functionType = fntype;
         eclFunction = eclfunc;
+        returnsSameAsArgumentType = returnssameasarg;
     }
 
     public String getName()
@@ -64,7 +66,7 @@ public class ECLFunction
     {
         return acceptsMultipleInputs;
     }
-    
+
     public boolean acceptsEmptyInput()
     {
         return acceptsEmptyInput;
@@ -83,5 +85,10 @@ public class ECLFunction
     public String getEclFunction()
     {
         return eclFunction;
+    }
+
+    public boolean returnsSameAsArgumentType()
+    {
+        return returnsSameAsArgumentType;
     }
 }

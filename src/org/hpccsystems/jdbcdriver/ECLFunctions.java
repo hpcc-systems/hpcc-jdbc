@@ -26,28 +26,99 @@ import org.hpccsystems.jdbcdriver.ECLFunction.FunctionType;
 
 public class ECLFunctions
 {
+    static final String COUNT = "COUNT";
+    static final String MAX = "MAX";
+    static final String MIN = "MIN";
+    static final String SUM = "SUM";
+    static final String AVG = "AVG";
+    static final String UPPER = "UPPER";
+    static final String LOWER = "LOWER";
+
     static Map<String, ECLFunction> functions;
     static
     {
         functions = new HashMap<String, ECLFunction>();
 
-        functions.put("COUNT", new ECLFunction("COUNT", true, new HPCCColumnMetaData("countreturn", 0,
-                java.sql.Types.NUMERIC), true, true, FunctionType.AGGREGATE, "COUNT"));
-        functions.put("MAX", new ECLFunction("MAX", true,
-                new HPCCColumnMetaData("maxreturn", 0, java.sql.Types.NUMERIC), false, false, FunctionType.AGGREGATE, "MAX"));
-        functions.put("MIN", new ECLFunction("MIN", true,
-                new HPCCColumnMetaData("minreturn", 0, java.sql.Types.NUMERIC), false, false, FunctionType.AGGREGATE, "MIN"));
-        functions.put("SUM", new ECLFunction("SUM", true,
-                new HPCCColumnMetaData("sumreturn", 0, java.sql.Types.NUMERIC), false, false, FunctionType.AGGREGATE, "SUM"));
-        functions.put("AVG", new ECLFunction("AVG", true,
-                new HPCCColumnMetaData("avgreturn", 0, java.sql.Types.NUMERIC), false, false, FunctionType.AGGREGATE , "AVE"));
-        functions.put("UPPER", new ECLFunction("UPPER", true,
-                new HPCCColumnMetaData("", 0, java.sql.Types.VARCHAR), false,  false, FunctionType.CONTENT_MODIFIER, "Std.Str.ToUpperCase"));
-        functions.put("LOWER", new ECLFunction("LOWER", true,
-                new HPCCColumnMetaData("", 0, java.sql.Types.VARCHAR), false,  false, FunctionType.CONTENT_MODIFIER, "Std.Str.ToLowerCase"));
+        functions.put(COUNT,
+                new ECLFunction(COUNT,
+                                true,
+                                new HPCCColumnMetaData("countreturn", 0,java.sql.Types.INTEGER),
+                                true,
+                                true,
+                                FunctionType.AGGREGATE,
+                                COUNT,
+                                false
+                                )
+        );
+        functions.put(MAX,
+                new ECLFunction(MAX,
+                                true,
+                                new HPCCColumnMetaData("maxreturn", 0, java.sql.Types.NUMERIC),
+                                false,
+                                false,
+                                FunctionType.AGGREGATE,
+                                MAX,
+                                true
+                                )
+        );
+        functions.put(MIN,
+                new ECLFunction(MIN,
+                                true,
+                                new HPCCColumnMetaData("minreturn", 0, java.sql.Types.NUMERIC),
+                                false,
+                                false,
+                                FunctionType.AGGREGATE,
+                                MIN,
+                                true
+                                )
+        );
+        functions.put(SUM,
+                new ECLFunction(SUM,
+                                true,
+                                new HPCCColumnMetaData("sumreturn", 0, java.sql.Types.NUMERIC),
+                                false,
+                                false,
+                                FunctionType.AGGREGATE,
+                                SUM,
+                                true
+                                )
+        );
+        functions.put(AVG,
+                new ECLFunction(AVG,
+                                true,
+                                new HPCCColumnMetaData("avgreturn", 0, java.sql.Types.NUMERIC),
+                                false,
+                                false,
+                                FunctionType.AGGREGATE,
+                                "AVE",
+                                true
+                                )
+        );
+        functions.put(UPPER,
+                new ECLFunction(UPPER,
+                                true,
+                                new HPCCColumnMetaData("", 0, java.sql.Types.VARCHAR),
+                                false,
+                                false,
+                                FunctionType.CONTENT_MODIFIER,
+                                "Std.Str.ToUpperCase",
+                                true
+                                )
+        );
+        functions.put(LOWER,
+                new ECLFunction(LOWER,
+                        true,
+                        new HPCCColumnMetaData("", 0, java.sql.Types.VARCHAR),
+                        false,
+                        false,
+                        FunctionType.CONTENT_MODIFIER,
+                        "Std.Str.ToLowerCase",
+                        true
+                        )
+        );
     }
 
-    static ECLFunction getEclFunction(String funcname)
+    static public ECLFunction getEclFunction(String funcname)
     {
         return functions.get(funcname.trim().toUpperCase());
     }
