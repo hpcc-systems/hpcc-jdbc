@@ -35,12 +35,12 @@ public class ECLFunction
     private String             eclFunction;
     private boolean            returnsSameAsArgumentType;
 
-    public ECLFunction(String thename, boolean acceptswild, HPCCColumnMetaData returntype, boolean multipleInput, boolean emptyInput, FunctionType fntype, String eclfunc, boolean returnssameasarg)
+    public ECLFunction(String thename, boolean acceptswild, HPCCColumnMetaData returntype, boolean multipleinput, boolean emptyInput, FunctionType fntype, String eclfunc, boolean returnssameasarg)
     {
         name = thename;
         acceptsWilCard = acceptswild;
         returnType = returntype;
-        acceptsMultipleInputs = multipleInput;
+        acceptsMultipleInputs = multipleinput;
         acceptsEmptyInput = emptyInput;
         functionType = fntype;
         eclFunction = eclfunc;

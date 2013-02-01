@@ -28,8 +28,11 @@ import java.util.regex.Matcher;
 public class HPCCColumnMetaData
 {
     public final static int DEFAULTDECIMALCHARS = 32;
-    public final static int DEFAULTINTBYTES = 8;
-    public final static int DEFAULTREALBYTES = 8;
+    public final static int DEFAULTINTBYTES     = 8;
+    public final static int DEFAULTREALBYTES    = 8;
+
+    public final static int DEFAULTCOLCHARS      = 0;
+    public final static int DEFAULTDECDIGITS     = 0;
 
     public enum ColumnType
     {
@@ -46,8 +49,8 @@ public class HPCCColumnMetaData
     private String                   eclType;
     private String                   tableName;
     private int                      columnSize;
-    private int                      columnChars = 0;   //JDBC Precision
-    private int                      decimalDigits = 0; //JDBC Scale
+    private int                      columnChars = DEFAULTCOLCHARS;   //JDBC Precision
+    private int                      decimalDigits = DEFAULTDECDIGITS; //JDBC Scale
     private int                      radix;
     private String                   nullable;
     private String                   remarks;
@@ -357,8 +360,13 @@ public class HPCCColumnMetaData
             else
             {
                 //TRAILINGNUMERICPATTERN attemps to match optional leading spaces
-                //followed by a string of alphas, followed by optional string of numerics
-                //then we look up the string of alphas in the known ECL type map (group(2))
+                //followed by a string of alphas, followed by optional string of numerics,
+                //followed by an option underscore followed by a numeric.
+                //Then we look up the string of alphas in the known ECL type map (group(2))
+                //The optional numeric (group 4) corresponds to the type size, or digits.
+                //The optional numeric (group 6) after the underscore is the number of 
+                //decimal places in the value.
+                
                 Matcher m = HPCCJDBCUtils.TRAILINGNUMERICPATTERN.matcher(postfixUpper);
                 if (m.matches() && HPCCJDBCUtils.mapECLTypeNameToSQLType.containsKey(m.group(2)))
                 {

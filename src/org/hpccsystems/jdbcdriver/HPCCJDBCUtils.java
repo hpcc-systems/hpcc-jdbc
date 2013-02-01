@@ -681,4 +681,23 @@ public class HPCCJDBCUtils
     {
        return BOOLEANPATTERN.matcher(str).matches();
     }
+
+    public final static HashMap<Integer, Integer> mapSQLTypeToPrecedence = new HashMap<Integer, Integer>();
+    static
+    {
+        int precedence = Integer.MAX_VALUE;
+        mapSQLTypeToPrecedence.put(java.sql.Types.DOUBLE, precedence--);
+        mapSQLTypeToPrecedence.put(java.sql.Types.REAL, precedence--);
+        mapSQLTypeToPrecedence.put(java.sql.Types.DECIMAL, precedence--);
+        mapSQLTypeToPrecedence.put(java.sql.Types.INTEGER, precedence--);
+        mapSQLTypeToPrecedence.put(java.sql.Types.SMALLINT, precedence--);
+    }
+
+    public static int getNumericSqlTypePrecedence(int sqlType)
+    {
+        if (mapSQLTypeToPrecedence.containsKey(sqlType))
+            return mapSQLTypeToPrecedence.get(sqlType);
+        else
+            return Integer.MIN_VALUE;
+    }
 }

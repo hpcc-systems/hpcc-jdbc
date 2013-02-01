@@ -160,7 +160,7 @@ public class HPCCResultSetMetadata implements ResultSetMetaData
         if (column >= 1 && column <= columnList.size())
             return columnList.get(column - 1).getColumnChars();
         else
-            throw new SQLException("Invalid Column Index = column");
+            throw new SQLException("Invalid Column Index: " + column);
     }
 
     public int getScale(int column) throws SQLException
@@ -171,7 +171,7 @@ public class HPCCResultSetMetadata implements ResultSetMetaData
         if (column >= 1 && column <= columnList.size())
             return columnList.get(column - 1).getDecimalDigits();
         else
-            throw new SQLException("Invalid Column Index = column");
+            throw new SQLException("Invalid Column Index: " + column);
     }
 
     public String getTableName(int column) throws SQLException
@@ -180,7 +180,7 @@ public class HPCCResultSetMetadata implements ResultSetMetaData
         if (column >= 1 && column <= columnList.size())
             return columnList.get(column - 1).getTableName();
         else
-            throw new SQLException("Invalid Column Index = column");
+            throw new SQLException("Invalid Column Index: " + column);
     }
 
     public String getCatalogName(int column) throws SQLException
