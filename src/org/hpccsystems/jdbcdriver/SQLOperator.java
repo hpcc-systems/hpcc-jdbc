@@ -60,7 +60,7 @@ public class SQLOperator
     public final static String ISNOTNULLSPLITPATTERN = "\\s+(?i)IS\\s+(?i)NOT\\s+(?i)NULL\\s*";
     public final static String ANDSPLITPATTERN = "\\s+(?i)AND\\s+";
     public final static String ORSPLITPATTERN = "\\s+(?i)OR\\s+";
-    public final static String NOTSPLITPATTERN = "\\s+(?i)NOT\\s+";
+    //public final static String NOTSPLITPATTERN = "(?i)NOT\\s+";
     //public final static String EXISTSSPLITPATTERN = "\\s+(?i)EXISTS\\s*";
     //public final static String LIKESPLITPATTERN = "\\s+(?i)LIKE\\s*";
     public final static String INSPLITPATTERN = "\\s+(?i)IN\\s+";
@@ -79,7 +79,7 @@ public class SQLOperator
             "(.?){1}"+ORSPLITPATTERN+"(.?){1}",Pattern.DOTALL);
 
     //private final static Pattern NOTPATTERN = Pattern.compile(
-    //        NOTSPLITPATTERN+"(.?){1}",Pattern.DOTALL);
+    //        NOTSPLITPATTERN+"(.?)+",Pattern.DOTALL);
 
     //private final static Pattern EXISTSPATTERN = Pattern.compile(
     //        EXISTSSPLITPATTERN+"(.?){1}",Pattern.DOTALL);
@@ -110,7 +110,7 @@ public class SQLOperator
         validOps.put(lte, OperatorType.BINARY);
         validOps.put(and, OperatorType.BINARY);
         validOps.put(or, OperatorType.BINARY);
-        //validOps.put(not, OPERATOR_TYPE.PRE_UNARY);
+        //validOps.put(not, OperatorType.PRE_UNARY);
         //validOps.put(exists, OPERATOR_TYPE.PRE_UNARY);
         //validOps.put(like, OPERATOR_TYPE.BINARY);
         validOps.put(in, OperatorType.BINARY);
@@ -176,7 +176,11 @@ public class SQLOperator
                 splitPattern = INSPLITPATTERN;
                 value = SQLOperator.in;
             }
-
+            //else if (NOTPATTERN.matcher(upperFragment).matches())
+            //{
+            //    splitPattern = NOTSPLITPATTERN;
+            //    value = SQLOperator.not;
+            //}
             else
                 value = null;
         }

@@ -448,7 +448,7 @@ public class HPCCJDBCUtils
         return replaced;
     }
 
-    private static HashMap<String, Integer> mapECLTypeNameToSQLType = new HashMap<String, Integer>();
+    public final static HashMap<String, Integer> mapECLTypeNameToSQLType = new HashMap<String, Integer>();
     static
     {
         mapECLTypeNameToSQLType.put("BOOLEAN", java.sql.Types.BOOLEAN);
@@ -475,8 +475,8 @@ public class HPCCJDBCUtils
         mapECLTypeNameToSQLType.put("REAL", java.sql.Types.REAL);
     }
 
-    private static Pattern TRAILINGNUMERICPATTERN = Pattern.compile(
-            "(.*\\s+?)*([A-Z]+)([0-9]+(_[0-9]+)?)*",Pattern.DOTALL);
+    public final static Pattern TRAILINGNUMERICPATTERN = Pattern.compile(
+            "(.*\\s+?)*([A-Z]+)(([0-9]+)(_([0-9]+))?)*",Pattern.DOTALL);
 
     public static int mapECLtype2SQLtype(String ecltype)
     {

@@ -945,20 +945,70 @@ public class SQLParser
             {
                 if (column.getColumnType() == ColumnType.FUNCTION)
                 {
+                    ECLFunction func = ECLFunctions.getEclFunction(column.getColumnName());
+
                     if (column.getAlias() == null)
                         column.setAlias(fieldName + "Out");
 
-                    List<HPCCColumnMetaData> funccols = column.getFunccols();
-                    for (int y = 0; y < funccols.size(); y++)
+                    int highestprecedencecolumn = java.sql.Types.NUMERIC;
+                    int highestDecimalDigits = 0;
+                    int highestColumnChars = 0;
+
+                    for (HPCCColumnMetaData fncol : column.getFunccols())
                     {
-                        verifyAndProcessAllColumn(funccols.get(y), availableCols);
+                        verifyAndProcessAllColumn(fncol, availableCols);
+
+                        if (column.getSqlType() == java.sql.Types.NUMERIC && func.returnsSameAsArgumentType())
+                        {
+                            if (fncol.getDecimalDigits() > highestDecimalDigits)
+                                highestDecimalDigits = fncol.getDecimalDigits();
+
+                            if (fncol.getColumnChars() > highestColumnChars)
+                                highestColumnChars = fncol.getColumnChars();
+
+                            switch (fncol.getSqlType())
+                            {
+                                case java.sql.Types.DOUBLE:
+                                    highestprecedencecolumn = java.sql.Types.DOUBLE;
+                                    break;
+                                case java.sql.Types.REAL:
+                                    if ( highestprecedencecolumn != java.sql.Types.DOUBLE)
+                                        highestprecedencecolumn = java.sql.Types.REAL;
+                                    break;
+                                case java.sql.Types.DECIMAL:
+                                    if ( highestprecedencecolumn != java.sql.Types.REAL)
+                                        highestprecedencecolumn = java.sql.Types.DECIMAL;
+                                    break;
+                                case java.sql.Types.INTEGER:
+                                    if ( highestprecedencecolumn != java.sql.Types.REAL &&  highestprecedencecolumn != java.sql.Types.DECIMAL)
+                                        highestprecedencecolumn = java.sql.Types.INTEGER;
+                                    break;
+                                default:
+                                    break;
+                            }
+                        }
                     }
+
+                    if (highestprecedencecolumn != java.sql.Types.NUMERIC && func.returnsSameAsArgumentType())
+                    {
+                        column.setSqlType(highestprecedencecolumn);
+                        HPCCJDBCUtils.traceoutln(Level.FINEST,  "Function: " + fieldName.toUpperCase() + " return type: " + highestprecedencecolumn);
+
+                        if (highestprecedencecolumn == java.sql.Types.DECIMAL)
+                        {
+                            if (highestColumnChars > 0)
+                                column.setColumnChars(highestColumnChars);
+
+                            if (highestDecimalDigits > 0)
+                                column.setDecimalDigits(highestDecimalDigits);
+                        }
+                    }
+
                 }
                 else if (HPCCJDBCUtils.isLiteralString(fieldName))
                 {
                     column.setColumnName("ConstStr" + column.getIndex());
                     column.setEclType("STRING");
-                    column.setSqlType(java.sql.Types.VARCHAR);
                     column.setColumnType(ColumnType.CONSTANT);
                     column.setConstantValue(fieldName);
                 }
@@ -966,7 +1016,6 @@ public class SQLParser
                 {
                     column.setColumnName("ConstNum" + column.getIndex());
                     column.setEclType("INTEGER");
-                    column.setSqlType(java.sql.Types.NUMERIC);
                     column.setColumnType(ColumnType.CONSTANT);
                     column.setConstantValue(fieldName);
                 }
