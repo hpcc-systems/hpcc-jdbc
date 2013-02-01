@@ -107,7 +107,7 @@ public class HPCCResultSetMetadata implements ResultSetMetaData
 
     public boolean isSearchable(int column) throws SQLException
     {
-        return false;
+        return true;
     }
 
     public boolean isCurrency(int column) throws SQLException
@@ -117,7 +117,8 @@ public class HPCCResultSetMetadata implements ResultSetMetaData
 
     public int isNullable(int column) throws SQLException
     {
-        return 1;
+        //Nothing represented in HPCC is nullable.
+        return 0;
     }
 
     public boolean isSigned(int column) throws SQLException
@@ -153,39 +154,64 @@ public class HPCCResultSetMetadata implements ResultSetMetaData
 
     public int getPrecision(int column) throws SQLException
     {
-        return 0;
+        //"Get the designated column's number of decimal digits."
+        //http://docs.oracle.com/javase/1.4.2/docs/api/java/sql/ResultSetMetaData.html#getScale%28int%29
+        HPCCJDBCUtils.traceoutln(Level.ALL,  "getPrecision ( " + column +" )");
+        if (column >= 1 && column <= columnList.size())
+            return columnList.get(column - 1).getColumnChars();
+        else
+            throw new SQLException("Invalid Column Index = column");
     }
 
     public int getScale(int column) throws SQLException
     {
-        return 0;
+        //Gets the designated column's number of digits to right of the decimal point.
+        //http://docs.oracle.com/javase/1.4.2/docs/api/java/sql/ResultSetMetaData.html#getScale%28int%29
+        HPCCJDBCUtils.traceoutln(Level.ALL,  "getScale ( " + column +" )");
+        if (column >= 1 && column <= columnList.size())
+            return columnList.get(column - 1).getDecimalDigits();
+        else
+            throw new SQLException("Invalid Column Index = column");
     }
 
     public String getTableName(int column) throws SQLException
     {
-        return tableName;
+        HPCCJDBCUtils.traceoutln(Level.ALL,  "getTableName ( " + column +" )");
+        if (column >= 1 && column <= columnList.size())
+            return columnList.get(column - 1).getTableName();
+        else
+            throw new SQLException("Invalid Column Index = column");
     }
 
     public String getCatalogName(int column) throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.ALL,  "getCatalogName ( " + column +" ) : " + catalogName);
         return catalogName;
     }
 
     public int getColumnType(int column) throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.ALL,  "HPCCResultSetMetadata.getColumnType(column : " + column +" )");
         if (column >= 1 && column <= columnList.size())
-            return columnList.get(column - 1).getSqlType();
+        {
+            int sqlType = columnList.get(column - 1).getSqlType();
+            HPCCJDBCUtils.traceoutln(Level.ALL,  "SQLTYPE : " + sqlType +" )");
+            return sqlType;
+        }
         else
             throw new SQLException("Invalid Column Index = " + column);
     }
 
     public String getColumnTypeName(int column) throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.ALL,  "HPCCResultSetMetadata.getColumnTypeName(column : " + column +" )");
         if (column >= 1 && column <= columnList.size())
         {
             try
             {
-                return HPCCJDBCUtils.getSQLTypeName(columnList.get(column - 1).getSqlType());
+                String sqlTypeName = HPCCJDBCUtils.getSQLTypeName(columnList.get(column - 1).getSqlType());
+                HPCCJDBCUtils.traceoutln(Level.ALL,  "SQLTYPEName : " + sqlTypeName +" )");
+                return sqlTypeName;
             }
             catch (Exception e)
             {
@@ -198,24 +224,30 @@ public class HPCCResultSetMetadata implements ResultSetMetaData
 
     public boolean isReadOnly(int column) throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.ALL,  "isReadOnly ( " + column +" ) : true");
         return true;
     }
 
     public boolean isWritable(int column) throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.ALL,  "isWritable ( " + column +" ) : false");
         return false;
     }
 
     public boolean isDefinitelyWritable(int column) throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.ALL,  "isDefinitelyWritable ( " + column +" ) : false");
         return false;
     }
 
     public String getColumnClassName(int column) throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.ALL,  "HPCCResultSetMetadata.getColumnClassName(column : " + column +" )");
         if (column >= 1 && column <= columnList.size())
         {
-            return HPCCJDBCUtils.convertSQLtype2JavaClassName(columnList.get(column - 1).getSqlType());
+            String convertSQLtype2JavaClassName = HPCCJDBCUtils.convertSQLtype2JavaClassName(columnList.get(column - 1).getSqlType());
+            HPCCJDBCUtils.traceoutln(Level.ALL,  "Column class name: " + convertSQLtype2JavaClassName +" )");
+            return convertSQLtype2JavaClassName;
         }
         else
         {

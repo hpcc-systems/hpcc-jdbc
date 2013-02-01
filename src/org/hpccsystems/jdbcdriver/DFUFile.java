@@ -447,8 +447,8 @@ public class DFUFile
                                     type.append(" ");
                             }
 
-                            HPCCColumnMetaData columnmeta = new HPCCColumnMetaData(name, index,
-                                    HPCCJDBCUtils.mapECLtype2SQLtype(type.toString()));
+                            HPCCColumnMetaData columnmeta = new HPCCColumnMetaData(name, index,java.sql.Types.OTHER);
+
                             columnmeta.setEclType(type.toString());
                             columnmeta.setTableName(this.fullyQualifiedName);
 

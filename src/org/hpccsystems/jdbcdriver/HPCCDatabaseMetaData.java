@@ -315,8 +315,9 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                                 else if (elem.getNodeName().equals("ColumnType"))
                                     columntype = elem.getTextContent();
                             }
-                            HPCCColumnMetaData elemmeta = new HPCCColumnMetaData(columname.toUpperCase(), 0,
-                                    HPCCJDBCUtils.mapECLtype2SQLtype(columntype));
+
+                            HPCCColumnMetaData elemmeta = new HPCCColumnMetaData(columname.toUpperCase(), 0, java.sql.Types.OTHER);
+                            elemmeta.setEclType(columntype);
                             elemmeta.setTableName(tablename);
                             elemmeta.setParamType(procedureColumnOut);
                             try
@@ -366,8 +367,8 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                                 else if (elem.getNodeName().equals("ColumnType"))
                                     columntype = elem.getTextContent();
                             }
-                            HPCCColumnMetaData elemmeta = new HPCCColumnMetaData(columname, i + 1,
-                                    HPCCJDBCUtils.mapECLtype2SQLtype(columntype.toUpperCase()));
+                            HPCCColumnMetaData elemmeta = new HPCCColumnMetaData(columname, i + 1,java.sql.Types.OTHER);
+                            elemmeta.setEclType(columntype);
                             elemmeta.setTableName(query.getName());
                             elemmeta.setParamType(procedureColumnIn);
                             try
