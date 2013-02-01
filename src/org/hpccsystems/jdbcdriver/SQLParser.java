@@ -951,8 +951,8 @@ public class SQLParser
                         column.setAlias(fieldName + "Out");
 
                     int highestprecedencecolumn = java.sql.Types.NUMERIC;
-                    int highestDecimalDigits = 0;
-                    int highestColumnChars = 0;
+                    int highestDecimalDigits = HPCCColumnMetaData.DEFAULTDECDIGITS;
+                    int highestColumnChars = HPCCColumnMetaData.DEFAULTCOLCHARS;
 
                     for (HPCCColumnMetaData fncol : column.getFunccols())
                     {
@@ -966,26 +966,8 @@ public class SQLParser
                             if (fncol.getColumnChars() > highestColumnChars)
                                 highestColumnChars = fncol.getColumnChars();
 
-                            switch (fncol.getSqlType())
-                            {
-                                case java.sql.Types.DOUBLE:
-                                    highestprecedencecolumn = java.sql.Types.DOUBLE;
-                                    break;
-                                case java.sql.Types.REAL:
-                                    if ( highestprecedencecolumn != java.sql.Types.DOUBLE)
-                                        highestprecedencecolumn = java.sql.Types.REAL;
-                                    break;
-                                case java.sql.Types.DECIMAL:
-                                    if ( highestprecedencecolumn != java.sql.Types.REAL)
-                                        highestprecedencecolumn = java.sql.Types.DECIMAL;
-                                    break;
-                                case java.sql.Types.INTEGER:
-                                    if ( highestprecedencecolumn != java.sql.Types.REAL &&  highestprecedencecolumn != java.sql.Types.DECIMAL)
-                                        highestprecedencecolumn = java.sql.Types.INTEGER;
-                                    break;
-                                default:
-                                    break;
-                            }
+                            if (HPCCJDBCUtils.getNumericSqlTypePrecedence(fncol.getSqlType()) > HPCCJDBCUtils.getNumericSqlTypePrecedence(highestprecedencecolumn))
+                                    highestprecedencecolumn = fncol.getSqlType();
                         }
                     }
 
@@ -996,10 +978,10 @@ public class SQLParser
 
                         if (highestprecedencecolumn == java.sql.Types.DECIMAL)
                         {
-                            if (highestColumnChars > 0)
+                            if (highestColumnChars > HPCCColumnMetaData.DEFAULTCOLCHARS)
                                 column.setColumnChars(highestColumnChars);
 
-                            if (highestDecimalDigits > 0)
+                            if (highestDecimalDigits > HPCCColumnMetaData.DEFAULTDECDIGITS)
                                 column.setDecimalDigits(highestDecimalDigits);
                         }
                     }
