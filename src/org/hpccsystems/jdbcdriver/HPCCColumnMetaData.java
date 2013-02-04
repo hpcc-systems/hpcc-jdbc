@@ -364,9 +364,9 @@ public class HPCCColumnMetaData
                 //followed by an option underscore followed by a numeric.
                 //Then we look up the string of alphas in the known ECL type map (group(2))
                 //The optional numeric (group 4) corresponds to the type size, or digits.
-                //The optional numeric (group 6) after the underscore is the number of 
+                //The optional numeric (group 6) after the underscore is the number of
                 //decimal places in the value.
-                
+
                 Matcher m = HPCCJDBCUtils.TRAILINGNUMERICPATTERN.matcher(postfixUpper);
                 if (m.matches() && HPCCJDBCUtils.mapECLTypeNameToSQLType.containsKey(m.group(2)))
                 {
