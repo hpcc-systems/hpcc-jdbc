@@ -945,20 +945,52 @@ public class SQLParser
             {
                 if (column.getColumnType() == ColumnType.FUNCTION)
                 {
+                    ECLFunction func = ECLFunctions.getEclFunction(column.getColumnName());
+
                     if (column.getAlias() == null)
                         column.setAlias(fieldName + "Out");
 
-                    List<HPCCColumnMetaData> funccols = column.getFunccols();
-                    for (int y = 0; y < funccols.size(); y++)
+                    int highestprecedencecolumn = java.sql.Types.NUMERIC;
+                    int highestDecimalDigits = HPCCColumnMetaData.DEFAULTDECDIGITS;
+                    int highestColumnChars = HPCCColumnMetaData.DEFAULTCOLCHARS;
+
+                    for (HPCCColumnMetaData fncol : column.getFunccols())
                     {
-                        verifyAndProcessAllColumn(funccols.get(y), availableCols);
+                        verifyAndProcessAllColumn(fncol, availableCols);
+
+                        if (column.getSqlType() == java.sql.Types.NUMERIC && func.returnsSameAsArgumentType())
+                        {
+                            if (fncol.getDecimalDigits() > highestDecimalDigits)
+                                highestDecimalDigits = fncol.getDecimalDigits();
+
+                            if (fncol.getColumnChars() > highestColumnChars)
+                                highestColumnChars = fncol.getColumnChars();
+
+                            if (HPCCJDBCUtils.getNumericSqlTypePrecedence(fncol.getSqlType()) > HPCCJDBCUtils.getNumericSqlTypePrecedence(highestprecedencecolumn))
+                                    highestprecedencecolumn = fncol.getSqlType();
+                        }
                     }
+
+                    if (highestprecedencecolumn != java.sql.Types.NUMERIC && func.returnsSameAsArgumentType())
+                    {
+                        column.setSqlType(highestprecedencecolumn);
+                        HPCCJDBCUtils.traceoutln(Level.FINEST,  "Function: " + fieldName.toUpperCase() + " return type: " + highestprecedencecolumn);
+
+                        if (highestprecedencecolumn == java.sql.Types.DECIMAL)
+                        {
+                            if (highestColumnChars > HPCCColumnMetaData.DEFAULTCOLCHARS)
+                                column.setColumnChars(highestColumnChars);
+
+                            if (highestDecimalDigits > HPCCColumnMetaData.DEFAULTDECDIGITS)
+                                column.setDecimalDigits(highestDecimalDigits);
+                        }
+                    }
+
                 }
                 else if (HPCCJDBCUtils.isLiteralString(fieldName))
                 {
                     column.setColumnName("ConstStr" + column.getIndex());
                     column.setEclType("STRING");
-                    column.setSqlType(java.sql.Types.VARCHAR);
                     column.setColumnType(ColumnType.CONSTANT);
                     column.setConstantValue(fieldName);
                 }
@@ -966,7 +998,6 @@ public class SQLParser
                 {
                     column.setColumnName("ConstNum" + column.getIndex());
                     column.setEclType("INTEGER");
-                    column.setSqlType(java.sql.Types.NUMERIC);
                     column.setColumnType(ColumnType.CONSTANT);
                     column.setConstantValue(fieldName);
                 }

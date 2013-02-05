@@ -448,7 +448,7 @@ public class HPCCJDBCUtils
         return replaced;
     }
 
-    private static HashMap<String, Integer> mapECLTypeNameToSQLType = new HashMap<String, Integer>();
+    public final static HashMap<String, Integer> mapECLTypeNameToSQLType = new HashMap<String, Integer>();
     static
     {
         mapECLTypeNameToSQLType.put("BOOLEAN", java.sql.Types.BOOLEAN);
@@ -475,8 +475,8 @@ public class HPCCJDBCUtils
         mapECLTypeNameToSQLType.put("REAL", java.sql.Types.REAL);
     }
 
-    private static Pattern TRAILINGNUMERICPATTERN = Pattern.compile(
-            "(.*\\s+?)*([A-Z]+)([0-9]+(_[0-9]+)?)*",Pattern.DOTALL);
+    public final static Pattern TRAILINGNUMERICPATTERN = Pattern.compile(
+            "(.*\\s+?)*([A-Z]+)(([0-9]+)(_([0-9]+))?)*",Pattern.DOTALL);
 
     public static int mapECLtype2SQLtype(String ecltype)
     {
@@ -680,5 +680,24 @@ public class HPCCJDBCUtils
     public static boolean isBooleanKeyWord(String str)
     {
        return BOOLEANPATTERN.matcher(str).matches();
+    }
+
+    public final static HashMap<Integer, Integer> mapSQLTypeToPrecedence = new HashMap<Integer, Integer>();
+    static
+    {
+        int precedence = Integer.MAX_VALUE;
+        mapSQLTypeToPrecedence.put(java.sql.Types.DOUBLE, precedence--);
+        mapSQLTypeToPrecedence.put(java.sql.Types.REAL, precedence--);
+        mapSQLTypeToPrecedence.put(java.sql.Types.DECIMAL, precedence--);
+        mapSQLTypeToPrecedence.put(java.sql.Types.INTEGER, precedence--);
+        mapSQLTypeToPrecedence.put(java.sql.Types.SMALLINT, precedence--);
+    }
+
+    public static int getNumericSqlTypePrecedence(int sqlType)
+    {
+        if (mapSQLTypeToPrecedence.containsKey(sqlType))
+            return mapSQLTypeToPrecedence.get(sqlType);
+        else
+            return Integer.MIN_VALUE;
     }
 }
