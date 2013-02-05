@@ -786,8 +786,16 @@ public class HPCCDriverTest
             executeFreeHandSQL(propsinfo,"select 1 as ONE,2,3 as THREE,4", params, true, 1, "Select four numeric constants Aliased");
 
             executeFreeHandSQL(propsinfo,
-                    "select  \"peeps\".\"lastname\" as 'name',  \"progguide::exampledata::people\".\"lastname\" as 'lname', 'lastname'  from \"progguide::exampledata::people\" as \"peeps\" where \"peeps\".\"lastname\" = \"COOLING\" ORDER BY 'firstname' GROUP BY \"peeps\".\"lastname\" limit 100 ",
+                    "select  \"peeps\".\"lastname\" as 'name',  \"progguide::exampledata::people\".\"lastname\" as 'lname', 'lastname'  from \"progguide::exampledata::people\" as \"peeps\" where \"peeps\".\"lastname\" = \'COOLING\' ORDER BY \"lastname\" GROUP BY \"peeps\".\"firstname\" limit 100 ",
                     params, true, 1, "fully quoted test");
+
+            executeFreeHandSQL(propsinfo,
+                    "select  \"peeps\".\"lastname\" as 'name',  \"progguide::exampledata::people\".\"lastname\" as 'lname', 'lastname'  from \"progguide::exampledata::people\" as \"peeps\" where \'peeps\'.\'lastname\' = \'COOLING\' ORDER BY \"lastname\" GROUP BY \"peeps\".\"firstname\" limit 100 ",
+                    params, false, 0, "fully quoted test - invalid identifier quote");
+
+            executeFreeHandSQL(propsinfo,
+                    "select  \"peeps\".\"lastname\" as 'name',  \"progguide::exampledata::people\".\"lastname\" as 'lname', 'lastname'  from \"progguide::exampledata::people\" as \"peeps\" where \"peeps\".\"lastname\" = \"COOLING\" ORDER BY \"lastname\" GROUP BY \"peeps\".\"firstname\" limit 100 ",
+                    params, false, 0, "fully quoted test - invalid literal quote");
 
             executeFreeHandSQL(propsinfo,
                     "select firstname from badword::search::bool AS badwords where foundword  =  TruE",
@@ -812,6 +820,10 @@ public class HPCCDriverTest
             executeFreeHandSQL(propsinfo,
                     "select firstname from badword::search::bool AS badwords where foundword  =  'true'",
                     params, false, 0, "bad boolean test, used literal");
+
+            executeFreeHandSQL(propsinfo,
+                    "select  peeps.gender as Sex, peeps.firstname AS NAME, peeps.lastname, peeps.lastname AS LNAME2 from progguide::exampledata::people peeps where ((( peeps.firstname = 'TIMTOHY' ) and (peeps.lastname != 'SMITH' OR peeps.lastname != 'WILSON') ) AND peeps.gender = 'M') limit 100 ",
+                    params, true, 1, "complex grouped where clause");
 
             executeFreeHandSQL(propsinfo,
                     "select  peeps.gender as Sex, peeps.firstname AS NAME, peeps.lastname, peeps.lastname AS LNAME2 from progguide::exampledata::people peeps where ( peeps.firstname = 'TIMTOHY' ) limit 100 ",
@@ -873,6 +885,7 @@ public class HPCCDriverTest
                     "select  peeps.gender, peeps.firstname, peeps.lastname from tutorial::rp::tutorialperson as persons, progguide::exampledata::people peeps where  persons.firstname = peeps.firstname and persons.city  = upper('delray beach') limit 100",
                     params, true, 1, "implicit join");
 
+            //memory exhausted in local vm.
             executeFreeHandSQL(propsinfo,
                     "select peeps.firstname, " +
                     "        peeps.lastname, " +
@@ -881,14 +894,15 @@ public class HPCCDriverTest
                     "        people.state, " +
                     "        peeps.zip " +
                     "from progguide::exampledata::people as peeps, " +
-                    "progguide::exampledata::accounts accts, " +
-                    "tutorial::rp::tutorialperson people " +
+                    "tutorial::rp::tutorialperson people, " +
+                    "progguide::exampledata::accounts accts " +
                     "where  " +
                     "       peeps.firstname = 'TIMTOHY' AND " +
                     "       peeps.lastname = 'WARESK' AND " +
-                    "       peeps.personid = accts.personid and" +
+                    //"       peeps.personid = accts.personid and" +
+                    "       '3303222948 ' = accts.account and" +
                     "       peeps.firstname = people.firstname " +
-                    "group by zip having MAX(accts.account) >= '3303222948' " +
+                    "group by zip having MAX(accts.account) >= '0' " +
                     //"group by zip having accts.account >= 0 " +
 
                     "limit 100",

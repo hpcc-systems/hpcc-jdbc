@@ -19,6 +19,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 package org.hpccsystems.jdbcdriver;
 
 import java.util.List;
+import java.util.regex.Matcher;
 
 /**
  * @author rpastrana
@@ -26,6 +27,13 @@ import java.util.List;
 
 public class HPCCColumnMetaData
 {
+    public final static int DEFAULTDECIMALCHARS = 32;
+    public final static int DEFAULTINTBYTES     = 8;
+    public final static int DEFAULTREALBYTES    = 8;
+
+    public final static int DEFAULTCOLCHARS      = 0;
+    public final static int DEFAULTDECDIGITS     = 0;
+
     public enum ColumnType
     {
         FIELD,
@@ -41,7 +49,8 @@ public class HPCCColumnMetaData
     private String                   eclType;
     private String                   tableName;
     private int                      columnSize;
-    private int                      decimalDigits;
+    private int                      columnChars = DEFAULTCOLCHARS;   //JDBC Precision
+    private int                      decimalDigits = DEFAULTDECDIGITS; //JDBC Scale
     private int                      radix;
     private String                   nullable;
     private String                   remarks;
@@ -160,7 +169,7 @@ public class HPCCColumnMetaData
     public void setEclType(String eclType)
     {
         this.eclType = eclType;
-        this.sqlType = HPCCJDBCUtils.mapECLtype2SQLtype(eclType);
+        populateSQLandECLTypeandSizeFromECLType(eclType);
     }
 
     public String getTableName()
@@ -307,5 +316,92 @@ public class HPCCColumnMetaData
     public String toString()
     {
         return "Name: " + this.columnName + " SQL Type: " + sqlType + " ECL Type: " + eclType;
+    }
+
+    public int getColumnChars()
+    {
+        return columnChars;
+    }
+
+    public void setColumnChars(int columnChars)
+    {
+        this.columnChars = columnChars;
+    }
+
+    public void populateSQLandECLTypeandSizeFromECLType(String ecltype)
+    {
+        //let's try to find the type as is
+        if (HPCCJDBCUtils.mapECLTypeNameToSQLType.containsKey(ecltype))
+        {
+            this.setSqlType(HPCCJDBCUtils.mapECLTypeNameToSQLType.get(ecltype));
+        }
+        else
+        {
+            String postfixUpper = ecltype.substring(ecltype.lastIndexOf(':') + 1).toUpperCase();
+            if (HPCCJDBCUtils.mapECLTypeNameToSQLType.containsKey(postfixUpper))
+            {
+                int sqltype = HPCCJDBCUtils.mapECLTypeNameToSQLType.get(postfixUpper);
+                this.setSqlType(sqltype);
+                switch (sqltype)
+                {
+                    case java.sql.Types.DECIMAL:
+                        this.setColumnChars(DEFAULTDECIMALCHARS);
+                        break;
+                    case java.sql.Types.REAL:
+                        this.setColumnSize(DEFAULTREALBYTES);
+                        break;
+                    case java.sql.Types.INTEGER:
+                        this.setColumnSize(DEFAULTINTBYTES);
+                        break;
+                    default:
+                        break;
+                }
+            }
+            else
+            {
+                //TRAILINGNUMERICPATTERN attemps to match optional leading spaces
+                //followed by a string of alphas, followed by optional string of numerics,
+                //followed by an option underscore followed by a numeric.
+                //Then we look up the string of alphas in the known ECL type map (group(2))
+                //The optional numeric (group 4) corresponds to the type size, or digits.
+                //The optional numeric (group 6) after the underscore is the number of
+                //decimal places in the value.
+
+                Matcher m = HPCCJDBCUtils.TRAILINGNUMERICPATTERN.matcher(postfixUpper);
+                if (m.matches() && HPCCJDBCUtils.mapECLTypeNameToSQLType.containsKey(m.group(2)))
+                {
+                    int sqltype = HPCCJDBCUtils.mapECLTypeNameToSQLType.get(m.group(2));
+                    this.setSqlType(sqltype);
+                    switch (sqltype)
+                    {
+                        case java.sql.Types.DECIMAL:
+                            if (m.group(4) != null)
+                            {
+                                this.setColumnChars(Integer.parseInt(m.group(4)));
+
+                                if (m.group(6) != null)
+                                {
+                                    this.setDecimalDigits(Integer.parseInt(m.group(6)));
+                                }
+                            }
+                            break;
+                        case java.sql.Types.REAL:
+                        case java.sql.Types.INTEGER:
+                        case java.sql.Types.VARCHAR:
+                            if (m.group(4) != null)
+                            {
+                                this.setColumnSize(Integer.parseInt(m.group(4)));
+                            }
+                            break;
+                        default:
+                            break;
+                    }
+                }
+                else
+                {
+                    this.setSqlType(java.sql.Types.OTHER);
+                }
+            }
+        }
     }
 }
