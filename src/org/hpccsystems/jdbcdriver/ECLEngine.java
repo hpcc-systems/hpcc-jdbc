@@ -371,7 +371,7 @@ public class ECLEngine
 
                 if (!joinclause.getOnClause().containsEqualityCondition(translator, "LEFT", "RIGHT"))
                 {
-                    HPCCJDBCUtils.logger.log(Level.WARNING, "Warning: No Join EQUALITY CONDITION detected!, using ECL ALL option");
+                    HPCCJDBCUtils.traceoutln(Level.WARNING, "Warning: No Join EQUALITY CONDITION detected!, using ECL ALL option");
                     eclCode.append(", ALL");
                 }
 
