@@ -18,16 +18,16 @@ public class HPCCJDBCLogFormatter  extends Formatter
                 }
             };
 
-    private static final String THREAFORMAT = "%5s";
+    private static final String THREADFORMAT = "%05d";
 
     @Override
     public String format(LogRecord arg0)
     {
-        StringBuffer builder = new StringBuffer();
+        StringBuilder builder = new StringBuilder();
 
         builder.append(DF.get().format(new Date(arg0.getMillis())))
                .append(" ")
-               .append(String.format(THREAFORMAT, Thread.currentThread().getId()).replace(' ', '0'))
+               .append(String.format(THREADFORMAT, Thread.currentThread().getId()))
                .append(" ")
                .append(formatMessage(arg0))
                .append(HPCCJDBCUtils.newLine);
