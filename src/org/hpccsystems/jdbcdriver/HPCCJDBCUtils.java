@@ -47,7 +47,8 @@ public class HPCCJDBCUtils
     private static FileHandler fHandler = null;
 
     private static HPCCJDBCLogFormatter formatter = new HPCCJDBCLogFormatter();
-    public static Logger logger = Logger.getLogger("org.hpccsystems.jdbcdriver");
+    private final static Logger logger = Logger.getLogger("org.hpccsystems.jdbcdriver");
+
     static
     {
         try
@@ -121,7 +122,16 @@ public class HPCCJDBCUtils
         }
     }
 
-    public static NumberFormat format       = NumberFormat.getInstance(Locale.US);
+    public static final ThreadLocal <NumberFormat> NUMFORMATTER =
+            new ThreadLocal <NumberFormat>()
+            {
+                @Override
+                protected NumberFormat initialValue()
+                {
+                    return NumberFormat.getInstance(Locale.US);
+                }
+            };
+
     static final char          pad          = '=';
     static final char          BASE64_enc[] =
                                             { 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
@@ -274,7 +284,7 @@ public class HPCCJDBCUtils
     {
         try
         {
-            format.parse(str);
+            NUMFORMATTER.get().parse(str);
         }
         catch (Exception e)
         {
@@ -327,7 +337,7 @@ public class HPCCJDBCUtils
     {
         try
         {
-            Number num = format.parse(str);
+            Number num = NUMFORMATTER.get().parse(str);
             return num.longValue();
         }
         catch (Exception e)
@@ -340,7 +350,7 @@ public class HPCCJDBCUtils
     {
         try
         {
-            Number num = format.parse(str);
+            Number num = NUMFORMATTER.get().parse(str);
             return num.intValue();
         }
         catch (Exception e)
