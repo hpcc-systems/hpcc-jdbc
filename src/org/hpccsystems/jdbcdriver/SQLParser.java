@@ -486,10 +486,10 @@ public class SQLParser
             try
             {
                 if (whereClause != null)
-                    whereClause.updateColumParentName(sqlTables);
+                    whereClause.updateColumnParentName(sqlTables);
 
                 if (havingClause != null)
-                    havingClause.updateColumParentName(sqlTables);
+                    havingClause.updateColumnParentName(sqlTables);
 
                 assignParameterIndexes();
 
@@ -732,8 +732,6 @@ public class SQLParser
 
     public int getWhereClauseExpressionsCount()
     {
-        //RODRIGO -- should this return the number of unique fields used?
-        //or the actual number of expressions??
         return (whereClause != null ? whereClause.getExpressionsCount() : 0);
     }
 
@@ -750,7 +748,6 @@ public class SQLParser
 
     public boolean whereClauseContainsKey(String name)
     {
-        //RODRIGO static
         return (whereClause != null ? whereClause.containsKey(name) : false);
     }
 

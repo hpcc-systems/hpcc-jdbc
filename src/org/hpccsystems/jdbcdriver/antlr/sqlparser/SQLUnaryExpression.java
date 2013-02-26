@@ -1,5 +1,3 @@
-package org.hpccsystems.jdbcdriver.antlr.sqlparser;
-
 /*##############################################################################
 
 HPCC SYSTEMS software Copyright (C) 2013 HPCC Systems.
@@ -16,6 +14,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ############################################################################## */
+
+package org.hpccsystems.jdbcdriver.antlr.sqlparser;
 
 import java.util.HashMap;
 import java.util.List;
@@ -66,13 +66,13 @@ public class SQLUnaryExpression extends SQLExpression
         this.type = type;
     }
 
-    public void updateColumParentName(List<SQLTable> sqlTables) throws Exception
+    public void updateColumnParentName(List<SQLTable> sqlTables) throws Exception
     {
-        operand1.updateColumParentName(sqlTables);
+        operand1.updateColumnParentName(sqlTables);
     }
 
     @Override
-    public String toECLStringTranslateSource(HashMap<String, String> map, boolean ignoreMisTraslations, boolean forHaving, boolean funcParam, boolean countFuncParam)
+    public String toECLStringTranslateSource(HashMap<String, String> map, boolean ignoreMisTranslations, boolean forHaving, boolean funcParam, boolean countFuncParam)
     {
         String translation = null;
         String result = null;
@@ -83,7 +83,7 @@ public class SQLUnaryExpression extends SQLExpression
             case ISNULL:
                 return " FALSE ";
             case NOT:
-                translation = operand1.toECLStringTranslateSource(map, ignoreMisTraslations, forHaving, funcParam, countFuncParam);
+                translation = operand1.toECLStringTranslateSource(map, ignoreMisTranslations, forHaving, funcParam, countFuncParam);
                 if (translation == null)
                     return null;
                 else

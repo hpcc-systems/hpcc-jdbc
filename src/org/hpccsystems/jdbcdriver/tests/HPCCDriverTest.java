@@ -885,7 +885,6 @@ public class HPCCDriverTest
                     "select  peeps.gender, peeps.firstname, peeps.lastname from tutorial::rp::tutorialperson as persons, progguide::exampledata::people peeps where  persons.firstname = peeps.firstname and persons.city  = upper('delray beach') limit 100",
                     params, true, 1, "implicit join");
 
-            //memory exhausted in local vm.
             executeFreeHandSQL(propsinfo,
                     "select peeps.firstname, " +
                     "        peeps.lastname, " +
@@ -899,11 +898,9 @@ public class HPCCDriverTest
                     "where  " +
                     "       peeps.firstname = 'TIMTOHY' AND " +
                     "       peeps.lastname = 'WARESK' AND " +
-                    //"       peeps.personid = accts.personid and" +
                     "       '3303222948 ' = accts.account and" +
                     "       peeps.firstname = people.firstname " +
                     "group by zip having MAX(accts.account) >= '0' " +
-                    //"group by zip having accts.account >= 0 " +
 
                     "limit 100",
                     params, true, 1, "multi-table implicit join having clause");

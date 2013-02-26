@@ -1,5 +1,3 @@
-package org.hpccsystems.jdbcdriver.antlr.sqlparser;
-
 /*##############################################################################
 
 HPCC SYSTEMS software Copyright (C) 2013 HPCC Systems.
@@ -17,6 +15,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ############################################################################## */
 
+package org.hpccsystems.jdbcdriver.antlr.sqlparser;
+
 import java.util.HashMap;
 
 public class SQLParameterPlaceHolderExpression extends SQLExpression
@@ -30,7 +30,7 @@ public class SQLParameterPlaceHolderExpression extends SQLExpression
     }
 
     @Override
-    public String toECLStringTranslateSource(HashMap<String, String> map, boolean ignoreMisTraslations,
+    public String toECLStringTranslateSource(HashMap<String, String> map, boolean ignoreMisTranslations,
             boolean forHaving, boolean funcParam, boolean countFuncParam)
     {
         return value;

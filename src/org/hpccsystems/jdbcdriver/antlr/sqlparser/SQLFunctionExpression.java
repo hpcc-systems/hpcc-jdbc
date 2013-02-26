@@ -1,5 +1,3 @@
-package org.hpccsystems.jdbcdriver.antlr.sqlparser;
-
 /*##############################################################################
 
 HPCC SYSTEMS software Copyright (C) 2013 HPCC Systems.
@@ -16,6 +14,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ############################################################################## */
+
+package org.hpccsystems.jdbcdriver.antlr.sqlparser;
 
 import java.util.HashMap;
 import java.util.List;
@@ -72,14 +72,14 @@ public class SQLFunctionExpression extends SQLExpression
      * parameter is : ROWS( TRANSLATION)
      */
     @Override
-    public String toECLStringTranslateSource(HashMap<String, String> map, boolean ignoreMisTraslations, boolean forHaving, boolean funcParam, boolean countFuncParam)
+    public String toECLStringTranslateSource(HashMap<String, String> map, boolean ignoreMisTranslations, boolean forHaving, boolean funcParam, boolean countFuncParam)
     {
         String result = function.getEclFunction() + "( ";
 
         for (SQLExpression param : params)
         {
-            String translation = param.toECLStringTranslateSource(map, ignoreMisTraslations, forHaving, true, function.getName().equals("COUNT"));
-            if (!ignoreMisTraslations && translation == null)
+            String translation = param.toECLStringTranslateSource(map, ignoreMisTranslations, forHaving, true, function.getName().equals("COUNT"));
+            if (!ignoreMisTranslations && translation == null)
                 return null;
             result += translation;
         }
@@ -89,11 +89,11 @@ public class SQLFunctionExpression extends SQLExpression
     }
 
     @Override
-    public void updateColumParentName(List<SQLTable> sqlTables) throws Exception
+    public void updateColumnParentName(List<SQLTable> sqlTables) throws Exception
     {
         for (SQLExpression param : params)
         {
-            param.updateColumParentName(sqlTables);
+            param.updateColumnParentName(sqlTables);
         }
     }
 

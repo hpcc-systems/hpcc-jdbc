@@ -177,7 +177,7 @@ public class SQLJoinClause
     public void updateFragments(List<SQLTable> sqlTables) throws Exception
     {
         if (OnClause != null)
-            OnClause.updateColumParentName(sqlTables);
+            OnClause.updateColumnParentName(sqlTables);
     }
 
     @Override

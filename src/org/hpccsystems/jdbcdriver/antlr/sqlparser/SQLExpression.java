@@ -1,5 +1,3 @@
-package org.hpccsystems.jdbcdriver.antlr.sqlparser;
-
 /*##############################################################################
 
 HPCC SYSTEMS software Copyright (C) 2013 HPCC Systems.
@@ -17,16 +15,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ############################################################################## */
 
+package org.hpccsystems.jdbcdriver.antlr.sqlparser;
+
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.logging.Level;
 
 import org.antlr.runtime.ANTLRStringStream;
 import org.antlr.runtime.CommonTokenStream;
 import org.antlr.runtime.tree.CommonTree;
 import org.hpccsystems.jdbcdriver.ECLFunction;
 import org.hpccsystems.jdbcdriver.ECLFunctions;
+import org.hpccsystems.jdbcdriver.HPCCJDBCUtils;
 import org.hpccsystems.jdbcdriver.SQLTable;
 import org.hpccsystems.jdbcdriver.antlr.sqlparser.SQLBinaryExpression.SQLBinaryExpressionType;
 import org.hpccsystems.jdbcdriver.antlr.sqlparser.SQLUnaryExpression.SQLUnaryExpressionType;
@@ -107,7 +109,7 @@ public abstract class SQLExpression
      * @return  String ECL consumable representation of expression. Can be null if none of expression could be
      *          translated.
      */
-    public abstract String toECLStringTranslateSource(HashMap<String, String> map, boolean ignoreMisTraslations, boolean forHaving, boolean funcParam, boolean countFuncParam);
+    public abstract String toECLStringTranslateSource(HashMap<String, String> map, boolean ignoreMisTranslations, boolean forHaving, boolean funcParam, boolean countFuncParam);
 
     /*
      * Returns string representation of this SQLExpression.
@@ -138,7 +140,7 @@ public abstract class SQLExpression
      *
      * @param   List Contains all valid tables for this expression, along with their assigned aliases
      */
-    public void updateColumParentName(List<SQLTable> sqlTables) throws Exception
+    public void updateColumnParentName(List<SQLTable> sqlTables) throws Exception
     {
     };
 
@@ -166,9 +168,9 @@ public abstract class SQLExpression
         {
             SQLExpressionLexer lex = new SQLExpressionLexer(new ANTLRStringStream(str));
             CommonTokenStream tokens = new CommonTokenStream(lex);
-            SQLExpressionParser g = new SQLExpressionParser(tokens);
+            SQLExpressionParser sqlexpparser = new SQLExpressionParser(tokens);
 
-            tree = (CommonTree)g.expression().getTree();
+            tree = (CommonTree)sqlexpparser.expression().getTree();
         }
         catch (Exception e)
         {
@@ -243,9 +245,6 @@ public abstract class SQLExpression
 
                     SQLFieldValueExpression field = new SQLFieldValueExpression(tableName, fieldName);
 
-                    //Integer fieldCount = fieldValueCount.get(field.toString());
-                    //fieldValueCount.put(field.toString(), fieldCount==null ? 1 : ++fieldCount);
-                    //totalFieldExpressionsCount++;
                     return field;
                 case SQLExpressionLexer.PARAMPLACEHOLDER:
                     return new SQLParameterPlaceHolderExpression();
@@ -358,6 +357,7 @@ public abstract class SQLExpression
                     return new SQLParenthesisExpression(createExpression((CommonTree)tree.getChild(0)));
 
                 default:
+                    HPCCJDBCUtils.traceoutln(Level.ALL, "SQLExpression.create(tree) -- encountered unexpected root node!");
                     return null;
             }
         }

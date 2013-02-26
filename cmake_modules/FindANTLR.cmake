@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2011 HPCC Systems.
+# Copyright (C) 2013 HPCC Systems.
 #
 # All rights reserved. This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -50,9 +50,9 @@ if (NOT ANTLR_FOUND)
 
     OPTION(ANTLR_VER "ANTLR runtime and buildtime version.")
     IF (NOT ANTLR_VER )
-        SET ( ANTRL_VER 3.4)
-        SET ( ANTLR_PATH ${ANTLR_PATH}/${ANTRL_VER} )
-        MESSAGE("-- Option ANTRL_VER not set, setting to: ${ANTRL_VER}")
+        SET ( ANTLR_VER 3.4)
+        SET ( ANTLR_PATH ${ANTLR_PATH}/${ANTLR_VER} )
+        MESSAGE("-- Option ANTLR_VER not set, setting to: ${ANTLR_VER}")
     ENDIF ()
 
     MESSAGE("-- Searching for ANTLR jar files: ${ANTLR_RUNTIME_DEP} and ${ANTLR_BUILDTIME_DEP}")

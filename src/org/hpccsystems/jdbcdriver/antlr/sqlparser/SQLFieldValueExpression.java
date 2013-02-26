@@ -1,5 +1,3 @@
-package org.hpccsystems.jdbcdriver.antlr.sqlparser;
-
 /*##############################################################################
 
 HPCC SYSTEMS software Copyright (C) 2013 HPCC Systems.
@@ -16,6 +14,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ############################################################################## */
+
+package org.hpccsystems.jdbcdriver.antlr.sqlparser;
 
 import java.util.HashMap;
 import java.util.List;
@@ -58,7 +58,7 @@ public class SQLFieldValueExpression extends SQLExpression
      * Compares table name to list of valid tables, changes aliases to actual names,
      * throws exception if table name does not checkout, or is ambiguous
      */
-    public void updateColumParentName(List<SQLTable> sqlTables) throws Exception
+    public void updateColumnParentName(List<SQLTable> sqlTables) throws Exception
     {
         if (parentTableName != null && parentTableName.length() > 0)
         {
@@ -91,7 +91,7 @@ public class SQLFieldValueExpression extends SQLExpression
     }
 
     @Override
-    public String toECLStringTranslateSource(HashMap<String, String> map, boolean ignoreMisTraslations, boolean forHaving, boolean funcParam, boolean countFuncParam)
+    public String toECLStringTranslateSource(HashMap<String, String> map, boolean ignoreMisTranslations, boolean forHaving, boolean funcParam, boolean countFuncParam)
     {
         String result = null;
         String translation = map.get(getParentTableName());

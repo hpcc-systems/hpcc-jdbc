@@ -1,5 +1,3 @@
-package org.hpccsystems.jdbcdriver.antlr.sqlparser;
-
 /*##############################################################################
 
 HPCC SYSTEMS software Copyright (C) 2013 HPCC Systems.
@@ -17,9 +15,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ############################################################################## */
 
+package org.hpccsystems.jdbcdriver.antlr.sqlparser;
+
 import java.util.HashMap;
 import java.util.List;
+import java.util.logging.Level;
 
+import org.hpccsystems.jdbcdriver.HPCCJDBCUtils;
 import org.hpccsystems.jdbcdriver.SQLTable;
 
 public class SQLBinaryExpression extends SQLExpression
@@ -68,7 +70,7 @@ public class SQLBinaryExpression extends SQLExpression
     {
         return operand1;
     }
-    public void setOpenrand1(SQLExpression operand1)
+    public void setOperand1(SQLExpression operand1)
     {
         this.operand1 = operand1;
     }
@@ -147,17 +149,17 @@ public class SQLBinaryExpression extends SQLExpression
     }
 
     @Override
-    public void updateColumParentName(List<SQLTable> sqlTables) throws Exception
+    public void updateColumnParentName(List<SQLTable> sqlTables) throws Exception
     {
-        operand1.updateColumParentName(sqlTables);
-        operand2.updateColumParentName(sqlTables);
+        operand1.updateColumnParentName(sqlTables);
+        operand2.updateColumnParentName(sqlTables);
     }
 
     @Override
-    public String toECLStringTranslateSource(HashMap<String, String> map, boolean ignoreMisTraslations, boolean forHaving, boolean funcParam, boolean countFuncParam)
+    public String toECLStringTranslateSource(HashMap<String, String> map, boolean ignoreMisTranslations, boolean forHaving, boolean funcParam, boolean countFuncParam)
     {
-        String translation1 = operand1.toECLStringTranslateSource(map, ignoreMisTraslations, forHaving, false, false);
-        String translation2 = operand2.toECLStringTranslateSource(map, ignoreMisTraslations, forHaving, false, false);
+        String translation1 = operand1.toECLStringTranslateSource(map, ignoreMisTranslations, forHaving, false, false);
+        String translation2 = operand2.toECLStringTranslateSource(map, ignoreMisTranslations, forHaving, false, false);
 
         if (translation1 != null && translation2 != null)
         {
@@ -167,32 +169,45 @@ public class SQLBinaryExpression extends SQLExpression
         {
             return null;
         }
-        else if (ignoreMisTraslations)
+        else if (ignoreMisTranslations)
         {
+            /*
+             * If operand1 or operand2 could not be translated using the translation map,
+             * and ignoreMisTranslations = true, we're going to attempt to return an valid 
+             * ECL translation of this binary expression. IF the binary expression is of type 
+             * OR | AND, we can substitute the mistranslated operand with the appropriate boolean value 
+             * to complete the expression with out changing the gist of the expression.
+             *
+             * This is typically done when converting an SQL 'WHERE' clause or 'ON' clause to ECL to
+             * be used in an ECL JOIN function. In any one particular ECL Join funtion only two datasets 
+             * are joined, therefore not all portions of the SQL logic clause might be relevant.
+             *
+             */
+
             if (getType() == SQLBinaryExpressionType.OR || getType() == SQLBinaryExpressionType.AND)
             {
                 String convert = getType() == SQLBinaryExpressionType.OR ? "FALSE" : "TRUE";
 
                 if (translation1 != null)
                 {
-                    System.err.println("Operand 1 of binary expression could not be translated.");
+                    HPCCJDBCUtils.traceoutln(Level.ALL, "Operand 1 of binary expression could not be translated.");
                     return translation1 + getOpValue() + convert;
                 }
                 else
                 {
-                    System.err.println("Operand 2 of binary expression could not be translated.");
+                    HPCCJDBCUtils.traceoutln(Level.ALL, "Operand 2 of binary expression could not be translated.");
                     return convert + getOpValue() + translation2;
                 }
             }
             else
             {
-                System.err.println("Binary expression could not be translated.");
+                HPCCJDBCUtils.traceoutln(Level.ALL, "Binary expression could not be translated.");
                 return null;
             }
         }
         else
         {
-            System.err.println("Binary expression could not be translated.");
+            HPCCJDBCUtils.traceoutln(Level.ALL, "Binary expression could not be translated.");
             return null;
         }
     }

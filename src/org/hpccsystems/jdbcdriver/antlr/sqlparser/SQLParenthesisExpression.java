@@ -1,5 +1,3 @@
-package org.hpccsystems.jdbcdriver.antlr.sqlparser;
-
 /*##############################################################################
 
 HPCC SYSTEMS software Copyright (C) 2013 HPCC Systems.
@@ -17,9 +15,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ############################################################################## */
 
+package org.hpccsystems.jdbcdriver.antlr.sqlparser;
+
 import java.util.HashMap;
 import java.util.List;
-
 import org.hpccsystems.jdbcdriver.SQLTable;
 
 public class SQLParenthesisExpression extends SQLExpression
@@ -38,15 +37,15 @@ public class SQLParenthesisExpression extends SQLExpression
         this.expression = expression;
     }
 
-    public void updateColumParentName(List<SQLTable> sqlTables) throws Exception
+    public void updateColumnParentName(List<SQLTable> sqlTables) throws Exception
     {
-        expression.updateColumParentName(sqlTables);
+        expression.updateColumnParentName(sqlTables);
     }
 
     @Override
-    public String toECLStringTranslateSource(HashMap<String, String> map, boolean ignoreMisTraslations, boolean forHaving, boolean funcParam, boolean countFuncParam)
+    public String toECLStringTranslateSource(HashMap<String, String> map, boolean ignoreMisTranslations, boolean forHaving, boolean funcParam, boolean countFuncParam)
     {
-        String translation = expression.toECLStringTranslateSource(map, ignoreMisTraslations, forHaving, funcParam, countFuncParam);
+        String translation = expression.toECLStringTranslateSource(map, ignoreMisTranslations, forHaving, funcParam, countFuncParam);
         if (translation == null)
             return null;
         else
