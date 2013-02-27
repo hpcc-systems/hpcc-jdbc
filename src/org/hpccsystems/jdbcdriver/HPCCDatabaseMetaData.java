@@ -571,11 +571,13 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     @Override
     public String getIdentifierQuoteString() throws SQLException
     {
-        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getIdentifierQuoteString");
+        String result = String.valueOf('"');
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getIdentifierQuoteString: " + result);
+
         // OpenLink seems to require a valid quote
         // Observed instances where Easysoft's ODBC/JDBC bridge crashed if driver returned anything but ""
         // The issue was resolved after receiving an update from Easysoft.
-        return "'";
+        return result;
     }
 
     @Override
