@@ -22,6 +22,8 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.hpccsystems.jdbcdriver.antlr.sqlparser.SQLExpression;
+
 public class SQLJoinClause
 {
     public enum JoinType
@@ -58,25 +60,21 @@ public class SQLJoinClause
     private static final JoinType defaultType = JoinType.INNER_JOIN;
 
     private JoinType              type;
-    private SQLWhereClause        OnClause;
+    private SQLExpression         OnClause = null;
     private List<SQLTable>        joinTables = new ArrayList<SQLTable>();
 
     public SQLJoinClause()
     {
         this.type = defaultType;
-        this.OnClause = new SQLWhereClause();
     }
 
     public SQLJoinClause(JoinType type)
     {
         this.type = type;
-        this.OnClause = new SQLWhereClause();
     }
 
     public void parse(String joinclausestr) throws SQLException
     {
-        this.OnClause = new SQLWhereClause();
-
         if (joinclausestr.length() > 0)
         {
             String joinSplit[] = joinclausestr.split("\\s+(?i)join\\s+");
@@ -131,12 +129,7 @@ public class SQLJoinClause
         }
     }
 
-    public void addOnClauseExpression(SQLExpression expression)
-    {
-        OnClause.addExpression(expression);
-    }
-
-    public SQLWhereClause getOnClause()
+    public SQLExpression getOnClause()
     {
         return this.OnClause;
     }
@@ -183,8 +176,10 @@ public class SQLJoinClause
 
     public void updateFragments(List<SQLTable> sqlTables) throws Exception
     {
-        OnClause.updateFragmentColumnsParent(sqlTables);
+        if (OnClause != null)
+            OnClause.updateColumnParentName(sqlTables);
     }
+
     @Override
     public String toString()
     {
@@ -200,18 +195,13 @@ public class SQLJoinClause
         }
 
         tmp.append(" ON ");
-        tmp.append( OnClause.fullToString());
+        tmp.append( OnClause != null ? OnClause.toString(true) : "");
 
         return tmp.toString();
     }
 
     public void parseOnClause(String clause) throws SQLException
     {
-        OnClause.parseWhereClause(clause);
-    }
-
-    public void setOnClause(SQLWhereClause in)
-    {
-        this.OnClause = in;
+        OnClause = SQLExpression.createExpression(clause);
     }
 }

@@ -12,6 +12,10 @@ include(version.cmake)
     MESSAGE ("-- JAVA Development components are required.")
     FIND_PACKAGE (Java REQUIRED COMPONENTS Development)
 
+    SET ( CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules")
+
+    FIND_PACKAGE(ANTLR REQUIRED)
+
     ADD_SUBDIRECTORY (${HPCC_JDBC_REL_PATH})
 
     SET ( INSTALLDIR "${EXEC_DIR}")
