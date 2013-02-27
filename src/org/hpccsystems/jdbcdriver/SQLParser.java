@@ -32,6 +32,7 @@ import java.util.regex.Pattern;
 
 import org.hpccsystems.jdbcdriver.ECLFunction.FunctionType;
 import org.hpccsystems.jdbcdriver.HPCCColumnMetaData.ColumnType;
+import org.hpccsystems.jdbcdriver.antlr.sqlparser.SQLExpression;
 
 /**
  * @author rpastrana
@@ -50,9 +51,9 @@ public class SQLParser
     private List<SQLTable>           sqlTables;
     private SQLType                  sqlType;
     private LinkedList<HPCCColumnMetaData> selectColumns;
-    private SQLWhereClause           whereClause;
+    private SQLExpression            whereClause = null;
     private SQLJoinClause            joinClause = null;
-    private SQLWhereClause           havingClause = null;
+    private SQLExpression            havingClause = null;
     private List<HPCCColumnMetaData> groupByFragments;
     private List<HPCCColumnMetaData> orderByFragments;
     private String[]                 procInParamValues = null;
@@ -81,7 +82,6 @@ public class SQLParser
 
         sqlTables = new ArrayList<SQLTable>();
         selectColumns = new LinkedList<HPCCColumnMetaData>();
-        whereClause = new SQLWhereClause();
         storedProcName = null;
         sqlType = SQLType.UNKNOWN;
         indexHint = null;
@@ -436,9 +436,7 @@ public class SQLParser
                 if (wherePos != -1)
                 {
                     String strWhere = insql.substring(wherePos + 7);
-                    SQLWhereClause onClause = new SQLWhereClause();
-                    onClause.parseWhereClause(strWhere);
-                    joinClause.setOnClause(onClause);
+                    joinClause.parseOnClause(strWhere);
 
                     try
                     {
@@ -455,7 +453,8 @@ public class SQLParser
                 if (wherePos != -1)
                 {
                     String strWhere = insql.substring(wherePos + 7);
-                    whereClause.parseWhereClause(strWhere);
+
+                    whereClause = SQLExpression.createExpression(strWhere);
 
                     insql = insql.substring(0, wherePos);
                 }
@@ -486,10 +485,11 @@ public class SQLParser
 
             try
             {
-                whereClause.updateFragmentColumnsParent(sqlTables);
+                if (whereClause != null)
+                    whereClause.updateColumnParentName(sqlTables);
 
                 if (havingClause != null)
-                    havingClause.updateFragmentColumnsParent(sqlTables);
+                    havingClause.updateColumnParentName(sqlTables);
 
                 assignParameterIndexes();
 
@@ -524,9 +524,7 @@ public class SQLParser
         //HAVING aggregate_function(column_name) operator value
         try
         {
-            havingClause = new SQLWhereClause();
-
-            havingClause.parseWhereClause(havingConditions);
+            havingClause = SQLExpression.createExpression(havingConditions);
         }
         catch (Exception e)
         {
@@ -725,54 +723,46 @@ public class SQLParser
     public void assignParameterIndexes() throws SQLException
     {
         int paramIndex = 1;
-        if (sqlType == SQLType.SELECT)
-        {
-            if( whereClause != null && whereClause.getExpressionsCount() > 0)
-            {
-                Iterator<SQLExpression> expressionit = whereClause.getExpressions();
-                while (expressionit.hasNext())
-                {
-                    SQLExpression exp = expressionit.next();
-                    paramIndex = exp.setParameterizedNames(paramIndex);
-                }
-            }
-            parameterizedCount = paramIndex - 1;
-        }
+
+        if (whereClause != null)
+            paramIndex = whereClause.setParameterizedNames(paramIndex);
+
+        parameterizedCount = paramIndex - 1;
     }
 
     public int getWhereClauseExpressionsCount()
     {
-        return whereClause.getExpressionsCount();
+        return (whereClause != null ? whereClause.getExpressionsCount() : 0);
     }
 
-    public String[] getWhereClauseColumnNames()
+    public void getUniqueWhereClauseColumnNames(List<String> uniquenames)
     {
-        return whereClause.getExpressionColumnNames();
-    }
-
-    public Object[] getUniqueWhereClauseColumnNames()
-    {
-        return whereClause.getUniqueExpressionColumnNames();
+        if (whereClause != null)
+            whereClause.getUniqueExpressionColumnNames(uniquenames);
     }
 
     public String getExpressionFromColumnName(String name)
     {
-        return whereClause.getExpressionFromColumnName(name);
+        return ( whereClause != null ? whereClause.getExpressionFromColumnName(name) : "");
     }
 
     public boolean whereClauseContainsKey(String name)
     {
-        return whereClause.containsKey(name);
+        return (whereClause != null ? whereClause.containsKey(name) : false);
     }
 
     public String getWhereClauseStringTranslateSource(HashMap<String, String> map, boolean ignoreMisTranslations, boolean forHaving)
     {
-        return whereClause.toStringTranslateSource(map, ignoreMisTranslations, forHaving);
+        String result = null;
+        if (whereClause != null)
+            result = whereClause.toECLStringTranslateSource(map, ignoreMisTranslations, forHaving, false, false);
+
+        return result == null ? "" : result;
     }
 
     public String getWhereClauseString()
     {
-        return whereClause.toString();
+        return (whereClause != null ? whereClause.toString() : "");
     }
 
     public boolean whereClauseContainsOrOperator()
@@ -874,6 +864,7 @@ public class SQLParser
         if (colsplit.length == 1)
         {
             fieldName = HPCCJDBCUtils.handleQuotedString(colsplit[0]);
+            column.setColumnName(fieldName);
         }
         else if (colsplit.length == 2)
         {
@@ -891,6 +882,7 @@ public class SQLParser
         else if (colsplit.length > 2)
             throw new SQLException("Invalid column found: " + fieldName);
 
+        column.setColumnName(fieldName);
         //boolean found = false;
         for (HPCCColumnMetaData selcol : selectColumns)
         {
@@ -1049,7 +1041,7 @@ public class SQLParser
         return isSelectDistinct;
     }
 
-    public SQLWhereClause getWhereClause()
+    public SQLExpression getWhereClause()
     {
         return whereClause;
     }
@@ -1059,7 +1051,7 @@ public class SQLParser
         return havingClause != null;
     }
 
-    public SQLWhereClause getHavingClause()
+    public SQLExpression getHavingClause()
     {
         return havingClause;
     }

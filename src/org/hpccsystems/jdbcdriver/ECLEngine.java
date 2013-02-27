@@ -355,12 +355,15 @@ public class ECLEngine
                     eclCode.append("JndDS" + joinTableIndex);
                 }
 
-                String translatedAndFilteredOnClause = joinclause.getOnClause().toStringTranslateSource(translator, false, false);
+                String translatedAndFilteredOnClause = joinclause.getOnClause().toECLStringTranslateSource(translator,true, false, false, false);
+
+                if (translatedAndFilteredOnClause == null)
+                    throw new SQLException("Join condition does not contain proper join condition between tables." + hpccJoinFileName + "and earlier table");
 
                 eclCode.append(", ")
                         .append(currntTblDS)
                         .append(", ")
-                        .append(translatedAndFilteredOnClause);
+                        .append(translatedAndFilteredOnClause != null ? translatedAndFilteredOnClause : "TRUE");
 
                 if (totalWhereClauseExpressions > 0)
                 {
@@ -938,9 +941,10 @@ public class ECLEngine
 
             sb.append("&eclText=\n");
 
-            if (sqlParser.getParameterizedCount() > 0 && inParameters != null)
+            int expectedParamCount = sqlParser.getParameterizedCount();
+            if (expectedParamCount > 0 && inParameters != null)
             {
-                if (sqlParser.getParameterizedCount() <= inParameters.size())
+                if (expectedParamCount <= inParameters.size())
                 {
                     for (int paramIndex = 1; paramIndex <= inParameters.size(); paramIndex++)
                     {
@@ -1008,7 +1012,7 @@ public class ECLEngine
                 translator.put(table.getName().toUpperCase(), "LEFT");
             }
 
-            String havingclause = sqlParser.getHavingClause().toStringTranslateSource(translator, false, true);
+            String havingclause = sqlParser.getHavingClause().toECLStringTranslateSource(translator, false, true, false, false);
 
             if (havingclause.length() > 0)
             {
@@ -1173,8 +1177,9 @@ public class ECLEngine
     public String findAppropriateIndex(List<String> relindexes, List<HPCCColumnMetaData> expectedretcolumns, SQLParser parser)
     {
         String indextouse = null;
-        Object[] sqlqueryparamnames = parser.getUniqueWhereClauseColumnNames();
-        if (sqlqueryparamnames.length <= 0)
+        List<String> sqlqueryparamnames = new ArrayList<String>();
+        parser.getUniqueWhereClauseColumnNames(sqlqueryparamnames);
+        if (sqlqueryparamnames == null || sqlqueryparamnames.size() <= 0)
             return indextouse;
 
         int totalparamcount = parser.getWhereClauseExpressionsCount();
@@ -1201,9 +1206,8 @@ public class ECLEngine
                 Properties KeyColumns = indexfile.getKeyedColumns();
                 if (KeyColumns != null)
                 {
-                    for (int i = 0; i < sqlqueryparamnames.length; i++)
+                    for (String currentparam : sqlqueryparamnames)
                     {
-                        String currentparam = (String)sqlqueryparamnames[i];
                         if (KeyColumns.contains(currentparam))
                         {
                             ++indexscore[indexcounter][NumberofColsKeyedInThisIndex_INDEX];
