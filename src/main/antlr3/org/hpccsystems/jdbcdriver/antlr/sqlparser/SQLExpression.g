@@ -20,7 +20,7 @@ tokens
 
 @header
 {
-package  org.hpccsystems.jdbcdriver.antlr.sqlparser.generated;
+package  org.hpccsystems.jdbcdriver.antlr.sqlparser;
 }
 
 @members
@@ -34,7 +34,7 @@ package  org.hpccsystems.jdbcdriver.antlr.sqlparser.generated;
 
 @lexer::header
 {
-package  org.hpccsystems.jdbcdriver.antlr.sqlparser.generated;
+package  org.hpccsystems.jdbcdriver.antlr.sqlparser;
 }
 
 @lexer::members

@@ -1,135 +1,143 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
-    <modelVersion>4.0.0</modelVersion>
-    <groupId>org.hpccsystems</groupId>
-    <artifactId>jdbcdriver</artifactId>
-    <version>0.2.2-SNAPSHOT</version>
-    <packaging>jar</packaging>
-    <name>HPCC Systems Java JDBC Driver</name>
-    <description>JDBC Driver for HPCC Systems - access HPCC data via SQL in Java or other JVM language</description>
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>org.hpccsystems</groupId>
+	<artifactId>jdbcdriver</artifactId>
+	<version>0.2.2-SNAPSHOT</version>
+	<packaging>jar</packaging>
+	<name>HPCC Systems Java JDBC Driver</name>
+	<description>JDBC Driver for HPCC Systems - access HPCC data via SQL in Java or other JVM language</description>
 
-    <parent>
-        <groupId>org.sonatype.oss</groupId>
-        <artifactId>oss-parent</artifactId>
-        <version>7</version>
-    </parent>
+	<parent>
+		<groupId>org.sonatype.oss</groupId>
+		<artifactId>oss-parent</artifactId>
+		<version>7</version>
+	</parent>
 
-    <url>http://hpccsystems.com</url>
+	<url>http://hpccsystems.com</url>
 
-    <licenses>
-        <license>
-            <name>Apache License, Version 2.0</name>
-            <url>http://www.apache.org/licenses/LICENSE-2.0</url>
-            <distribution>repo</distribution>
-        </license>
-    </licenses>
+	<licenses>
+		<license>
+			<name>Apache License, Version 2.0</name>
+			<url>http://www.apache.org/licenses/LICENSE-2.0</url>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
 
-    <scm>
-        <url>git@github.com/hpcc-systems/hpcc-jdbc.git</url>
-        <connection>scm:git:git@github.com/hpcc-systems/hpcc-jdbc.git</connection>
-        <developerConnection>scm:git:git@github.com/hpcc-systems/hpcc-jdbc.git</developerConnection>
-    </scm>
+	<scm>
+		<url>git@github.com/hpcc-systems/hpcc-jdbc.git</url>
+		<connection>scm:git:git@github.com/hpcc-systems/hpcc-jdbc.git</connection>
+		<developerConnection>scm:git:git@github.com/hpcc-systems/hpcc-jdbc.git</developerConnection>
+	</scm>
 
-    <developers>
-        <developer>
-            <id>rpastrana</id>
-            <name>Rodrigo Pastrana</name>
-            <email>rodrigo dot pastrana at lexisnexis dot com</email>
-        </developer>
-        <developer>
-            <id>mkrumlauf</id>
-            <name>Mike Krumlauf</name>
-            <email>mjkrumlauf at computer dot org</email>
-        </developer>
-    </developers>
+	<developers>
+		<developer>
+			<id>rpastrana</id>
+			<name>Rodrigo Pastrana</name>
+			<email>rodrigo dot pastrana at lexisnexis dot com</email>
+		</developer>
+		<developer>
+			<id>mkrumlauf</id>
+			<name>Mike Krumlauf</name>
+			<email>mjkrumlauf at computer dot org</email>
+		</developer>
+	</developers>
 
-    <properties>
-        <maven.compiler.plugin.version>3.0</maven.compiler.plugin.version>
-        <maven.javadoc.plugin.version>2.9</maven.javadoc.plugin.version>
-        <maven.source.plugin.version>2.2.1</maven.source.plugin.version>
-        <junit.version>4.11</junit.version>
-        <surefire.version>2.11</surefire.version>
-        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    </properties>
+	<properties>
+		<maven.compiler.plugin.version>3.0</maven.compiler.plugin.version>
+		<maven.javadoc.plugin.version>2.9</maven.javadoc.plugin.version>
+		<maven.source.plugin.version>2.2.1</maven.source.plugin.version>
+		<junit.version>4.11</junit.version>
+		<surefire.version>2.11</surefire.version>
+		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+	</properties>
 
-    <build>
-        <sourceDirectory>src</sourceDirectory>
-        <testSourceDirectory>src/org/hpccsystems/jdbcdriver/tests</testSourceDirectory>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>${maven.compiler.plugin.version}</version>
-                <configuration>
-                    <source>1.6</source>
-                    <target>1.6</target>
-                    <excludes>
-                        <exclude>org/hpccsystems/jdbcdriver/tests/**</exclude>
-                    </excludes>
-                </configuration>
-                <executions>
-                    <execution>
-                        <phase>compile</phase>
-                        <goals>
-                            <goal>compile</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>antlr3-maven-plugin</artifactId>
-        <version>1.0</version>
-        <executions>
-          <execution>
-            <goals>
-              <goal>antlr</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-source-plugin</artifactId>
-                <version>${maven.source.plugin.version}</version>
-                <executions>
-                    <execution>
-                        <id>attach-sources</id>
-                        <goals>
-                            <goal>jar</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-javadoc-plugin</artifactId>
-                <version>${maven.javadoc.plugin.version}</version>
-                <executions>
-                    <execution>
-                        <id>attach-javadocs</id>
-                        <goals>
-                            <goal>jar</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
-    </build>
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>build-helper-maven-plugin</artifactId>
+				<version>1.7</version>
+				<executions>
+					<execution>
+						<id>add-source</id>
+						<phase>generate-sources</phase>
+						<goals>
+							<goal>add-source</goal>
+						</goals>
+						<configuration>
+							<sources>
+								<source>target/generated-sources/antlr3</source>
+							</sources>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.antlr</groupId>
+				<artifactId>antlr3-maven-plugin</artifactId>
+				<version>3.5</version>
+				<executions>
+					<execution>
+						<goals>
+							<goal>antlr</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>${maven.compiler.plugin.version}</version>
+				<configuration>
+					<source>1.6</source>
+					<target>1.6</target>
+				</configuration>
+				<!-- <executions> <execution> <phase>compile</phase> <goals> <goal>compile</goal> 
+					</goals> </execution> </executions> -->
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-source-plugin</artifactId>
+				<version>${maven.source.plugin.version}</version>
+				<executions>
+					<execution>
+						<id>attach-sources</id>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-javadoc-plugin</artifactId>
+				<version>${maven.javadoc.plugin.version}</version>
+				<executions>
+					<execution>
+						<id>attach-javadocs</id>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
 
-    <dependencies>
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>${junit.version}</version>
-            <scope>test</scope>
-        </dependency>
-<dependency>
-      <groupId>org.antlr</groupId>
-      <artifactId>antlr-runtime</artifactId>
-      <version>3.0.1</version>
-    </dependency>
-    </dependencies>
+	<dependencies>
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>${junit.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.antlr</groupId>
+			<artifactId>antlr-runtime</artifactId>
+			<version>3.5</version>
+		</dependency>
+	</dependencies>
 
 </project>

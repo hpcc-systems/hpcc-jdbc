@@ -1,1 +1,6 @@
 target
+.settings/
+*.log
+.idea/
+*.iml
+*.eml
