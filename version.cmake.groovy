@@ -1,18 +1,34 @@
+/*
+ * This script is executed by the Maven build to read
+ * the version.cmake file, extract the application version 
+ * information from it and generate an updated HPCCVersionTracker.java
+ * file containing the application version information
+ * derived from version.cmake.
+ *
+ * This script provides the equivalent functionality
+ * for Maven that is accomplished by the cmake build.
+ */
+ 
+// ignore these tokens in version.cmake
 def skipTokens = ['set', '(', ')']
 
+// list to contain the names and values of the
+// variables in version.cmake 
 def cmakeVarList = []
 
+// populate the cmake version variable list
 def f = new File('./version.cmake').eachLine { line ->
   if (! line.startsWith('#')) { 
     def tokens = line.split(' ')
     tokens.each { token ->
-      if (! skipTokens.contains(token)) {
+      if (! skipTokens.contains(token.toLowerCase())) {
         cmakeVarList.add(token)
       }
     }
   }
 }
 
+// create a map of name/value pairs of the cmake variables
 def cmakeVarMap = [:]
 cmakeVarMap['HPCC_PROJECT'] = ''
 
@@ -20,6 +36,7 @@ for (i = 0; i < cmakeVarList.size()-1; i+=2) {
     cmakeVarMap[cmakeVarList[i]] = cmakeVarList[i+1]
 }
 
+// HPCCVersionTracker Java class with version information embedded
 def versionTracker = """
 /*##############################################################################
 
