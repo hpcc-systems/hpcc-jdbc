@@ -56,6 +56,22 @@
 	<build>
 		<plugins>
 			<plugin>
+				<groupId>org.codehaus.groovy.maven</groupId>
+				<artifactId>gmaven-plugin</artifactId>
+				<executions>
+				    <execution>
+				        <id>version-cmake</id>
+				        <phase>generate-sources</phase>
+				        <goals>
+				            <goal>execute</goal>
+				        </goals>
+				        <configuration>
+				            <source>${basedir}/version.cmake.groovy</source>
+				        </configuration>
+				    </execution>
+				</executions>
+			</plugin>
+			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>build-helper-maven-plugin</artifactId>
 				<version>1.7</version>
