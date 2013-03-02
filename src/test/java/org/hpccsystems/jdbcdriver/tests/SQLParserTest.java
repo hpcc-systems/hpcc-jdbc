@@ -1,14 +1,9 @@
 package org.hpccsystems.jdbcdriver.tests;
 
-import static org.junit.Assert.assertTrue;
-
 import java.util.List;
 
 import org.hpccsystems.jdbcdriver.HPCCColumnMetaData;
 import org.hpccsystems.jdbcdriver.SQLParser;
-
-import org.junit.Test;
-
 
 public class SQLParserTest
 {
@@ -151,23 +146,5 @@ public class SQLParserTest
 
         System.out.println("\nParser test "
                 + (success ? " did not cause exceptions, please verify output! " : "failed!"));
-    }
-
-    @Test
-    public void mustParseTableAlias() throws Exception
-    {
-        assertTrue(SQLParserTest.testTableAlias("table1", "alias1"));
-    }
-
-    @Test
-    public void mustParseSelectALL() throws Exception
-    {
-        assertTrue(SQLParserTest.testSelectALL("table1"));
-    }
-
-    @Test
-    public void mustParseFreeHandSQL() throws Exception
-    {
-        assertTrue(SQLParserTest.testFreeHandSQL("SELECT lname, fname FROM table1"));
     }
 }
