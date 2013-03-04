@@ -3,6 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>org.hpccsystems</groupId>
 	<artifactId>jdbcdriver</artifactId>
+	<!--  When updating the version number please make the corresponding changes in version.cmake -->
 	<version>0.2.2-SNAPSHOT</version>
 	<packaging>jar</packaging>
 	<name>HPCC Systems Java JDBC Driver</name>
