@@ -1,5 +1,7 @@
 ###
 ## Version Information
+##
+## NOTE: when updating the version info please make the corresponding changes in pom.xml 
 ###
 set ( HPCC_MAJOR 0 )
 set ( HPCC_MINOR 2 )

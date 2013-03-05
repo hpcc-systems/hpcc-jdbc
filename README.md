@@ -32,3 +32,15 @@ A Test version can be built by augmenting the cmake command with the "MAKE_TEST_
 2. Jar file will be created in <builddir>/src/com/hpccsystems/jdbcdriver/hpccsystems-jdbcdriver-MAJOR.MINOR.POINT-TEST.jar
 3. Run test: java -cp <jarfile> org.hpccsystems.jdbcdriver.tests.HPCCDriverTest <param==value>...
    If no parameters are passed in, a "full test" will execute (values in code should be altered to match your environment).
+
+To build using Maven:
+---------------------
+
+1. Check out sources (same as above)
+2. cd to the project root directory
+3. Run _mvn install_ to execute the build using Maven (includes running "standalone" unit tests)
+4. Jar file will be created in <project_root>/target/jdbcdriver-MAJOR.MINOR.POINT[-SNAPSHOT].jar
+5. _TO DO_ - create a Maven profile to run tests requiring a running HPCC system.
+
+NOTE:  When updating the project version in either version.cmake (cmake) or pom.xml (Maven) please make sure to
+update the version in both locations. 

@@ -7,7 +7,11 @@ include(version.cmake)
 
     SET ( PRODUCT_PREFIX "hpccsystems" )
     SET ( HPCC_JDBC_PAC_PATH org/hpccsystems/jdbcdriver)
-    SET ( HPCC_JDBC_REL_PATH src/${HPCC_JDBC_PAC_PATH})
+    SET ( HPCC_JDBC_JAVA_SRC_PATH main/java)
+    SET ( HPCC_JDBC_REL_PATH src/${HPCC_JDBC_JAVA_SRC_PATH}/${HPCC_JDBC_PAC_PATH})
+
+    SET ( HPCC_ANTLR_SRC_PATH  "${CMAKE_CURRENT_SOURCE_DIR}/src/main/antlr3" )
+    SET ( HPCC_TEST_SRC_PATH  "${CMAKE_CURRENT_SOURCE_DIR}/src/test/java" )
 
     MESSAGE ("-- JAVA Development components are required.")
     FIND_PACKAGE (Java REQUIRED COMPONENTS Development)
