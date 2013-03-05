@@ -153,6 +153,21 @@
 							<pluginExecutions>
 								<pluginExecution>
 									<pluginExecutionFilter>
+										<groupId>org.codehaus.mojo</groupId>
+										<artifactId>build-helper-maven-plugin</artifactId>
+										<versionRange>
+											[1.7,)
+										</versionRange>
+										<goals>
+											<goal>add-source</goal>
+										</goals>
+									</pluginExecutionFilter>
+									<action>
+										<execute></execute>
+									</action>
+								</pluginExecution>
+								<pluginExecution>
+									<pluginExecutionFilter>
 										<groupId>org.antlr</groupId>
 										<artifactId>
 											antlr3-maven-plugin
