@@ -756,8 +756,25 @@ public class HPCCDriverTest
             //    throw new RuntimeException("Parrallel Connection reuse test failed");
 
             executeFreeHandSQL(propsinfo,
-                    "call myroxie::fetchpeoplebyzipservice(33488)",
-                    params, true,1, "Call fullyqualified published query");
+                    "call thor::fetchpeoplebyzipservice(33445,,two)",
+                    params, true,1, "Call fullyqualified published query - multiple parms - skip middle param");
+
+            params.clear();
+            params.add("33447");
+            params.add(""); //empty 2nd param
+            params.add("\"\""); //empty string passed in as 3rd param
+
+            executeFreeHandSQL(propsinfo,
+                    "call thor::fetchpeoplebyzipservice(?,?,?)",
+                    params, true,1, "Call fullyqualified published query - multiple parms - skip middle param - parameterized");
+
+            executeFreeHandSQL(propsinfo,
+                    "call thor::fetchpeoplebyzipservice(33447,one,two,three,four)",
+                    params, true,1, "Call fullyqualified published query - multiple parms");
+
+            executeFreeHandSQL(propsinfo,
+                    "call thor::fetchpeoplebyzipservice()",
+                    params, true,1, "Call fullyqualified published query - no params");
 
             params.clear();
             params.add("33445");
@@ -770,10 +787,6 @@ public class HPCCDriverTest
             executeFreeHandSQL(propsinfo,
                     "call myroxie::fetchpeoplebyzipservice(?)",
                     params, false, 0, "Call parameterized query with empty params");
-
-            executeFreeHandSQL(propsinfo,
-                    "call myroxie::fetchpeoplebyzipservice()",
-                    params, false, 0, "Call published query not enough in-params");
 
             executeFreeHandSQL(propsinfo,
                     "call bogusSPName()",

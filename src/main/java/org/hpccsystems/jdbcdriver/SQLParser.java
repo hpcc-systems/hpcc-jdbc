@@ -118,13 +118,9 @@ public class SQLParser
 
             if (paramToken.length() > 0)
             {
-                StringTokenizer tokenizer = new StringTokenizer(paramToken, ",");
-                procInParamValues = new String[tokenizer.countTokens()];
-                int i = 0;
-                while (tokenizer.hasMoreTokens())
-                {
-                    procInParamValues[i++] = tokenizer.nextToken().trim();
-                }
+                //Using split rather than tokenizer, in order to detect back-to-back
+                //param delimiters. eg call fnname(1,,,4);
+                procInParamValues = paramToken.split("\\,",-1);
             }
         }
         else if (insql.matches("^(?i)select\\s+(.*?)"))

@@ -21,24 +21,43 @@ package org.hpccsystems.jdbcdriver;
 import java.util.Enumeration;
 import java.util.Properties;
 
+/**
+ * Represents HPCC System published queries.
+ * Stores information regarding all published queries found on a particular HPCC System instance.
+ * Multiple versions of the same named query can exist, but only one is available via the query name,
+ * which is tracked via the aliases properties object.
+ * @author rpastrana
+ *
+ */
 public class HPCCQueries
 {
-
     private Properties queries;
+    private Properties aliases;
 
     public HPCCQueries()
     {
         queries = new Properties();
+        aliases = new Properties();
     }
 
     public void put(HPCCQuery query)
     {
-        queries.put(query.getQuerySet() + "::" + query.getName(), query);
+        queries.put(query.getQuerySet() + "::" + query.getID(), query);
+    }
+
+    public void putAlias(String queryset, String alias, String queryid)
+    {
+        aliases.put(queryset + "::" + alias, queryid);
     }
 
     public Enumeration<Object> getQueries()
     {
         return queries.elements();
+    }
+
+    public Enumeration<Object> getAlises()
+    {
+        return aliases.keys();
     }
 
     public HPCCQuery getQuerysetQuery(String eclqueryname)
@@ -60,14 +79,24 @@ public class HPCCQueries
             return null;
     }
 
-    public HPCCQuery getQuery(String queryset, String eclqueryname)
+    public HPCCQuery getQuery(String queryset, String eclquerynameorid)
     {
-        return (HPCCQuery) queries.get(queryset + "::" + eclqueryname);
+        String eclqueryid = eclquerynameorid;
+
+        if (aliases.containsKey((queryset.length() > 0 ? queryset + "::" : "") + eclquerynameorid))
+            eclqueryid = (String) aliases.get((queryset.length() > 0 ? queryset + "::" : "") + eclquerynameorid);
+
+        return (HPCCQuery) queries.get(queryset + "::" + eclqueryid);
     }
 
-    public HPCCQuery getQuery(String eclqueryname)
+    public HPCCQuery getQuery(String eclquerynameorid)
     {
-        return (HPCCQuery) queries.get(eclqueryname);
+        String eclqueryid = eclquerynameorid;
+
+        if (aliases.containsKey(eclquerynameorid))
+            eclqueryid = (String) aliases.get(eclqueryid);
+
+        return (HPCCQuery) queries.get(eclqueryid);
     }
 
     public int getLength()
@@ -80,8 +109,13 @@ public class HPCCQueries
         return queries.containsKey(eclqueryname);
     }
 
-    public boolean containsQueryName(String clustername, String eclqueryname)
+    public boolean containsQueryName(String queryset, String eclquerynameorid)
     {
-        return queries.containsKey((clustername.length() > 0 ? clustername + "::" : "") + eclqueryname);
+        String eclqueryid = eclquerynameorid;
+
+        if (aliases.containsKey((queryset.length() > 0 ? queryset + "::" : "") + eclquerynameorid))
+            eclqueryid = (String) aliases.get((queryset.length() > 0 ? queryset + "::" : "") + eclquerynameorid);
+
+        return queries.containsKey((queryset.length() > 0 ? queryset + "::" : "") + eclqueryid);
     }
 }
