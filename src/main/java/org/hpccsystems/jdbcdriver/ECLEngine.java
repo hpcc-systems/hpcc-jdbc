@@ -727,7 +727,8 @@ public class ECLEngine
                     int inParamValuesCount = procInParamValues == null ? 0 : procInParamValues.length;
 
                     if (inParamValuesCount != storeProcInParams.size())
-                        throw new SQLException(hpccPublishedQuery.getName() + " expects "+ storeProcInParams.size() + " input parameters, " + " received " + inParamValuesCount);
+                        //throw new SQLException(hpccPublishedQuery.getName() + " expects "+ storeProcInParams.size() + " input parameters, " + " received " + inParamValuesCount);
+                        HPCCJDBCUtils.traceoutln(Level.WARNING,  "WARNING: " + hpccPublishedQuery.getID() + " expects "+ storeProcInParams.size() + " input parameter(s), " + " received " + inParamValuesCount);
 
                     generateCallURL();
 
@@ -1037,24 +1038,27 @@ public class ECLEngine
             sb.append(URLEncoder.encode("submit_type_=xml", "UTF-8"));
             sb.append("&").append(URLEncoder.encode("S1=Submit", "UTF-8"));
 
-            for (int columindex = 0; columindex < procInParamValues.length; columindex++)
+            if (procInParamValues != null)
             {
-                String key = storeProcInParams.get(columindex).getColumnName();
-                String value = procInParamValues[columindex];
-
-                if (HPCCJDBCUtils.isParameterizedStr(value))
+                for (int columindex = 0, parameterindex = 0; columindex < procInParamValues.length && columindex < storeProcInParams.size(); columindex++)
                 {
-                    if (inParameters != null)
-                    {
-                        value = (String) inParameters.get(columindex + 1);
-                        if (value == null)
-                            throw new SQLException("Could not bind parameter");
-                    }
-                    else
-                        throw new SQLException("Detected empty input parameter list");
-                }
+                    String key = storeProcInParams.get(columindex).getColumnName();
+                    String value = procInParamValues[columindex];
 
-                sb.append("&").append(key).append("=").append(value);
+                    if (HPCCJDBCUtils.isParameterizedStr(value))
+                    {
+                        if (inParameters != null && parameterindex <= inParameters.size())
+                        {
+                            value = (String) inParameters.get(parameterindex + 1);
+                            if (value == null)
+                                throw new SQLException("Could not bind parameter");
+                            parameterindex++;
+                        }
+                        else
+                            throw new SQLException("Detected empty input parameter list");
+                    }
+                    sb.append("&").append(key).append("=").append(value);
+                }
             }
 
             long startTime = System.currentTimeMillis();
