@@ -1258,7 +1258,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
             if (!isQuerySetMetaDataCached())
                 setQuerySetMetaDataCached(fetchHPCCQueriesInfo());
 
-            Enumeration<Object> aliases = eclqueries.getAlises();
+            Enumeration<Object> aliases = eclqueries.getAliases();
             while (aliases.hasMoreElements())
             {
                 String queryalias = (String)aliases.nextElement();

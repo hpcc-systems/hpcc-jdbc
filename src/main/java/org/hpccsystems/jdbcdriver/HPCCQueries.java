@@ -26,7 +26,6 @@ import java.util.Properties;
  * Stores information regarding all published queries found on a particular HPCC System instance.
  * Multiple versions of the same named query can exist, but only one is available via the query name,
  * which is tracked via the aliases properties object.
- * @author rpastrana
  *
  */
 public class HPCCQueries
@@ -55,7 +54,7 @@ public class HPCCQueries
         return queries.elements();
     }
 
-    public Enumeration<Object> getAlises()
+    public Enumeration<Object> getAliases()
     {
         return aliases.keys();
     }
