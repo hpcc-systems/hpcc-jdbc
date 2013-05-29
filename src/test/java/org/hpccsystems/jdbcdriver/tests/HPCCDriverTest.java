@@ -1288,10 +1288,10 @@ public class HPCCDriverTest
                 info.put("TargetCluster", "myroxie"); //queries will run on this HPCC target cluster
                 info.put("QuerySet", "thor"); //published HPCC queries will run from this queryset
                 info.put("WsECLWatchPort", "8010"); //Target HPCC configured to run WsECLWatch on this port
+                info.put("WsECLWatchAddress", "http://192.168.124.128"); //Target HPCC configured to run WsECLWatch on this port
                 info.put("WsECLDirectPort", "8008"); //Target HPCC configured to run WsECLDirect on this port
                 info.put("EclResultLimit", "ALL"); //I want all records returned
                 info.put("PageSize", "20"); //GetTables and GetProcs will only return 20 entries
-
 
                 HPCCConnection connectionprops = connectViaProps(info);
                 if (connectionprops == null)

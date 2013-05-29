@@ -103,7 +103,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         this.targetcluster = props.getProperty("TargetCluster", HPCCDriver.CLUSTERDEFAULT);
         this.queryset = props.getProperty("QuerySet", HPCCDriver.QUERYSETDEFAULT);
 
-        this.basewseclwatchurl = "http://" + props.getProperty("WsECLWatchAddress", this.serverAddress) + ":" +
+        this.basewseclwatchurl = props.getProperty("WsECLWatchAddress", this.serverAddress) + ":" +
                              props.getProperty("WsECLWatchPort", HPCCDriver.WSECLWATCHPORTDEFAULT);
         this.UserName = props.getProperty("username", "");
         this.basicAuth = props.getProperty("BasicAuth",
@@ -2017,7 +2017,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                         + URLEncoder.encode(file.getFullyQualifiedName(), "UTF-8") + "&rawxml_";
 
                 // now request the schema for this file.
-                URL queryschema = new URL(filedetailUrl);
+                URL queryschema = HPCCJDBCUtils.makeURL(filedetailUrl);
                 HttpURLConnection queryschemaconnection = createHPCCESPConnection(queryschema);
 
                 InputStream schema = queryschemaconnection.getInputStream();
@@ -2201,7 +2201,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         try
         {
             urlString = basewseclwatchurl + "/WsDfu/DFUQuery?LogicalName=" + filename + "&rawxml_&filetype=" + FILEFETCHTYPE_ALL;
-            URL dfuLogicalFilesURL = new URL(urlString);
+            URL dfuLogicalFilesURL = HPCCJDBCUtils.makeURL(urlString);
             HttpURLConnection dfulogfilesConn = createHPCCESPConnection(dfuLogicalFilesURL);
 
             HPCCJDBCUtils.traceoutln(Level.INFO, "Fetching file information: " + urlString);
@@ -2246,7 +2246,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         {
             urlString = basewseclwatchurl + "/WsDfu/DFUQuery?LogicalName=*&PageSize=" + pageSize + "&PageStartFrom=" + pageOffset + "&rawxml_&filetype=" + FILEFETCHTYPE_ALL;
             HPCCJDBCUtils.traceoutln(Level.INFO, "Fetching tables: " + urlString);
-            URL dfuLogicalFilesURL = new URL(urlString);
+            URL dfuLogicalFilesURL = HPCCJDBCUtils.makeURL(urlString);
             HttpURLConnection dfulogfilesConn = createHPCCESPConnection(dfuLogicalFilesURL);
 
             isSuccess = parseDFULogicalFiles(dfulogfilesConn.getInputStream(), true) > 0 ? true : false;
@@ -2337,7 +2337,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                         + "&IncludeApplicationValues=0" + "&IncludeWorkflows=0" + "&IncludeHelpers=0" + "&rawxml_";
 
                 // now request the schema for each hpcc query
-                URL queryschema = new URL(queryinfourl);
+                URL queryschema = HPCCJDBCUtils.makeURL(queryinfourl);
                 HttpURLConnection queryschemaconnection = createHPCCESPConnection(queryschema);
 
                 InputStream schema = queryschemaconnection.getInputStream();
@@ -2426,7 +2426,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                 String urlString = basewseclwatchurl
                         + "/WsWorkunits/WUQuerysetDetails?QuerySetName=" + querysets.get(z) + "&rawxml_";
 
-                URL querysetURL = new URL(urlString);
+                URL querysetURL = HPCCJDBCUtils.makeURL(urlString);
                 HttpURLConnection querysetconnection = createHPCCESPConnection(querysetURL);
 
                 InputStream xml = querysetconnection.getInputStream();
@@ -2457,8 +2457,8 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         {
             String urlString = basewseclwatchurl + "/WsWorkunits/WUQuerysets?rawxml_";
 
-            URL cluserInfoURL = new URL(urlString);
-            HttpURLConnection clusterInfoConnection = createHPCCESPConnection(cluserInfoURL);
+            URL clusterInfoURL = HPCCJDBCUtils.makeURL(urlString);
+            HttpURLConnection clusterInfoConnection = createHPCCESPConnection(clusterInfoURL);
 
             InputStream xml = clusterInfoConnection.getInputStream();
 
@@ -2498,7 +2498,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
             String urlString = basewseclwatchurl
                     + "/WsTopology/TpTargetClusterQuery?Type=ROOT&rawxml_&ShowDetails=0";
 
-            URL cluserInfoURL = new URL(urlString);
+            URL cluserInfoURL = HPCCJDBCUtils.makeURL(urlString);
             HttpURLConnection clusterInfoConnection = createHPCCESPConnection(cluserInfoURL);
 
             InputStream xml = clusterInfoConnection.getInputStream();
@@ -2820,7 +2820,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                     + file.getClusterName() + "&RoxieSelections=0" + "&rawxml_";
             DocumentBuilder db = dbf.newDocumentBuilder();
 
-            URL queryfiledata = new URL(openfiledetailUrl);
+            URL queryfiledata = HPCCJDBCUtils.makeURL(openfiledetailUrl);
             HttpURLConnection queryfiledataconnection = createHPCCESPConnection(queryfiledata);
 
             InputStream filesearchinfo = queryfiledataconnection.getInputStream();
