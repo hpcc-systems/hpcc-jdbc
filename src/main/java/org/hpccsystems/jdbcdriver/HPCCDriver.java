@@ -29,11 +29,10 @@ import java.util.logging.Level;
 
 public class HPCCDriver implements Driver
 {
-    public static final String   DEFAULTPROTOCOL          = "http";
     public static final String   ECLRESULTLIMDEFAULT      = "100";
     public static final String   CLUSTERDEFAULT           = "hthor";
     public static final String   QUERYSETDEFAULT          = "hthor";
-    public static final String   SERVERADDRESSDEFAULT     = DEFAULTPROTOCOL + "://" + "localhost";
+    public static final String   SERVERADDRESSDEFAULT     = HPCCJDBCUtils.defaultprotocol + HPCCJDBCUtils.protocolsep + "localhost";
     public static final String   WSECLWATCHPORTDEFAULT    = "8010";
     public static final String   WSECLPORTDEFAULT         = "8002";
     public static final String   WSECLDIRECTPORTDEFAULT   = "8010";
@@ -112,8 +111,6 @@ public class HPCCDriver implements Driver
             if (!connprops.containsKey("ServerAddress"))
                 connprops.setProperty("ServerAddress", SERVERADDRESSDEFAULT);
 
-            //String serverAddress = connprops.getProperty("ServerAddress");
-
             String serverAddress = HPCCJDBCUtils.ensureURLProtocol(connprops.getProperty("ServerAddress"));           
             try
             {
@@ -146,8 +143,6 @@ public class HPCCDriver implements Driver
             }
             else
             {
-                //connprops.setProperty("WsECLWatchAddress", HPCCJDBCUtils.ensureURLProtocol(connprops.getProperty("WsECLWatchAddress")));
-                
                 String wseclwatchadd =  HPCCJDBCUtils.ensureURLProtocol(connprops.getProperty("WsECLWatchAddress"));
                 try
                 {
@@ -169,7 +164,6 @@ public class HPCCDriver implements Driver
             }
             else
             {
-                //connprops.setProperty("WsECLWatchAddress", HPCCJDBCUtils.ensureURLProtocol(connprops.getProperty("WsECLWatchAddress")));
                 String wsecladd = HPCCJDBCUtils.ensureURLProtocol(connprops.getProperty("WsECLAddress"));
                 try
                 {
@@ -191,7 +185,6 @@ public class HPCCDriver implements Driver
             }
             else
             {
-                //connprops.setProperty("WsECLDirectAddress", HPCCJDBCUtils.ensureURLProtocol(connprops.getProperty("WsECLWatchAddress")));
                 String wsecldirectadd = HPCCJDBCUtils.ensureURLProtocol(connprops.getProperty("WsECLDirectAddress"));
                 try
                 {
@@ -202,9 +195,7 @@ public class HPCCDriver implements Driver
                 {
                     throw new Exception("HPCCDriver found invalid WsECLDirectAddress: " + connprops.getProperty("WsECLDirectAddress") +": " + e.getLocalizedMessage());
                 }
-
             }
-
 
             if (!connprops.containsKey("WsECLDirectPort"))
                 connprops.setProperty("WsECLDirectPort", WSECLDIRECTPORTDEFAULT);

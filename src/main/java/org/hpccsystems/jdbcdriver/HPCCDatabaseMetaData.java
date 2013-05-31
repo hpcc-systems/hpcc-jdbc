@@ -2498,8 +2498,8 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
             String urlString = basewseclwatchurl
                     + "/WsTopology/TpTargetClusterQuery?Type=ROOT&rawxml_&ShowDetails=0";
 
-            URL cluserInfoURL = HPCCJDBCUtils.makeURL(urlString);
-            HttpURLConnection clusterInfoConnection = createHPCCESPConnection(cluserInfoURL);
+            URL clusterInfoURL = HPCCJDBCUtils.makeURL(urlString);
+            HttpURLConnection clusterInfoConnection = createHPCCESPConnection(clusterInfoURL);
 
             InputStream xml = clusterInfoConnection.getInputStream();
 
