@@ -141,15 +141,15 @@
     <para>The HPCC JDBC driver supports the following configuration
     attributes:</para>
 
-    <para><informaltable colsep="1" frame="all" rowsep="1">
+    <para><informaltable align="left" colsep="1" frame="all" rowsep="1">
         <tgroup cols="4">
-          <colspec colwidth="131.40pt" />
+          <colspec colwidth="122pt" />
 
-          <colspec colwidth="315pt" />
+          <colspec colwidth="3*" />
 
-          <colspec colwidth="95.5pt" />
+          <colspec colwidth="1*" />
 
-          <colspec colwidth="40pt" />
+          <colspec colwidth="35pt" />
 
           <thead>
             <row>
@@ -546,6 +546,17 @@
       role="bold">[LIMIT</emphasis><emphasis> limitNumber</emphasis><emphasis
       role="bold">]</emphasis></para>
 
+      <variablelist>
+        <varlistentry>
+          <term>NOTE:</term>
+
+          <listitem>
+            <para>Identifiers can be unquoted or within double quotes, literal
+            string values must be single quoted.</para>
+          </listitem>
+        </varlistentry>
+      </variablelist>
+
       <para><informaltable colsep="0" frame="none" rowsep="0">
           <tgroup cols="2">
             <colspec colwidth="123.45pt" />
@@ -668,35 +679,15 @@
               <row>
                 <entry><emphasis>logicalExpression</emphasis></entry>
 
-                <entry>logical expression based on standard SQL filtering
+                <entry>Logical expression based on standard SQL filtering
                 syntax.</entry>
               </row>
 
               <row>
                 <entry></entry>
 
-                <entry>No grouping supported (no parentheses).</entry>
-              </row>
-
-              <row>
-                <entry></entry>
-
-                <entry>&lt;Simple predicate&gt; [(AND | OR) &lt;Simple
-                predicate&gt;]</entry>
-              </row>
-
-              <row>
-                <entry></entry>
-
-                <entry>Where a simple predicate is columnname operator
-                value</entry>
-              </row>
-
-              <row>
-                <entry></entry>
-
                 <entry>BOOLEAN Only supports <emphasis>True</emphasis> or
-                <emphasis>False</emphasis> do not use Y, N, 0, or 1</entry>
+                <emphasis>False</emphasis>, do not use Y, N, 0, or 1.</entry>
               </row>
 
               <row>
@@ -793,7 +784,7 @@
                 <entry></entry>
 
                 <entry>Aggregate functions can only be expressed in
-                filterConditions by using <emphasis>Group by </emphasis>and
+                logicalExpressions by using <emphasis>Group by </emphasis>and
                 <emphasis>having</emphasis></entry>
               </row>
 
@@ -828,26 +819,28 @@
 
       <para>Example:</para>
 
-      <programlisting>Select fname, lname, state from TutorialPerson where state=’FLORIDA’
+      <programlisting>Select fname, lname, state from TutorialPerson where 
+   state=’FL’ OR (lname='Smith' and fname='Joe') 
 //returns data that looks like this:
 John Doe FL 
 Jim Smith FL 
 Jane Row FL
+Joe Smith CA
 
-Select fname, lname, state from TutorialPerson where state=’FLORIDA’ AND lname &lt;&gt; ‘Smith’
+Select fname, lname, state from TutorialPerson where state=’FL’ AND lname &lt;&gt; ‘Smith’
 //returns data that looks like this:
 John Doe FL 
 Jane Row FL </programlisting>
 
-      <para>The driver supports SQL index hints, which gives the SQL user to
-      specify the most appropriate HPCC index for the current SQL query. This
-      also allows you to disable the use of an index.</para>
+      <para>The driver supports SQL index hints, which gives the SQL user the
+      option to specify the most appropriate HPCC index for the current SQL
+      query. This also allows you to disable the use of an index.</para>
 
       <para><emphasis role="bold">select
       </emphasis><emphasis>columnList</emphasis> <emphasis role="bold"> from
       </emphasis><emphasis>tableName </emphasis><emphasis role="bold">USE
       INDEX(</emphasis><emphasis>hpcc::index::file::name</emphasis><emphasis
-      role="bold">) where </emphasis><emphasis>filterCondition
+      role="bold">) where </emphasis><emphasis>logicalExprssions
       </emphasis></para>
 
       <para><emphasis role="bold">USE INDEX(0) </emphasis>forces the system to
@@ -888,9 +881,9 @@ Jane Row FL 33024
       <para>[USE INDEX<emphasis>(</emphasis>indexFileName | 0
       <emphasis>)</emphasis>]</para>
 
-      <para>[<emphasis role="bold">where</emphasis> <emphasis>filterCondition]
-      </emphasis>[<emphasis role="bold">group by</emphasis>
-      <emphasis>fieldName</emphasis>]</para>
+      <para>[<emphasis role="bold">where</emphasis>
+      <emphasis>logicalExpression] </emphasis>[<emphasis role="bold">group
+      by</emphasis> <emphasis>fieldName</emphasis>]</para>
 
       <para>[<emphasis role="bold">order by</emphasis> <emphasis>columnNames
       </emphasis>[asc | desc]<emphasis> </emphasis>] [<emphasis
@@ -1009,35 +1002,15 @@ Jane Row FL 33024
               <row>
                 <entry><emphasis>logicalExpression</emphasis></entry>
 
-                <entry>logical expression based on standard SQL filtering
+                <entry>Logical expression based on standard SQL filtering
                 syntax.</entry>
               </row>
 
               <row>
                 <entry></entry>
 
-                <entry>No grouping supported (no parentheses).</entry>
-              </row>
-
-              <row>
-                <entry></entry>
-
-                <entry>&lt;Simple predicate&gt; [(AND | OR) &lt;Simple
-                predicate&gt;]</entry>
-              </row>
-
-              <row>
-                <entry></entry>
-
-                <entry>Where a simple predicate is columnname operator
-                value</entry>
-              </row>
-
-              <row>
-                <entry></entry>
-
                 <entry>BOOLEAN Only supports <emphasis>True</emphasis> or
-                <emphasis>False</emphasis> do not use Y, N, 0, or 1</entry>
+                <emphasis>False</emphasis>, do not use Y, N, 0, or 1.</entry>
               </row>
 
               <row>
@@ -1135,7 +1108,7 @@ Jane Row FL 33024
                 <entry></entry>
 
                 <entry>Aggregate functions can only be expressed in
-                filterConditions by using <emphasis>Group by </emphasis>and
+                logicalExpressions by using <emphasis>Group by </emphasis>and
                 <emphasis>having</emphasis></entry>
               </row>
 
@@ -1166,19 +1139,24 @@ Jane Row FL 33024
 
       <para><programlisting>Select t1.personname, t2.address 
        from persontable as t1 inner join addresstable as t2 
-       on t1.personid = t2.personid</programlisting></para>
+       on (t1.personid = t2.personid AND
+           (t1.firstname = 'jim' AND
+            t1.lastname  = 'smith' )) </programlisting></para>
 
       <para></para>
 
       <para>The JDBC driver does not convert parameter list or column list
       values to string literals.</para>
 
-      <para>String values should be quote encapsulated.</para>
+      <para>String values should be single quote encapsulated. Field
+      identifier can be left unquoted or double quoted.</para>
 
       <para>For example, the table <emphasis role="bold">persons</emphasis>
       has columns Firstname(String) and Zip (numeric)</para>
 
       <para><programlisting>Select Firstname from persons where Firstname = ‘Jim’ and zip &gt; 33445    /* works  */ 
+
+Select Firstname from persons where Firstname = ‘Jim’ and "zip" &gt; 33445    /* also works  */ 
 
 Select Firstname from persons where Firstname = Jim and zip &gt; 33445     /* doesn’t work */
 
@@ -1222,49 +1200,49 @@ Select Firstname from persons where Firstname = ‘Jim’ and zip &gt; ‘33445�
               <row>
                 <entry>COUNT</entry>
 
-                <entry>Counts the occurrences of columnName in the
-                result</entry>
+                <entry>Counts the occurrences of columnName in the result,
+                always an integer.</entry>
               </row>
 
               <row>
                 <entry>DISTINCT</entry>
 
                 <entry>Returns only distinct values of columnName in the
-                result</entry>
+                result, output type is dependent on input type.</entry>
               </row>
 
               <row>
                 <entry>SUM</entry>
 
                 <entry>Returns the sum of the values of columnName in the
-                result</entry>
+                result, output type is dependent on input type.</entry>
               </row>
 
               <row>
                 <entry>MIN</entry>
 
                 <entry>Returns the minimum value for of columnName in the
-                result</entry>
+                result, output type is dependent on input type.</entry>
               </row>
 
               <row>
                 <entry>MAX</entry>
 
                 <entry>Returns the minimum value for of columnName in the
-                result</entry>
+                result, output type is dependent on input type.</entry>
               </row>
 
               <row>
                 <entry>AVG</entry>
 
                 <entry>Returns the average of the values of columnName in the
-                result</entry>
+                result, always a real number.</entry>
               </row>
 
               <row>
                 <entry>columnName</entry>
 
-                <entry>The column to aggregate</entry>
+                <entry>The column to aggregate.</entry>
               </row>
             </tbody>
           </tgroup>
@@ -1295,14 +1273,14 @@ Select Firstname from persons where Firstname = ‘Jim’ and zip &gt; ‘33445�
               <row>
                 <entry>UPPER</entry>
 
-                <entry>returns with all lower case characters converted to
+                <entry>Returns with all lower case characters converted to
                 upper case.</entry>
               </row>
 
               <row>
                 <entry>LOWER</entry>
 
-                <entry>returns with all upper case characters converted to
+                <entry>Returns with all upper case characters converted to
                 lower case.</entry>
               </row>
 
@@ -1318,7 +1296,7 @@ Select Firstname from persons where Firstname = ‘Jim’ and zip &gt; ‘33445�
     </sect1>
   </chapter>
 
-  <appendix>
+  <chapter>
     <title>Java Example</title>
 
     <para><programlisting>/* Obtain instance of JDBC Driver */
@@ -1376,5 +1354,5 @@ HPCCConnection connection = null;
 
     <para><ulink
     url="https://github.com/hpcc-systems/hpcc-jdbc/blob/master/src/org/hpccsystems/jdbcdriver/tests/HPCCDriverTest.java">https://github.com/hpcc-systems/hpcc-jdbc/blob/master/src/org/hpccsystems/jdbcdriver/tests/HPCCDriverTest.java</ulink></para>
-  </appendix>
+  </chapter>
 </book>
