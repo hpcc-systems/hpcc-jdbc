@@ -1251,16 +1251,18 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         metacols.add(new HPCCColumnMetaData("R6", 6, java.sql.Types.VARCHAR));
         metacols.add(new HPCCColumnMetaData("REMARKS", 7, java.sql.Types.VARCHAR));
         metacols.add(new HPCCColumnMetaData("PROCEDURE_TYPE", 8, java.sql.Types.SMALLINT));
+        metacols.add(new HPCCColumnMetaData("SPECIFIC_NAME", 9, java.sql.Types.VARCHAR));
 
         if (allprocsearch)
         {
             if (!isQuerySetMetaDataCached())
                 setQuerySetMetaDataCached(fetchHPCCQueriesInfo());
 
-            Enumeration<Object> queries = eclqueries.getQueries();
-            while (queries.hasMoreElements())
+            Enumeration<Object> aliases = eclqueries.getAliases();
+            while (aliases.hasMoreElements())
             {
-                HPCCQuery query = (HPCCQuery) queries.nextElement();
+                String queryalias = (String)aliases.nextElement();
+                HPCCQuery query = eclqueries.getQuerysetQuery(queryalias);
                 procedures.add(populateProcedureRow(query));
             }
         }
@@ -1284,8 +1286,25 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
             rowValues.add("");
             rowValues.add("");
             rowValues.add("");
-            rowValues.add("QuerySet: " + query.getQuerySet());
+
+            //The remarks string will display this query's actual ID, and its
+            //input parameters in order.
+
+            String remarks = query.getID() + "( ";
+            int index = 0;
+            int totalfields = query.getAllInFields().size();
+            for (HPCCColumnMetaData field : query.getAllInFields())
+            {
+                remarks += field.getColumnName();
+                if (index < totalfields -1)
+                    remarks += ", ";
+                index++;
+            }
+            remarks += " )";
+
+            rowValues.add(remarks);
             rowValues.add(procedureResultUnknown);
+            rowValues.add(query.getID());
         }
 
         return rowValues;
@@ -1354,7 +1373,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                 /* 10 */rowValues.add(0);
                 /* 11 */rowValues.add(1);
                 /* 12 */rowValues.add(procedureNoNulls);
-                /* 13 */rowValues.add("");
+                /* 13 */rowValues.add(col.getParamType() == procedureColumnIn ? "Input param index: " + col.getIndex() + "." : "Output param.");
 
                 if (!allcolumnsearch)
                     break;
@@ -2359,7 +2378,34 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                 catch (Exception e)
                 {
                     HPCCJDBCUtils.traceoutln(Level.SEVERE,
-                            "Could not retreive Query info for: " + query.getName() + "(" + query.getWUID() + ")");
+                            "Could not retreive Query info for: " + query.getID() + "(" + query.getWUID() + ")");
+                }
+            }
+
+            NodeList querySetAliases = dom.getElementsByTagName("QuerySetAlias");
+            for (int i = 0; i < querySetAliases.getLength(); i++)
+            {
+                String aliasid = null;
+                String aliasname = null;
+
+                NodeList querysetaliaschildren = querySetAliases.item(i).getChildNodes();
+                for (int j = 0; j < querysetaliaschildren.getLength(); j++)
+                {
+                    String NodeName = querysetaliaschildren.item(j).getNodeName();
+                    if (NodeName.equals("Id"))
+                    {
+                        aliasid = querysetaliaschildren.item(j).getTextContent();
+                    }
+                    else if (NodeName.equals("Name"))
+                    {
+                        aliasname = querysetaliaschildren.item(j).getTextContent();
+                    }
+                }
+
+                if (aliasid != null && aliasname != null)
+                {
+                    if (eclqueries.containsQueryName(querysetname, aliasid))
+                        eclqueries.putAlias(querysetname, aliasname, aliasid);
                 }
             }
         }
