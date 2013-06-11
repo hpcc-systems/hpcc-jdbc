@@ -32,7 +32,7 @@ public class HPCCDriver implements Driver
     public static final String   ECLRESULTLIMDEFAULT      = "100";
     public static final String   CLUSTERDEFAULT           = "hthor";
     public static final String   QUERYSETDEFAULT          = "hthor";
-    public static final String   SERVERADDRESSDEFAULT     = "localhost";
+    public static final String   SERVERADDRESSDEFAULT     = HPCCJDBCUtils.defaultprotocol + HPCCJDBCUtils.protocolsep + "localhost";
     public static final String   WSECLWATCHPORTDEFAULT    = "8010";
     public static final String   WSECLPORTDEFAULT         = "8002";
     public static final String   WSECLDIRECTPORTDEFAULT   = "8010";
@@ -111,8 +111,16 @@ public class HPCCDriver implements Driver
             if (!connprops.containsKey("ServerAddress"))
                 connprops.setProperty("ServerAddress", SERVERADDRESSDEFAULT);
 
-            String serverAddress = connprops.getProperty("ServerAddress");
-
+            String serverAddress = HPCCJDBCUtils.ensureURLProtocol(connprops.getProperty("ServerAddress"));           
+            try
+            {
+                HPCCJDBCUtils.verifyURL(serverAddress);
+            }
+            catch (Exception e)
+            {
+                throw new Exception("HPCCDriver found invalid ServerAddress: " + connprops.getProperty("ServerAddress") +": " + e.getLocalizedMessage());
+            }
+            
             if (!connprops.containsKey("TraceLevel"))
                 connprops.setProperty("TraceLevel", TRACELEVELDEFAULT);
 
@@ -130,19 +138,64 @@ public class HPCCDriver implements Driver
                 connprops.setProperty("QuerySet", QUERYSETDEFAULT);
 
             if (!connprops.containsKey("WsECLWatchAddress"))
+            {
                 connprops.setProperty("WsECLWatchAddress", serverAddress);
+            }
+            else
+            {
+                String wseclwatchadd =  HPCCJDBCUtils.ensureURLProtocol(connprops.getProperty("WsECLWatchAddress"));
+                try
+                {
+                    HPCCJDBCUtils.verifyURL(wseclwatchadd);
+                    connprops.setProperty("WsECLWatchAddress",wseclwatchadd);
+                }
+                catch (Exception e)
+                {
+                    throw new Exception("HPCCDriver found invalid WsECLWatchAddress: " + connprops.getProperty("WsECLWatchAddress") +": " + e.getLocalizedMessage());
+                }
+            }
 
             if (!connprops.containsKey("WsECLWatchPort"))
                 connprops.setProperty("WsECLWatchPort", WSECLWATCHPORTDEFAULT);
 
             if (!connprops.containsKey("WsECLAddress"))
+            {
                 connprops.setProperty("WsECLAddress", serverAddress);
+            }
+            else
+            {
+                String wsecladd = HPCCJDBCUtils.ensureURLProtocol(connprops.getProperty("WsECLAddress"));
+                try
+                {
+                    HPCCJDBCUtils.verifyURL(wsecladd);
+                    connprops.setProperty("WsECLAddress",wsecladd);
+                }
+                catch (Exception e)
+                {
+                    throw new Exception("HPCCDriver found invalid WsECLAddress: " + connprops.getProperty("WsECLAddress") +": " + e.getLocalizedMessage());
+                }
+            }
 
             if (!connprops.containsKey("WsECLPort"))
                 connprops.setProperty("WsECLPort", WSECLPORTDEFAULT);
 
             if (!connprops.containsKey("WsECLDirectAddress"))
+            {
                 connprops.setProperty("WsECLDirectAddress", serverAddress);
+            }
+            else
+            {
+                String wsecldirectadd = HPCCJDBCUtils.ensureURLProtocol(connprops.getProperty("WsECLDirectAddress"));
+                try
+                {
+                    HPCCJDBCUtils.verifyURL(wsecldirectadd);
+                    connprops.setProperty("WsECLDirectAddress",wsecldirectadd);
+                }
+                catch (Exception e)
+                {
+                    throw new Exception("HPCCDriver found invalid WsECLDirectAddress: " + connprops.getProperty("WsECLDirectAddress") +": " + e.getLocalizedMessage());
+                }
+            }
 
             if (!connprops.containsKey("WsECLDirectPort"))
                 connprops.setProperty("WsECLDirectPort", WSECLDIRECTPORTDEFAULT);
@@ -212,9 +265,11 @@ public class HPCCDriver implements Driver
         catch (Exception e)
         {
             HPCCJDBCUtils.traceoutln(Level.SEVERE,   "Issue detected while setting connection properties!");
+            HPCCJDBCUtils.traceoutln(Level.SEVERE,   e.getLocalizedMessage());
+            return null;
         }
 
-        HPCCJDBCUtils.traceoutln(Level.INFO,"HPCCDriver::connect" + connprops.getProperty("ServerAddress"));
+        HPCCJDBCUtils.traceoutln(Level.INFO,"HPCCDriver::connect " + connprops.getProperty("ServerAddress"));
 
         return new HPCCConnection(connprops);
     }
