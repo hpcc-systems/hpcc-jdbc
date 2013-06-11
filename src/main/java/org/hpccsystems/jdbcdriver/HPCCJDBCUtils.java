@@ -483,6 +483,7 @@ public class HPCCJDBCUtils
         mapECLTypeNameToSQLType.put("DURATION", java.sql.Types.VARCHAR);
         mapECLTypeNameToSQLType.put("STRING1", java.sql.Types.CHAR);
         mapECLTypeNameToSQLType.put("REAL", java.sql.Types.REAL);
+        mapECLTypeNameToSQLType.put("UNICODE", java.sql.Types.VARCHAR);
     }
 
     public final static Pattern TRAILINGNUMERICPATTERN = Pattern.compile(
@@ -594,6 +595,7 @@ public class HPCCJDBCUtils
         mapECLtypeCodeToSQLtype.put(EclTypes.ECLTypestring, java.sql.Types.VARCHAR);
         mapECLtypeCodeToSQLtype.put(EclTypes.ECLTypeunsigned, java.sql.Types.NUMERIC);
         mapECLtypeCodeToSQLtype.put(EclTypes.ECLTypevarstring, java.sql.Types.VARCHAR);
+        mapECLtypeCodeToSQLtype.put(EclTypes.ECLTypeunicode, java.sql.Types.VARCHAR);
     }
 
     /**
@@ -634,6 +636,7 @@ public class HPCCJDBCUtils
         mapSQLtypeCodeToJavaClass.put(java.sql.Types.DATE,          "java.sql.Date");
         mapSQLtypeCodeToJavaClass.put(java.sql.Types.TIME,          "java.sql.Time");
         mapSQLtypeCodeToJavaClass.put(java.sql.Types.TIMESTAMP,     "java.sql.Timestamp");
+        mapSQLtypeCodeToJavaClass.put(java.sql.Types.BOOLEAN,       "java.lang.Boolean");
     }
 
     private final static String JAVA_OBJECT_TYPE_NAME = "java.lang.Object";
