@@ -19,6 +19,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 package org.hpccsystems.jdbcdriver;
 
 import java.lang.reflect.Field;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.text.NumberFormat;
 import java.util.HashMap;
 import java.util.Locale;
@@ -33,6 +35,9 @@ import java.util.regex.Pattern;
 
 public class HPCCJDBCUtils
 {
+    public static final String defaultprotocol = "http";
+    public static final String protocolsep = "://";
+
     public static final String DOTSEPERATORREGEX = "\\.";
 
     public static String newLine = System.getProperty("line.separator");
@@ -712,5 +717,49 @@ public class HPCCJDBCUtils
             return mapSQLTypeToPrecedence.get(sqlType);
         else
             return Integer.MIN_VALUE;
+    }
+
+    //public static final Pattern URLPATTERN = Pattern.compile("\\b(?:(https?|ftp|file)://|www\\.)?[-A-Z0-9+&#/%?=~_|$!:,.;]*[A-Z0-9+&@#/%=~_|$]\\.[-A-Z0-9+&@#/%?=~_|$!:,.;]*[A-Z0-9+&@#/%=~_|$]", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+    public static final Pattern URLPROTPATTERN = Pattern.compile("((https?|ftp|file)://|www\\.).+", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+
+    public static URL makeURL(String urlstr)
+    {
+        URL theURL = null;
+        try
+        {
+            theURL = new URL(ensureURLProtocol(urlstr));
+        }
+        catch (MalformedURLException e)
+        {
+            e.printStackTrace();
+        }
+        catch (Exception e)
+        {
+            e.printStackTrace();
+        }
+
+        return theURL;
+    }
+
+    public static URL verifyURL(String urlstr) throws MalformedURLException
+    {
+        try
+        {
+            return new URL(urlstr);
+        }
+        catch (Exception e)
+        {
+            throw new MalformedURLException(e.getLocalizedMessage());
+        }
+    }
+
+    public static String ensureURLProtocol(String urlstr)
+    {
+        if (!URLPROTPATTERN.matcher(urlstr).matches())
+        {
+            return defaultprotocol + protocolsep + urlstr;
+        }
+        else
+            return urlstr;
     }
 }

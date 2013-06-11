@@ -749,12 +749,12 @@ public class ECLEngine
 
         try
         {
-            urlString = "http://" + hpccConnProps.getProperty("WsECLAddress")
+            urlString = hpccConnProps.getProperty("WsECLAddress")
                 + ":" + hpccConnProps.getProperty("WsECLPort")
                 + "/WsEcl/submit/query/" + hpccPublishedQuery.getQuerySet()
                 + "/" + hpccPublishedQuery.getName() + "/expanded";
 
-            hpccRequestUrl = new URL(urlString);
+            hpccRequestUrl = HPCCJDBCUtils.makeURL(urlString);
         }
         catch (Exception e)
         {
@@ -770,7 +770,7 @@ public class ECLEngine
 
         try
         {
-            urlString = "http://" + hpccConnProps.getProperty("WsECLDirectAddress") + ":"
+            urlString = hpccConnProps.getProperty("WsECLDirectAddress") + ":"
                     + hpccConnProps.getProperty("WsECLDirectPort") + "/EclDirect/RunEcl?Submit";
 
             if (hpccConnProps.containsKey("TargetCluster"))
@@ -783,7 +783,7 @@ public class ECLEngine
 
             urlString += "&eclText=";
             urlString += URLEncoder.encode(eclCode.toString(), "UTF-8");
-            hpccRequestUrl = new URL(urlString);
+            hpccRequestUrl = HPCCJDBCUtils.makeURL(urlString);
         }
         catch (Exception e)
         {
@@ -819,7 +819,7 @@ public class ECLEngine
     {
         try
         {
-            String urlString = "http://" + hpccConnProps.getProperty("WsECLDirectAddress") + ":"
+            String urlString = hpccConnProps.getProperty("WsECLDirectAddress") + ":"
                     + hpccConnProps.getProperty("WsECLDirectPort") + "/EclDirect/RunEcl?Submit";
 
             if (hpccConnProps.containsKey("TargetCluster"))
@@ -827,7 +827,7 @@ public class ECLEngine
             else
                 HPCCJDBCUtils.traceoutln(Level.INFO,  "No cluster property found, executing query on EclDirect default cluster");
 
-            hpccRequestUrl = new URL(urlString);
+            hpccRequestUrl = HPCCJDBCUtils.makeURL(urlString);
 
             HPCCJDBCUtils.traceoutln(Level.INFO,  "HPCC URL created: " + urlString);
         }
