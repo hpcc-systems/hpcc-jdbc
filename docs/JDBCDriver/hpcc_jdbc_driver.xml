@@ -141,15 +141,15 @@
     <para>The HPCC JDBC driver supports the following configuration
     attributes:</para>
 
-    <para><informaltable colsep="1" frame="all" rowsep="1">
+    <para><informaltable align="left" colsep="1" frame="all" rowsep="1">
         <tgroup cols="4">
-          <colspec colwidth="131.40pt" />
+          <colspec colwidth="120pt" />
 
-          <colspec colwidth="315pt" />
+          <colspec colwidth="3*" />
 
-          <colspec colwidth="95.5pt" />
+          <colspec colwidth="1*" />
 
-          <colspec colwidth="40pt" />
+          <colspec colwidth="35pt" />
 
           <thead>
             <row>
