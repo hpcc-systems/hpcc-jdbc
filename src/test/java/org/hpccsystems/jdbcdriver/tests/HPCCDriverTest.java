@@ -795,6 +795,16 @@ public class HPCCDriverTest
             params.add("'33445'");
             params.add("'90210'");
 
+            params.clear();
+            params.add("'zip'");
+            executeFreeHandSQL(propsinfo,
+                    "select  zip from super::super::tutorial::rp::tutorialperson as persons where count (?) > 0  limit 100",
+                    params, true, 1, "Select paremeterized function param");
+
+            executeFreeHandSQL(propsinfo,
+                    "select  zip from tutorial::rp::tutorialperson as persons, where zip = '33445'  limit 100",
+                    params, true, 1, "Select superflous coma");
+
             executeFreeHandSQL(propsinfo,"select 1 as ONE", params, true, 1, "Select single numeric constant Aliased");
             executeFreeHandSQL(propsinfo,"select 1 as ONE,2,3 as THREE,4", params, true, 1, "Select four numeric constants Aliased");
 

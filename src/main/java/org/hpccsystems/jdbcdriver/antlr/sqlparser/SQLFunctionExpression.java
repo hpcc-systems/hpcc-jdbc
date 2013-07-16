@@ -173,7 +173,7 @@ public class SQLFunctionExpression extends SQLExpression
         int paramindex = index;
         for (SQLExpression param : params)
         {
-            paramindex += param.setParameterizedNames(paramindex);
+            paramindex = param.setParameterizedNames(paramindex);
         }
         return paramindex;
     }
