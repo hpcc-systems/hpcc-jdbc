@@ -1946,7 +1946,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public boolean supportsSavepoints() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData supportsSavepoints");
-        throw new UnsupportedOperationException("HPCCDBMetaData: supportsSavepoints Not  supported yet.");
+        return false;
     }
 
     @Override
