@@ -789,6 +789,10 @@ public class HPCCDriverTest
                     params, false, 0, "Call parameterized query with empty params");
 
             executeFreeHandSQL(propsinfo,
+                    "call myroxie::fetchpeoplebyzipservice()",
+                    params, false, 0, "Call published query not enough in-params");
+
+            executeFreeHandSQL(propsinfo,
                     "call bogusSPName()",
                     params, false, 0, "Call non-existant published query");
 

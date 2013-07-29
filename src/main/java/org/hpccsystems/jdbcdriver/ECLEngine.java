@@ -358,7 +358,7 @@ public class ECLEngine
                 String translatedAndFilteredOnClause = joinclause.getOnClause().toECLStringTranslateSource(translator,true, false, false, false);
 
                 if (translatedAndFilteredOnClause == null)
-                    throw new SQLException("Join condition does not contain proper join condition between tables: " + hpccJoinFileName + " and earlier table");
+                    throw new SQLException("Join clause does not contain proper join condition between tables: " + hpccJoinFileName + " and earlier table");
 
                 eclCode.append(", ")
                         .append(currntTblDS)
