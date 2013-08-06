@@ -43,4 +43,19 @@ To build using Maven:
 5. _TO DO_ - create a Maven profile to run tests requiring a running HPCC system.
 
 NOTE:  When updating the project version in either version.cmake (cmake) or pom.xml (Maven) please make sure to
-update the version in both locations. 
+update the version in both locations.
+
+To Run Test Package:
+-------------------
+1. Provide a two files:
+	a) Containing the configurations for the target Virtual Machine
+	b) Containing the Sql scripts to run against the Virtual Machine
+	See Example: hpcc-jdbc/src/SampleTestScripts/
+2. For configuration parameters pass in:
+	Config=<home/user/myfile>
+	ReporthPath=<home/user>
+	SqlScript=<home/user/myfile1>
+3. To execute "Prepared Statements" specify the location of the data file:
+**Path must be platform specific.
+For Linux: Test1=[true;1;/home/vagrant/mycsvfile.csv]<preparedstament>
+For Windows: Test1=[true;1;C:\\Users\\mycsvfile.csv]<preparedstament>

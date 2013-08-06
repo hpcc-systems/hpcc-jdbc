@@ -1,5 +1,16 @@
 package org.hpccsystems.jdbcdriver.tests;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.LineNumberReader;
+import java.io.PrintWriter;
 import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.DriverPropertyInfo;
@@ -7,9 +18,18 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Properties;
+import java.util.Scanner;
+import java.util.logging.Level;
+
+import javax.swing.filechooser.FileSystemView;
 
 import org.hpccsystems.jdbcdriver.HPCCConnection;
 import org.hpccsystems.jdbcdriver.HPCCDatabaseMetaData;
@@ -18,29 +38,20 @@ import org.hpccsystems.jdbcdriver.HPCCJDBCUtils;
 import org.hpccsystems.jdbcdriver.HPCCPreparedStatement;
 import org.hpccsystems.jdbcdriver.HPCCResultSet;
 import org.hpccsystems.jdbcdriver.HPCCStatement;
+import org.hpccsystems.jdbcdriver.SQLParser;
 
 public class HPCCDriverTest
 {
+    static int                err   = 0;
+    static File               logFile;
+    static Date               cdate = new Date();
+    static SimpleDateFormat   sdf   = new SimpleDateFormat(
+                                            "yyyy_MM_dd-hh-mm-ss");
+    static String             date  = sdf.format(cdate);
     static private HPCCDriver driver;
-
-    static
-    {
-        driver = new HPCCDriver();
-        try
-        {
-            DriverPropertyInfo[] info = driver.getPropertyInfo("", null);
-
-            System.out.println("-----------------Driver Properties----------------------------------");
-            for (int i = 0; i < info.length; i++)
-               System.out.println("\t" + info[i].name + ": " + info[i].description);
-            System.out.println("\n--------------------------------------------------------------------");
-        }
-        catch (SQLException e)
-        {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-    }
+    static HPCCConnection     connectionprops;
+    static String             sline = System.getProperty("line.separator");
+    static boolean            vmode = false;
 
     private static boolean testLazyLoading(Properties conninfo)
     {
@@ -48,13 +59,17 @@ public class HPCCDriverTest
         try
         {
             conninfo.put("LazyLoad", "true");
-            HPCCConnection connection = (HPCCConnection) driver.connect("", conninfo);
+            HPCCConnection connection = (HPCCConnection) driver.connect("",
+                    conninfo);
 
-            System.out.println("No query nor file loading should have occured yet.");
+            System.out
+                    .println("No query nor file loading should have occured yet.");
 
-            ResultSet procs = connection.getMetaData().getProcedures(null, null, null);
+            ResultSet procs = connection.getMetaData().getProcedures(null,
+                    null, null);
 
-            System.out.println("Queries should be cached now. No files should be cached yet.");
+            System.out
+                    .println("Queries should be cached now. No files should be cached yet.");
 
             System.out.println("procs found: ");
             while (procs.next())
@@ -62,14 +77,15 @@ public class HPCCDriverTest
                 System.out.println("   " + procs.getString("PROCEDURE_NAME"));
             }
 
-            ResultSet tables = connection.getMetaData().getTables(null, null, "%", new String[]
-            { "" });
+            ResultSet tables = connection.getMetaData().getTables(null, null,
+                    "%", new String[]
+                    { "" });
 
             System.out.println("Tables found: ");
             while (tables.next())
             {
-                System.out.println("   " + tables.getString("TABLE_NAME") + " Remarks: \'"
-                        + tables.getString("REMARKS") + "\'");
+                System.out.println("   " + tables.getString("TABLE_NAME")
+                        + " Remarks: \'" + tables.getString("REMARKS") + "\'");
             }
 
         }
@@ -107,8 +123,7 @@ public class HPCCDriverTest
             connection = (HPCCConnection) driver.connect("", conninfo);
         }
         catch (Exception e)
-        {
-        }
+        {}
         return connection;
     }
 
@@ -120,18 +135,19 @@ public class HPCCDriverTest
             connection = (HPCCConnection) driver.connect(conninfo, null);
         }
         catch (Exception e)
-        {
-        }
+        {}
         return connection;
     }
 
     @SuppressWarnings("unused")
-    private static boolean printouttable(HPCCConnection connection, String tablename)
+    private static boolean printouttable(HPCCConnection connection,
+            String tablename)
     {
         boolean success = true;
         try
         {
-            ResultSet table = connection.getMetaData().getTables(null, null, tablename, null);
+            ResultSet table = connection.getMetaData().getTables(null, null,
+                    tablename, null);
 
             while (table.next())
                 System.out.println("\t" + table.getString("TABLE_NAME"));
@@ -149,7 +165,8 @@ public class HPCCDriverTest
         boolean success = true;
         try
         {
-            ResultSet keys = connection.getMetaData().getExportedKeys(null, null, null);
+            ResultSet keys = connection.getMetaData().getExportedKeys(null,
+                    null, null);
 
             // while (table.next())
             // System.out.println("\t" + table.getString("TABLE_NAME"));
@@ -167,7 +184,8 @@ public class HPCCDriverTest
         boolean success = true;
         try
         {
-            ResultSet tables = connection.getMetaData().getTables(null, null, "%", null);
+            ResultSet tables = connection.getMetaData().getTables(null, null,
+                    "%", null);
 
             System.out.println("Tables found: ");
             while (tables.next())
@@ -181,17 +199,20 @@ public class HPCCDriverTest
     }
 
     @SuppressWarnings("unused")
-    private static boolean printouttablecols(HPCCConnection connection, String tablename)
+    private static boolean printouttablecols(HPCCConnection connection,
+            String tablename)
     {
         boolean success = true;
         try
         {
-            ResultSet tablecols = connection.getMetaData().getColumns(null, null, tablename, "%");
+            ResultSet tablecols = connection.getMetaData().getColumns(null,
+                    null, tablename, "%");
 
             System.out.println("Table cols found: ");
             while (tablecols.next())
-                System.out.println("\t" + tablecols.getString("TABLE_NAME") + "::" + tablecols.getString("COLUMN_NAME")
-                        + "( " + tablecols.getString("TYPE_NAME") + " )");
+                System.out.println("\t" + tablecols.getString("TABLE_NAME")
+                        + "::" + tablecols.getString("COLUMN_NAME") + "( "
+                        + tablecols.getString("TYPE_NAME") + " )");
         }
         catch (Exception e)
         {
@@ -205,12 +226,15 @@ public class HPCCDriverTest
         boolean success = true;
         try
         {
-            ResultSet tablecols = connection.getMetaData().getColumns(null, null, "%", "%");
+            ResultSet tablecols = connection.getMetaData().getColumns(null,
+                    null, "%", "%");
 
             System.out.println("Table cols found: ");
             while (tablecols.next())
-                System.out.println("\t" + tablecols.getString("TABLE_NAME") + "::" + tablecols.getString("COLUMN_NAME")
-                        + "( " + tablecols.getString("TYPE_NAME") + " )");
+                System.out.println("\t" + tablecols.getString("TABLE_NAME")
+                        + "::" + tablecols.getString("COLUMN_NAME") + "( "
+                        + tablecols.getString("TYPE_NAME") + " )");
+
         }
         catch (Exception e)
         {
@@ -225,7 +249,8 @@ public class HPCCDriverTest
         boolean success = true;
         try
         {
-            ResultSet procs = connection.getMetaData().getProcedures(null, null, null);
+            ResultSet procs = connection.getMetaData().getProcedures(null,
+                    null, null);
 
             System.out.println("procs found: ");
             while (procs.next())
@@ -251,7 +276,8 @@ public class HPCCDriverTest
 
             for (int i = 1; i <= colcount; i++)
             {
-                System.out.print("[*****" + types.getMetaData().getColumnName(i) + "*****]");
+                System.out.print("[*****"
+                        + types.getMetaData().getColumnName(i) + "*****]");
             }
             System.out.println("");
 
@@ -270,18 +296,25 @@ public class HPCCDriverTest
         }
         return success;
     }
+
     @SuppressWarnings("unused")
     private static boolean printoutproccols(HPCCConnection connection)
     {
         boolean success = true;
         try
         {
-            ResultSet proccols = connection.getMetaData().getProcedureColumns(null, null, null, null);
-
-            System.out.println("procs cols found: ");
-            while (proccols.next())
-                System.out.println("\t" + proccols.getString("PROCEDURE_NAME") + proccols.getString("PROCEDURE_NAME")
-                        + "::" + proccols.getString("COLUMN_NAME") + " (" + proccols.getInt("COLUMN_TYPE") + ")");
+            ResultSet proccols = connection.getMetaData().getProcedureColumns(
+                    null, null, null, null);
+            if (vmode)
+            {
+                System.out.println("procs cols found: ");
+                while (proccols.next())
+                    System.out.println("\t"
+                            + proccols.getString("PROCEDURE_NAME")
+                            + proccols.getString("PROCEDURE_NAME") + "::"
+                            + proccols.getString("COLUMN_NAME") + " ("
+                            + proccols.getInt("COLUMN_TYPE") + ")");
+            }
 
         }
         catch (Exception e)
@@ -291,10 +324,11 @@ public class HPCCDriverTest
         return success;
     }
 
-    private static PreparedStatement createPrepStatement(HPCCConnection hpccconnection, String SQL) throws Exception
+    private static PreparedStatement createPrepStatement(
+            HPCCConnection hpccconnection, String SQL) throws Exception
     {
         if (hpccconnection == null)
-          throw new Exception("Could not connect with properties object");
+            throw new Exception("Could not connect with properties object");
 
         return hpccconnection.prepareStatement(SQL);
     }
@@ -304,7 +338,8 @@ public class HPCCDriverTest
         boolean success = true;
         try
         {
-            HPCCResultSet qrs = (HPCCResultSet) ((HPCCPreparedStatement) p).executeQuery();
+            HPCCResultSet qrs = (HPCCResultSet) ((HPCCPreparedStatement) p)
+                    .executeQuery();
 
             ResultSetMetaData meta = qrs.getMetaData();
             System.out.println();
@@ -344,7 +379,8 @@ public class HPCCDriverTest
                 throw new Exception("Could not connect with properties object");
 
             String SQL = "select * from tutorial::rp::tutorialperson persons where zip= ? limit 100";
-            HPCCPreparedStatement p = (HPCCPreparedStatement)createPrepStatement(connectionprops, SQL);
+            HPCCPreparedStatement p = (HPCCPreparedStatement) createPrepStatement(
+                    connectionprops, SQL);
 
             p.close();
             p.execute();
@@ -367,7 +403,8 @@ public class HPCCDriverTest
                 throw new Exception("Could not connect with properties object");
 
             String SQL = "select * from tutorial::rp::tutorialperson persons where zip= ? limit 100";
-            HPCCPreparedStatement p = (HPCCPreparedStatement)createPrepStatement(connectionprops, SQL);
+            HPCCPreparedStatement p = (HPCCPreparedStatement) createPrepStatement(
+                    connectionprops, SQL);
 
             for (int i = 33445; i < 33448; i++)
             {
@@ -378,7 +415,8 @@ public class HPCCDriverTest
 
             SQL = "call myroxie::fetchpeoplebyzipservice(?)";
 
-            p = (HPCCPreparedStatement)createPrepStatement(connectionprops, SQL);
+            p = (HPCCPreparedStatement) createPrepStatement(connectionprops,
+                    SQL);
 
             for (int i = 33445; i < 33448; i++)
             {
@@ -409,10 +447,13 @@ public class HPCCDriverTest
             HPCCPreparedStatement p = null;
             try
             {
-                p = (HPCCPreparedStatement)createPrepStatement(connectionprops, SQL);
-            } catch (Exception e)
+                p = (HPCCPreparedStatement) createPrepStatement(
+                        connectionprops, SQL);
+            }
+            catch (Exception e)
             {
-                System.out.println("Ignoring expected exception: " + e.getLocalizedMessage());
+                System.out.println("Ignoring expected exception: "
+                        + e.getLocalizedMessage());
             }
 
             p.executeQuery();
@@ -426,12 +467,236 @@ public class HPCCDriverTest
         return success;
     }
 
-    private static void executeFreeHandSQL(Properties conninfo, String SQL, List<String> params, boolean expectPass, int minResults, String testName)
+    private static void freeHandSQL_Report(String sql, String status,
+            String desc, int count)
     {
-        boolean success = true;
         try
         {
-            HPCCConnection connectionprops = connectViaProps(conninfo);
+
+            FileWriter fw = new FileWriter(logFile, true);
+            BufferedWriter bw = new BufferedWriter(fw);
+            for (int i = 0; i != count; count--)
+            {
+                err++;
+
+                bw.write(err + "." + status + " || " + desc + " || " + sql
+                        + sline);
+                bw.write(sline);
+
+            }
+
+            bw.close();
+
+        }
+        catch (IOException e)
+        {
+            e.printStackTrace();
+
+        }
+
+    }
+
+    private static int parseCallParams(String sql)
+    {
+
+        int count = 0;
+        int found = 0;
+        if (sql.contains("${") || sql.contains("?"))
+        {
+            for (int i = 0; i < sql.length(); i++)
+            {
+                char[] el = sql.toCharArray();
+                if (el[i] == '$')
+                {
+                    count++;
+                }
+                if (count == 1 && el[i + 1] == '{')
+                {
+                    found++;
+                }
+
+            }
+            sql.toString().trim();
+            if (sql.contains("(?"))
+            {
+                String q = sql.substring(sql.indexOf("(") + 1,
+                        sql.indexOf(")") - 1);
+
+                String[] ar = q.split(",");
+                found = ar.length;
+            }
+        }
+        return found;
+    }
+
+    private static void executeFreeHandSQL(HPCCConnection connectionprops,
+            String SQL, List<String> params, boolean expectPass,
+            int minResults, String csvpath, String testName)
+            throws SQLException
+    {
+
+        // TODO Auto-generated method stub
+        String csvFile = csvpath;
+        BufferedReader br = null;
+        String line = null;
+        String cvsSplitBy = ",";
+        int errcount = 0;
+        boolean success = true;
+        String emessage = null;
+        String paramVal = null;
+
+        try
+        {
+            if (connectionprops == null)
+                throw new Exception("Could not connect with properties object");
+
+            PreparedStatement p = connectionprops.prepareStatement(SQL);
+
+            p.clearParameters();
+            FileReader file = new FileReader(csvFile);
+
+            br = new BufferedReader(new FileReader(csvFile));
+            while (!((line = br.readLine()).isEmpty()))
+            {
+                SQLParser ph = new SQLParser();
+                ph.process(SQL);
+                int countparam = ph.assignParameterIndexes();
+                int callparam = parseCallParams(SQL);
+
+                String[] csvlines = line.split(cvsSplitBy);
+                params = Arrays.asList(csvlines);
+
+                for (int i = 0; i < params.size(); i++)
+                {
+                    p.setObject(i + 1, params.get(i));
+                    paramVal = params.get(i);
+                    if (vmode)
+                    {
+                        System.out.println(SQL + "--?=" + paramVal);
+                    }
+                }
+                if (countparam != params.size() && !(SQL.contains("call")))
+                {
+                    System.out.println("Warning: Parameters size:" + paramVal
+                            + " does not match the size of"
+                            + "prepared statement:" + SQL);
+                }
+                if (callparam != params.size() && !(SQL.contains("select")))
+                {
+                    System.out.println("Warning: Parameters size:" + paramVal
+                            + " does not match the size of"
+                            + "prepared statement:" + SQL);
+                }
+
+                HPCCResultSet qrs = (HPCCResultSet) ((HPCCPreparedStatement) p)
+                        .executeQuery();
+
+                ResultSetMetaData meta = qrs.getMetaData();
+
+                int colcount = meta.getColumnCount();
+                int resultcount = qrs.getRowCount();
+                success = (resultcount >= minResults);
+                if (success && expectPass)
+                {
+                    errcount = 1;
+
+                    freeHandSQL_Report(SQL + "--Value:" + paramVal, "PASSED",
+                            testName, errcount);
+                }
+
+                if (resultcount > 0 && vmode)
+                {
+                    for (int i = 1; i <= colcount; i++)
+                    {
+                        System.out.print("[*****" + meta.getColumnName(i)
+                                + "*****]");
+                    }
+                    System.out.println("");
+                    for (int i = 1; i <= colcount; i++)
+                    {
+                        System.out.print("[^^^^^" + meta.getColumnLabel(i)
+                                + "^^^^^]");
+                    }
+                    System.out.println();
+                    for (int i = 1; i <= meta.getColumnCount(); i++)
+                    {
+                        System.out.print("[+++++"
+                                + HPCCJDBCUtils
+                                        .convertSQLtype2JavaClassName(meta
+                                                .getColumnType(i)) + "+++++]");
+                    }
+
+                    while (qrs.next())
+                    {
+                        System.out.println();
+                        for (int i = 1; i <= colcount; i++)
+                        {
+                            System.out.print("[ " + qrs.getObject(i) + " ]");
+                        }
+                    }
+                }
+
+            }
+        }
+        catch (FileNotFoundException e)
+        {
+            e.printStackTrace();
+        }
+        catch (IOException e)
+        {
+            e.printStackTrace();
+        }
+        catch (NullPointerException e)
+        {
+
+        }
+        catch (Exception e)
+        {
+
+            emessage = e.getMessage();
+
+            success = false;
+
+        }
+
+        if (!success && expectPass)
+        {
+            errcount = 1;
+            freeHandSQL_Report(SQL + "--Value:" + paramVal, "FAILED: "
+                    + emessage, testName, errcount);
+
+        }
+        else if (success && !expectPass)
+        {
+            errcount = 1;
+            freeHandSQL_Report(SQL + "--Value:" + paramVal,
+                    "UNEXPECTEDLY PASSED!!", testName, errcount);
+        }
+
+        if (br != null)
+        {
+            try
+            {
+                br.close();
+            }
+            catch (IOException e)
+            {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private static void executeFreeHandSQL(HPCCConnection connectionprops,
+            String SQL, List<String> params, boolean expectPass,
+            int minResults, String testName)
+    {
+
+        int errcount = 0;
+        boolean success = true;
+        String emessage = null;
+
+        try
+        {
             if (connectionprops == null)
                 throw new Exception("Could not connect with properties object");
 
@@ -443,29 +708,33 @@ public class HPCCDriverTest
                 p.setObject(i + 1, params.get(i));
             }
 
-            HPCCResultSet qrs = (HPCCResultSet) ((HPCCPreparedStatement) p).executeQuery();
+            HPCCResultSet qrs = (HPCCResultSet) ((HPCCPreparedStatement) p)
+                    .executeQuery();
 
             ResultSetMetaData meta = qrs.getMetaData();
-            System.out.println();
 
             int colcount = meta.getColumnCount();
             int resultcount = qrs.getRowCount();
 
-            if (resultcount > 0 )
+            if (resultcount > 0 && vmode)
             {
                 for (int i = 1; i <= colcount; i++)
                 {
-                    System.out.print("[*****" + meta.getColumnName(i) + "*****]");
+                    System.out.print("[*****" + meta.getColumnName(i)
+                            + "*****]");
                 }
                 System.out.println("");
                 for (int i = 1; i <= colcount; i++)
                 {
-                    System.out.print("[^^^^^" + meta.getColumnLabel(i) + "^^^^^]");
+                    System.out.print("[^^^^^" + meta.getColumnLabel(i)
+                            + "^^^^^]");
                 }
                 System.out.println();
                 for (int i = 1; i <= meta.getColumnCount(); i++)
                 {
-                    System.out.print("[+++++" + HPCCJDBCUtils.convertSQLtype2JavaClassName(meta.getColumnType(i))  + "+++++]");
+                    System.out.print("[+++++"
+                            + HPCCJDBCUtils.convertSQLtype2JavaClassName(meta
+                                    .getColumnType(i)) + "+++++]");
                 }
 
                 while (qrs.next())
@@ -478,20 +747,31 @@ public class HPCCDriverTest
                 }
             }
 
-            System.out.println("\nTotal Records found: " + resultcount);
-
             success = (resultcount >= minResults);
+
         }
         catch (Exception e)
         {
-            System.err.println(e.getMessage());
+            emessage = e.getMessage();
             success = false;
         }
 
         if (!success && expectPass)
-            throw new RuntimeException(testName + " - FAILED!");
-        else if ( success && !expectPass)
-            throw new RuntimeException(testName + " - UNEXPECTEDLY PASSED!");
+        {
+            errcount = 1;
+            freeHandSQL_Report(SQL, "FAILED: " + emessage, testName, errcount);
+
+        }
+        else if (success && !expectPass)
+        {
+            errcount = 1;
+            freeHandSQL_Report(SQL, "UNEXPECTEDLY PASSED!!", testName, errcount);
+        }
+        else if (success && expectPass)
+        {
+            errcount = 1;
+            freeHandSQL_Report(SQL, "PASSED", testName, errcount);
+        }
     }
 
     private static boolean testSelect1(HPCCConnection connection)
@@ -499,9 +779,11 @@ public class HPCCDriverTest
         boolean success = true;
         try
         {
-            PreparedStatement p = connection.prepareStatement("Select 1 AS ONE");
+            PreparedStatement p = connection
+                    .prepareStatement("Select 1 AS ONE");
 
-            HPCCResultSet qrs = (HPCCResultSet) ((HPCCPreparedStatement) p).executeQuery();
+            HPCCResultSet qrs = (HPCCResultSet) ((HPCCPreparedStatement) p)
+                    .executeQuery();
 
             System.out.println("---------Testing Select 1---------------");
 
@@ -551,8 +833,10 @@ public class HPCCDriverTest
             System.out.println("\tProduct Major: " + major);
             System.out.println("\tProduct Minor: " + minor);
             System.out.println("\tDriver Name: " + dbmetadata.getDriverName());
-            System.out.println("\tDriver Major: " + dbmetadata.getDriverMajorVersion());
-            System.out.println("\tDriver Minor: " + dbmetadata.getDriverMinorVersion());
+            System.out.println("\tDriver Major: "
+                    + dbmetadata.getDriverMajorVersion());
+            System.out.println("\tDriver Minor: "
+                    + dbmetadata.getDriverMinorVersion());
             System.out.println("\tSQL Key Words: " + sqlkeywords);
         }
         catch (Exception e)
@@ -563,7 +847,8 @@ public class HPCCDriverTest
         return success;
     }
 
-    public static synchronized boolean printOutResultSet(HPCCResultSet resultset, long threadid)
+    public static synchronized boolean printOutResultSet(
+            HPCCResultSet resultset, long threadid)
     {
         System.out.println("Servicing thread id: " + threadid);
 
@@ -580,11 +865,13 @@ public class HPCCDriverTest
                 String colname = meta.getColumnName(i);
                 System.out.print("[");
 
-                for (int y = 0; y < (colname.length() >= padvalue ? 0 : (padvalue - colname.length()) / 2); y++)
+                for (int y = 0; y < (colname.length() >= padvalue ? 0
+                        : (padvalue - colname.length()) / 2); y++)
                     System.out.print(" ");
                 System.out.print(colname);
 
-                for (int y = 0; y < (colname.length() >= padvalue ? 0 : (padvalue - colname.length()) / 2); y++)
+                for (int y = 0; y < (colname.length() >= padvalue ? 0
+                        : (padvalue - colname.length()) / 2); y++)
                     System.out.print(" ");
 
                 System.out.print("]");
@@ -596,11 +883,13 @@ public class HPCCDriverTest
                 String collabel = meta.getColumnLabel(i);
                 System.out.print("[");
 
-                for (int y = 0; y < (collabel.length() >= padvalue ? 0 : (padvalue - collabel.length()) / 2); y++)
+                for (int y = 0; y < (collabel.length() >= padvalue ? 0
+                        : (padvalue - collabel.length()) / 2); y++)
                     System.out.print("^");
                 System.out.print(collabel);
 
-                for (int y = 0; y < (collabel.length() >= padvalue ? 0 : (padvalue - collabel.length()) / 2); y++)
+                for (int y = 0; y < (collabel.length() >= padvalue ? 0
+                        : (padvalue - collabel.length()) / 2); y++)
                     System.out.print("^");
 
                 System.out.print("]");
@@ -609,14 +898,17 @@ public class HPCCDriverTest
 
             for (int i = 1; i <= colcount; i++)
             {
-                String coltype = HPCCJDBCUtils.convertSQLtype2JavaClassName(meta.getColumnType(i));
+                String coltype = HPCCJDBCUtils
+                        .convertSQLtype2JavaClassName(meta.getColumnType(i));
                 System.out.print("[");
 
-                for (int y = 0; y < (coltype.length() >= padvalue ? 0 : (padvalue - coltype.length()) / 2); y++)
+                for (int y = 0; y < (coltype.length() >= padvalue ? 0
+                        : (padvalue - coltype.length()) / 2); y++)
                     System.out.print(" ");
                 System.out.print(coltype);
 
-                for (int y = 0; y < (coltype.length() >= padvalue ? 0 : (padvalue - coltype.length()) / 2); y++)
+                for (int y = 0; y < (coltype.length() >= padvalue ? 0
+                        : (padvalue - coltype.length()) / 2); y++)
                     System.out.print(" ");
 
                 System.out.print("]");
@@ -630,14 +922,16 @@ public class HPCCDriverTest
                     String result = (String) resultset.getObject(i);
                     System.out.print("[");
 
-                    for (int y = 0; y < (result.length() >= padvalue ? 0 : padvalue - result.length()); y++)
+                    for (int y = 0; y < (result.length() >= padvalue ? 0
+                            : padvalue - result.length()); y++)
                         System.out.print(" ");
                     System.out.print(result);
                     System.out.print("]");
                 }
             }
 
-            System.out.println("\nTotal Records found: " + resultset.getRowCount());
+            System.out.println("\nTotal Records found: "
+                    + resultset.getRowCount());
         }
         catch (Exception e)
         {
@@ -656,20 +950,26 @@ public class HPCCDriverTest
         {
             Properties params = new Properties();
             params.put("1", "'90210'");
-            HPCCDriverTestThread workThread1 = new HPCCDriverTestThread(conn,
-                    "select * from tutorial::rp::tutorialperson as persons where persons.zip = ? limit 100", params);
+            HPCCDriverTestThread workThread1 = new HPCCDriverTestThread(
+                    conn,
+                    "select * from tutorial::rp::tutorialperson as persons where persons.zip = ? limit 100",
+                    params);
             runnables.add(workThread1);
 
             Properties params2 = new Properties();
             params2.put("1", "'33445'");
-            HPCCDriverTestThread workThread2 = new HPCCDriverTestThread(conn,
-                    "select * from tutorial::rp::tutorialperson as persons where persons.zip = ? limit 100", params2);
+            HPCCDriverTestThread workThread2 = new HPCCDriverTestThread(
+                    conn,
+                    "select * from tutorial::rp::tutorialperson as persons where persons.zip = ? limit 100",
+                    params2);
             runnables.add(workThread2);
 
             Properties params3 = new Properties();
             params3.put("1", "'33487'");
-            HPCCDriverTestThread workThread3 = new HPCCDriverTestThread(conn,
-                    "select * from tutorial::rp::tutorialperson as persons where persons.zip < ? and persons.zip != '65536' limit 10000", params3);
+            HPCCDriverTestThread workThread3 = new HPCCDriverTestThread(
+                    conn,
+                    "select * from tutorial::rp::tutorialperson as persons where persons.zip < ? and persons.zip != '65536' limit 10000",
+                    params3);
             runnables.add(workThread3);
 
             for (HPCCDriverTestThread thrd : runnables)
@@ -686,7 +986,8 @@ public class HPCCDriverTest
                     threadsrunning = thrd.isRunning() || threadsrunning;
                 }
                 Thread.sleep(250);
-            } while (threadsrunning);
+            }
+            while (threadsrunning);
 
             for (HPCCDriverTestThread thrd : runnables)
             {
@@ -711,514 +1012,18 @@ public class HPCCDriverTest
 
         try
         {
-            System.out.println("************************************************");
-            System.out.println("Running full test with following configuration:");
-            for(Object okey : propsinfo.keySet() )
-            {
-                String key = (String) okey;
-                infourl += key + "=" + propsinfo.getProperty(key) + ";";
-                System.out.println(key +": " + propsinfo.getProperty(key));
-            }
-            System.out.println("************************************************");
 
-            if (!testLazyLoading(propsinfo))
-                    throw new RuntimeException("Lazy loading failed");
-
-            if (!createStandAloneDataMetadata(propsinfo))
-                    throw new RuntimeException("Stand-alone metadata failed");
-
-            HPCCConnection connectionprops = connectViaProps(propsinfo);
-            if (connectionprops == null)
-                throw new RuntimeException("Could not connect with properties object");
-
-            if (! getDatabaseInfo(connectionprops) )
+            if (!getDatabaseInfo(connectionprops))
                 throw new RuntimeException("Could not fetch DB Info");
-            if (! testSelect1(connectionprops) )
+            if (!testSelect1(connectionprops))
                 throw new RuntimeException("TestSelect1 failed");
 
             HPCCConnection connectionurl = connectViaUrl(infourl);
-            if (! (connectionurl != null) )
+            if (!(connectionurl != null))
                 throw new RuntimeException("Could not connect with URL");
-            if (! getDatabaseInfo(connectionurl) )
-                throw new RuntimeException("Could not fetch DB Info");
 
-            if (! printouttypeinfo(connectViaProps(propsinfo)))
-                throw new RuntimeException("Print ECL types failed");
-            if (! printoutalltablescols(connectViaProps(propsinfo)) )
-                throw new RuntimeException("printout alltablescols failed");
-            if (! testPrepStatementReuse(propsinfo) )
-                throw new RuntimeException("testPrepStatementReuse failed");
             if (testClosePrepStatementUse(propsinfo))
                 throw new RuntimeException("testClosePrepStatementUse passed");
-            if (testPrepStatementReuseBadQuery(propsinfo))
-                throw new RuntimeException("testPrepStatementReuseBadQuery passed");
-            //if (! runParralellTest(connectionprops) )
-            //    throw new RuntimeException("Parrallel Connection reuse test failed");
-
-            executeFreeHandSQL(propsinfo,
-                    "call thor::fetchpeoplebyzipservice(33445,,two)",
-                    params, true,1, "Call fullyqualified published query - multiple parms - skip middle param");
-
-            params.clear();
-            params.add("33447");
-            params.add(""); //empty 2nd param
-            params.add("\"\""); //empty string passed in as 3rd param
-
-            executeFreeHandSQL(propsinfo,
-                    "call thor::fetchpeoplebyzipservice(?,?,?)",
-                    params, true,1, "Call fullyqualified published query - multiple parms - skip middle param - parameterized");
-
-            executeFreeHandSQL(propsinfo,
-                    "call thor::fetchpeoplebyzipservice(33447,one,two,three,four)",
-                    params, true,1, "Call fullyqualified published query - multiple parms");
-
-            executeFreeHandSQL(propsinfo,
-                    "call thor::fetchpeoplebyzipservice()",
-                    params, true,1, "Call fullyqualified published query - no params");
-
-            params.clear();
-            params.add("33445");
-
-            executeFreeHandSQL(propsinfo,
-                    "call myroxie::fetchpeoplebyzipservice(?)",
-                    params, true, 1, "Call fullyqualified published query, parametrized input");
-
-            params.clear();
-            executeFreeHandSQL(propsinfo,
-                    "call myroxie::fetchpeoplebyzipservice(?)",
-                    params, false, 0, "Call parameterized query with empty params");
-
-            executeFreeHandSQL(propsinfo,
-                    "call bogusSPName()",
-                    params, false, 0, "Call non-existant published query");
-
-            params.add("'33445'");
-            params.add("'90210'");
-
-            executeFreeHandSQL(propsinfo,"select 1 as ONE", params, true, 1, "Select single numeric constant Aliased");
-            executeFreeHandSQL(propsinfo,"select 1 as ONE,2,3 as THREE,4", params, true, 1, "Select four numeric constants Aliased");
-
-            executeFreeHandSQL(propsinfo,
-                    "select  \"peeps\".\"lastname\" as 'name',  \"progguide::exampledata::people\".\"lastname\" as 'lname', 'lastname'  from \"progguide::exampledata::people\" as \"peeps\" where \"peeps\".\"lastname\" = \'COOLING\' ORDER BY \"lastname\" GROUP BY \"peeps\".\"firstname\" limit 100 ",
-                    params, true, 1, "fully quoted test");
-
-            executeFreeHandSQL(propsinfo,
-                    "select  \"peeps\".\"lastname\" as 'name',  \"progguide::exampledata::people\".\"lastname\" as 'lname', 'lastname'  from \"progguide::exampledata::people\" as \"peeps\" where \'peeps\'.\'lastname\' = \'COOLING\' ORDER BY \"lastname\" GROUP BY \"peeps\".\"firstname\" limit 100 ",
-                    params, false, 0, "fully quoted test - invalid identifier quote");
-
-            executeFreeHandSQL(propsinfo,
-                    "select  \"peeps\".\"lastname\" as 'name',  \"progguide::exampledata::people\".\"lastname\" as 'lname', 'lastname'  from \"progguide::exampledata::people\" as \"peeps\" where \"peeps\".\"lastname\" = \"COOLING\" ORDER BY \"lastname\" GROUP BY \"peeps\".\"firstname\" limit 100 ",
-                    params, false, 0, "fully quoted test - invalid literal quote");
-
-            executeFreeHandSQL(propsinfo,
-                    "select firstname from badword::search::bool AS badwords where foundword  =  TruE",
-                    params, true, 1, "boolean test true");
-
-            executeFreeHandSQL(propsinfo,
-                    "select firstname from badword::search::bool AS badwords where foundword  =  false",
-                    params, true, 1, "boolean test false");
-
-            executeFreeHandSQL(propsinfo,
-                    "select firstname from badword::search::bool AS badwords where foundword  =  false and foundword  =  tRUE",
-                    params, true, 0, "boolean test true and false");
-
-            executeFreeHandSQL(propsinfo,
-                    "select firstname from badword::search::bool AS badwords where foundword  =  false or foundword  =  tRUE",
-                    params, true, 1, "boolean test true or false");
-
-            executeFreeHandSQL(propsinfo,
-                    "select firstname from badword::search::bool AS badwords where foundword  =  0",
-                    params, false, 0, "bad boolean test, use numeric");
-
-            executeFreeHandSQL(propsinfo,
-                    "select firstname from badword::search::bool AS badwords where foundword  =  'true'",
-                    params, false, 0, "bad boolean test, used literal");
-
-            executeFreeHandSQL(propsinfo,
-                    "select  peeps.gender as Sex, peeps.firstname AS NAME, peeps.lastname, peeps.lastname AS LNAME2 from progguide::exampledata::people peeps where ((( peeps.firstname = 'TIMTOHY' ) and (peeps.lastname != 'SMITH' OR peeps.lastname != 'WILSON') ) AND peeps.gender = 'M') limit 100 ",
-                    params, true, 1, "complex grouped where clause");
-
-            executeFreeHandSQL(propsinfo,
-                    "select  peeps.gender as Sex, peeps.firstname AS NAME, peeps.lastname, peeps.lastname AS LNAME2 from progguide::exampledata::people peeps where ( peeps.firstname = 'TIMTOHY' ) limit 100 ",
-                    params, true, 1, "duplicate column, one aliased");
-
-            executeFreeHandSQL(propsinfo,
-                    "select  peeps.gender as Sex, peeps.firstname AS NAME, peeps.lastname, peeps.lastname AS LNAME2 from progguide::exampledata::people peeps where ( peeps.firstname = 'TIMTOHY' ) order by firstname limit 100 ",
-                    params, true, 1, "duplicate column, one aliased");
-
-            executeFreeHandSQL(propsinfo,
-                    "select  peeps.gender as Sex, peeps.firstname AS NAME, peeps.lastname, peeps.lastname AS LNAME2 from progguide::exampledata::people peeps where ( peeps.firstname = 'TIMTOHY' ) order by NAME limit 100 ",
-                    params, true, 1, "duplicate column, one aliased order by alias name");
-
-            executeFreeHandSQL(propsinfo,
-                    "select  peeps.gender as Sex, peeps.firstname AS NAME, peeps.lastname, peeps.lastname AS LNAME2 from progguide::exampledata::people peeps where ( peeps.firstname = 'TIMTOHY' ) group by NAME limit 100 ",
-                    params, true, 1, "duplicate column, one aliased order by group by alias name");
-
-            executeFreeHandSQL(propsinfo,
-                    "select  peeps.gender as Sex, peeps.firstname AS NAME, peeps.lastname, peeps.lastname AS LNAME2 from progguide::exampledata::people peeps where ( peeps.firstname = 'TIMTOHY' ) group by firstname limit 100 ",
-                    params, true, 1, "duplicate column, one aliased order by group by field name");
-
-            executeFreeHandSQL(propsinfo,
-                    "select  peeps.gender as Sex, peeps.firstname AS NAME, peeps.lastname, peeps.lastname AS LNAME2 from progguide::exampledata::people peeps where ( peeps.firstname = 'TIMTOHY' ) group by firstnamex limit 100 ",
-                    params, false, 0, "duplicate column, one aliased order by group by invalid field name");
-
-            executeFreeHandSQL(propsinfo,
-                    "select  peeps.gender as Sex, peeps.firstname AS NAME, peeps.lastname, peeps.lastname AS LNAME2 from progguide::exampledata::people peeps where ( peeps.firstname = 'TIMTOHY' ) group by xyz.firstname limit 100 ",
-                    params, false, 0, "duplicate column, one aliased order by group by invalid field table name");
-
-            executeFreeHandSQL(propsinfo,
-                    "select  peeps.gender as Sex, peeps.firstname AS NAME, peeps.lastname AS LNAME, peeps.lastname AS LNAME2 from progguide::exampledata::people peeps where ( peeps.firstname = 'TIMTOHY' ) limit 100 ",
-                    params, true, 1, "duplicate column, both aliased");
-
-            executeFreeHandSQL(propsinfo,"select 1", params, true, 1, "Select single numeric constant");
-            executeFreeHandSQL(propsinfo,"select 1,2,3,4", params, true, 1, "Select four numeric constants");
-            executeFreeHandSQL(propsinfo,"select '1a'", params, true, 1, "Select single string constant");
-
-            executeFreeHandSQL(propsinfo,
-                    "select  peeps.gender, peeps.firstname, peeps.lastname from progguide::exampledata::people peeps where ( peeps.firstname = 'TIMTOHY' ) limit 100 ",
-                    params, true, 1, "encapsulated where clause");
-
-            executeFreeHandSQL(propsinfo,
-                    "select  peeps.gender, peeps.firstname, peeps.lastname from progguide::exampledata::people peeps where ( peeps.firstname IN ('TIMTOHY') ) limit 100 ",
-                    params, true, 1, "encapsulated where clause with IN () operator");
-
-            executeFreeHandSQL(propsinfo,
-                    "select  peeps.gender, peeps.firstname, peeps.lastname from progguide::exampledata::people peeps where ( peeps.firstname NOT IN ('TIMTOHY') ) limit 100 ",
-                    params, true, 1, "encapsulated where clause with NOT IN () operator");
-
-            executeFreeHandSQL(propsinfo,
-                    "select  peeps.gender, peeps.firstname, peeps.lastname from progguide::exampledata::people peeps where ( peeps.firstname IN ('TIMTOHY')  limit 100 ",
-                    params, false, 0, "invalid encapsulated where clause missing ) ");
-
-            executeFreeHandSQL(propsinfo,
-                    "select  peeps.gender, peeps.firstname, peeps.lastname from progguide::exampledata::people peeps where ( peeps.firstname = 'TIMTOHY'  limit 100 ",
-                    params, false, 0, "2 invalid encapsulated where clause missing ) ");
-
-            executeFreeHandSQL(propsinfo,
-                    "select  peeps.gender, peeps.firstname, peeps.lastname from tutorial::rp::tutorialperson as persons, progguide::exampledata::people peeps where  persons.firstname = peeps.firstname and persons.city  = upper('delray beach') limit 100",
-                    params, true, 1, "implicit join");
-
-            executeFreeHandSQL(propsinfo,
-                    "select peeps.firstname, " +
-                    "        peeps.lastname, " +
-                    "        peeps.personid, " +
-                    "        MAX(accts.account), " +
-                    "        people.state, " +
-                    "        peeps.zip " +
-                    "from progguide::exampledata::people as peeps, " +
-                    "tutorial::rp::tutorialperson people, " +
-                    "progguide::exampledata::accounts accts " +
-                    "where  " +
-                    "       peeps.firstname = 'TIMTOHY' AND " +
-                    "       peeps.lastname = 'WARESK' AND " +
-                    "       '3303222948 ' = accts.account and" +
-                    "       peeps.firstname = people.firstname " +
-                    "group by zip having MAX(accts.account) >= '0' " +
-
-                    "limit 100",
-                    params, true, 1, "multi-table implicit join having clause");
-
-            executeFreeHandSQL(propsinfo,
-                    "select peeps.firstname, " +
-                    "        peeps.lastname, " +
-                    "        peeps.personid, " +
-                    "        accts.account, " +
-                    "        people.state " +
-                    "from progguide::exampledata::people as peeps, " +
-                    "progguide::exampledata::accounts accts, " +
-                    "tutorial::rp::tutorialperson people " +
-                    "where  " +
-                    "       peeps.firstname = 'TIMTOHY' AND " +
-                    "       peeps.lastname = 'BIALES' AND " +
-                    "       peeps.personid = accts.personid and" +
-                    "       peeps.firstname = people.firstname " +
-                    "limit 100",
-                    params, true, 1, "multi-table implicit join");
-
-            executeFreeHandSQL(propsinfo,
-                    "select peeps.firstname, " +
-                    "        peeps.lastname, " +
-                    "        peeps.personid, " +
-                    "        accts.account, " +
-                    "        people.state " +
-                    "from progguide::exampledata::people as peeps, " +
-                    "progguide::exampledata::accounts accts, " +
-                    "tutorial::rp::tutorialperson people " +
-                    "where  " +
-                    "       peeps.firstname = 'TIMTOHY' AND " +
-                    "       peeps.lastname = 'BIALES' or " +
-                    "       peeps.personid = accts.personid and" +
-                    "       peeps.firstname = people.firstname " +
-                    "limit 100",
-                    params, true, 1, "multi-table implicit join no equality in first simple expression");
-
-            executeFreeHandSQL(propsinfo,
-                    "select  peeps.gender, peeps.firstname, peeps.lastname from tutorial::rp::tutorialperson as persons, progguide::exampledata::people peeps where  persons.firstname = peeps.firstname and persons.city is not null limit 100",
-                    params, true, 1, "implicit join IS NOT NULL filter");
-
-            executeFreeHandSQL(propsinfo,
-                    "select  peeps.gender, peeps.firstname, peeps.lastname from tutorial::rp::tutorialperson as persons, progguide::exampledata::people peeps where  persons.firstname = peeps.firstname and persons.city is null limit 100",
-                    params, true, 0, "implicit join IS NULL filter");
-
-            executeFreeHandSQL(propsinfo,
-                    "select  peeps.gender, peeps.firstname, peeps.lastname from tutorial::rp::tutorialperson as persons, progguide::exampledata::people peeps outer join  tutorial::rp::tutorialperson as people2 on people2.firstname = persons.firstname where  persons.firstname = peeps.firstname and persons.city  > upper('delray') limit 100",
-                    params, false, 0, "implicit join + explicit join");
-
-            executeFreeHandSQL(propsinfo,
-                    "select  * from tutorial::rp::tutorialperson as persons where  persons.city  > upper('delray') limit 100",
-                    params, true, 1, "select where upper(\'literal\')");
-
-            executeFreeHandSQL(propsinfo,
-                    "select  * from tutorial::rp::tutorialperson as persons where  lower(persons.city)  = 'delray beach' limit 100",
-                    params, true, 1, "select where lower(field)");
-
-            executeFreeHandSQL(propsinfo,
-                    "select  upper(firstname), lower(lastname) from tutorial::rp::tutorialperson as persons where  persons.city  = 'DELRAY BEACH' limit 100",
-                    params, true, 1, "select upper(col) where ");
-
-            executeFreeHandSQL(propsinfo,
-                    "select  count( persons.city), zip  from tutorial::rp::tutorialperson as persons limit 100",
-                    params, true, 1, "simple select count ");
-
-            executeFreeHandSQL(propsinfo,
-                    "select  count( persons.city), zip  from tutorial::rp::tutorialperson as persons where  persons.city  > 'DELRAY' group by city having persons.zip <= '99000' limit 100",
-                    params, true, 1, "count having clause withou agg function ");
-
-            executeFreeHandSQL(propsinfo,
-                    "select  count( persons.city)  from tutorial::rp::tutorialperson as persons where  persons.city  > 'DELRAY' group by city having count(persons.city) < 22 limit 100",
-                    params, true, 1, "count having count single field scalar output");
-
-            executeFreeHandSQL(propsinfo,
-                    "select  count( persons.zip), zip  from tutorial::rp::tutorialperson as persons where  persons.zip  > '33445' group by zip having max(zip) > '99000' limit 100",
-                    params, true, 1, "count having single field payload indexed");
-
-            executeFreeHandSQL(propsinfo,
-                    "select  count( persons.zip), zip , city  from tutorial::rp::tutorialperson as persons where  persons.zip  > '33445' group by zip having max(zip) > '99000' limit 100",
-                    params, true, 1, "count having single field index fetch");
-
-            executeFreeHandSQL(propsinfo,
-                    "select  count( persons.city), city  from tutorial::rp::tutorialperson as persons where  persons.city  > 'DELRAY' group by zip having count(city) < 22 limit 100",
-                    params, true, 1, "count having single field not indexed");
-
-            executeFreeHandSQL(propsinfo,
-                   "select  count( persons.zip), zip   from tutorial::rp::tutorialperson as persons where  persons.zip  > '33445' group by zip having count(zip) < 22 order by zip ASC limit 100",
-                   params, true, 1, "count having single field payload indexed");
-
-            executeFreeHandSQL(propsinfo,
-                    "select  MAX(  distinct ) from tutorial::rp::tutorialperson as persons where  persons.zip  > '33445'  limit 100",
-                    params, false, 0, "count distintc no colum");
-
-            executeFreeHandSQL(propsinfo,
-                    "select  count(  distinct  persons.zip) from tutorial::rp::tutorialperson as persons where  persons.zip  > '33445'  limit 100",
-                    params, true, 1, "count distintc single field payload indexed");
-
-            executeFreeHandSQL(propsinfo,
-                    "select   distinct  persons.middlename from tutorial::rp::tutorialperson as persons USE INDEX(0)limit 100",
-                    params, true, 1, "select distintc single field non indexed");
-
-            executeFreeHandSQL(propsinfo,
-                    "select   distinct  persons.middlename, count(distinct middlename) from tutorial::rp::tutorialperson as persons USE INDEX(0) group by middlename limit 100",
-                    params, true, 1, "select distintc single field non indexed");
-
-            executeFreeHandSQL(propsinfo,
-                    "select   persons.firstname from tutorial::rp::tutorialperson as persons  where  persons.zip  in ('33445') and persons.zip not in ('90210') limit 100",
-                    params, true, 1, "multiple keyed field payload indexed");
-
-            executeFreeHandSQL(propsinfo,
-                    "select  count(  distinct  persons.zip, persons.firstname) from tutorial::rp::tutorialperson as persons   USE INDEX(0) where  persons.zip  > '33445'  limit 100",
-                    params, true, 1, "count distintc multiple field NOT indexed");
-
-            executeFreeHandSQL(propsinfo,
-                    "select   persons.zip, firstname, lastname from tutorial::rp::tutorialperson as persons    where  persons.zip  in ('33445','33446'   ,   '',  '33487')  limit 100",
-                    params, true, 1, "in operator multiple literals");
-
-            executeFreeHandSQL(propsinfo,
-                    "select   persons.zip, firstname, lastname from tutorial::rp::tutorialperson as persons    where  persons.zip  not in ('33445','33446'   ,   '',  '33487')  limit 100",
-                    params, true, 1, "not in operator multiple literals");
-
-            executeFreeHandSQL(propsinfo,
-                    "select  persons.zip from tutorial::rp::tutorialperson as persons  where  persons.zip  in ('33445')  limit 100",
-                    params, true, 1, "count distintc single field NOT indexed");
-
-            executeFreeHandSQL(propsinfo,
-                    "select  count(  distinct  persons.zip, persons.firstname) from tutorial::rp::tutorialperson as persons  where  persons.zip  in ('33445')  limit 100",
-                    params, true, 1, "count distintc multiple field payload indexed");
-
-            executeFreeHandSQL(propsinfo,
-                    "call 'myroxie::fetchpeoplebyzipservice'(33445)",
-                    params, true, 1, "Call single quoted published query name");
-
-            executeFreeHandSQL(propsinfo,
-                    "call 'myroxie::fetchpeoplebyzipservice'(33445)",
-                    params, true, 1, "Call single quoted published query name");
-
-            executeFreeHandSQL(propsinfo,
-                    "call 'myroxie::fetchpeoplebyzipservice(33445)'",
-                    params, false, 0, "Call single quoted published query name and paramlist");
-
-            executeFreeHandSQL(propsinfo,
-                    "call \"myroxie::fetchpeoplebyzipservice\"(33445)",
-                    params, true, 1, "Call double quoted published query name");
-
-            executeFreeHandSQL(propsinfo,
-                    "select * from 'tutorial::rp::tutorialperson' persons  limit 100",
-                    params, true, 100, "Select * single quote valid table");
-
-            executeFreeHandSQL(propsinfo,
-                    "select * from \"tutorial::rp::tutorialperson\" persons limit 100",
-                    params, true, 1, "Select * double quote valid table");
-
-            executeFreeHandSQL(propsinfo,
-                    "select * from \"\" persons",
-                    params, false, 0, "Select * double quoted empty table name");
-
-            executeFreeHandSQL(propsinfo,
-                    "select * from tutorial::rp::tutorialperson persons where persons.firstname = 'RANDOMNAMEXX' ",
-                    params, true, 0, "Select * filter everything out");
-
-            executeFreeHandSQL(propsinfo,
-                    "select count(persons.lastname) as zipcount, persons.city as mycity , zip from tutorial::rp::tutorialperson persons USE INDEX(0) limit 100",
-                    params, true, 1, "Select agg funtion, field alias, table alias, no index");
-
-            executeFreeHandSQL(propsinfo,
-                    "select count(*), persons.firstname, persons.lastname from tutorial::rp::tutorialperson as persons limit 10",
-                    params, true, 10, "select count(*)");
-
-            executeFreeHandSQL(propsinfo,
-                    "select count(*), persons.firstname, persons.lastname from tutorial::rp::tutorialperson as persons where persons.zip = '33445' limit 10",
-                    params, true, 10, "select count(*) filtered");
-
-            executeFreeHandSQL(propsinfo,
-                    "select count(persons.*), persons.firstname, persons.lastname from tutorial::rp::tutorialperson as persons limit 10",
-                    params, true, 1, "Select agg function field alias");
-
-            executeFreeHandSQL(propsinfo,
-                    "select persons.firstname, persons.lastname from tutorial::rp::tutorialperson as persons where  'a' > persons.firstname limit 10",
-                    params, true, 1, "Select 2 columns, filter > 'a' ");
-
-            executeFreeHandSQL(propsinfo,
-                    "select * from tutorial::rp::tutorialperson as persons where  'a' > persons.firstname limit 10",
-                    params, true, 1, "Select *, filter > 'a' ");
-
-            executeFreeHandSQL(propsinfo,
-                    "select *, persons.firstname, persons.lastname from tutorial::rp::tutorialperson as persons where  'a' > persons.firstname limit 10",
-                    params, false, 0, "Select duplicate cols");
-
-            executeFreeHandSQL(propsinfo,
-                    "select count(persons.firstname), persons.firstname, persons.lastname from tutorial::rp::tutorialperson as persons where persons.zip < '33445' limit 10",
-                    params, true, 1, "Select agg function aliased field, and field");
-
-            executeFreeHandSQL(propsinfo,
-                    "select max(persons.firstname), min(persons.firstname), COUNT(persons.firstname), persons.firstname, persons.lastname from tutorial::rp::tutorialperson as persons where persons.zip < '33445' limit 10",
-                    params, true, 2, "select min, max, count, count NONKEYED");
-
-            executeFreeHandSQL(propsinfo,
-                    "select max(persons.firstname), min(persons.firstname), COUNT(persons.firstname) from tutorial::rp::tutorialperson as persons where persons.zip < '33445' limit 10",
-                    params, true, 1, "select min, max, count, count NONKEYED - scalar output expected");
-
-            executeFreeHandSQL(propsinfo,
-                    "select max(persons.firstname), min(persons.firstname), COUNT(persons.firstname), persons.firstname, persons.lastname from tutorial::rp::tutorialperson as persons where persons.firstname < 'a' limit 10",
-                    params, true, 1, "select min, max, count, count KEYED");
-
-            executeFreeHandSQL(propsinfo,
-                    "select min(persons.firstname), persons.firstname, persons.lastname from tutorial::rp::tutorialperson as persons where persons.zip = '33445' limit 10",
-                    params, true, 1, "select min() NONKEYED");
-
-            executeFreeHandSQL(propsinfo,
-                    "select min(persons.firstname), persons.firstname, persons.lastname from tutorial::rp::tutorialperson as persons where persons.firstname < 'a' limit 10",
-                    params, true, 1, "select min() KEYED  ");
-
-            executeFreeHandSQL(propsinfo,
-                    "select max(persons.firstname), persons.firstname, persons.lastname from tutorial::rp::tutorialperson as persons where persons.zip < '33445' limit 10",
-                    params, true, 1, "select max()");
-
-            executeFreeHandSQL(propsinfo,
-                    "select persons.firstname, persons.lastname from tutorial::rp::peoplebyzipindex3 as persons outer join  tutorial::rp::tutorialperson as people2 on people2.firstname = persons.firstname where people2.firstname > 'A' limit 10",
-                    params, true, 1, "Join where first table is index, and join table is not");
-
-            executeFreeHandSQL(propsinfo,
-                    "select *.* from tutorial::rp::peoplebyzipindex3 as persons outer join  tutorial::rp::tutorialperson as people2 on people2.firstname = persons.firstname where people2.firstname > 'A' limit 10",
-                    params, false, 0, "Select *.*");
-
-            executeFreeHandSQL(propsinfo,
-                    "select * from tutorial::rp::peoplebyzipindex3 as persons outer join  tutorial::rp::tutorialperson as people2 on people2.firstname = persons.firstname where people2.firstname > 'A' limit 10",
-                    params, false, 0, "Select redundant fields after expanding wildcard");
-
-            executeFreeHandSQL(propsinfo,
-                    "select people.gender, persons.*, people.middleinitial from tutorial::rp::peoplebyzipindex3 as persons outer join progguide::exampledata::people as people on people.zip = persons.zip limit 10",
-                    params, true, 1, "Select table-wise wildcard");
-
-            executeFreeHandSQL(propsinfo,
-                    "select people.gender, persons.*, people.middleinitial from tutorial::rp::peoplebyzipindex3 as persons outer join progguide::exampledata::people as people on people.zip > persons.zip limit 10",
-                    params, false, 0, "Select join inequality");
-
-            executeFreeHandSQL(propsinfo,
-                    "select persons.* from tutorial::rp::peoplebyzipindex3 as persons outer join  tutorial::rp::tutorialperson as people2 on people2.firstname = persons.firstname where people2.firstname > 'A' limit 10",
-                    params, true, 1, "Select all fields from one table, join");
-
-            executeFreeHandSQL(propsinfo,
-                    "select persons.*, people2.* from tutorial::rp::peoplebyzipindex3 as persons outer join  tutorial::rp::tutorialperson as people2 on people2.firstname = persons.firstname where people2.firstname > 'A' limit 10",
-                    params, false, 0, "Select all fields from both tables on join");
-
-            executeFreeHandSQL(propsinfo,
-                    "select persons.firstname, persons.lastname from tutorial::rp::peoplebyzipindex3 as persons outer join  tutorial::rp::tutorialperson as people2 on people2.firstname = persons.firstname where firstname > 'A' limit 10",
-                    params, false, 0, "Select ambiguous field firstname");
-
-            // Seems to fail with this message:
-            // ' Keyed joins only support LEFT OUTER/ONLY'
-            executeFreeHandSQL(propsinfo,
-                    "select persons.firstname, persons.lastname from tutorial::rp::tutorialperson2 as persons outer join tutorial::rp::peoplebyzipindex2 as people2 on people2.firstname = persons.firstname limit 10",
-                    params, false, 0, "Join where first table is logical file, and join table is index file");
-
-            // Seems to fail with this message:
-            // ' Keyed joins only support LEFT OUTER/ONLY'
-            executeFreeHandSQL(propsinfo,
-                    "select persons.firstname, persons.lastname from tutorial::rp::peoplebyzipindex3 as persons outer join  tutorial::rp::peoplebyzipindex2 as people2 on people2.firstname = persons.firstname limit 10",
-                    params, false, 0, "Join where both tables are index files");
-
-            executeFreeHandSQL(propsinfo,
-                    "select max(persons.firstname), persons.firstname, persons.lastname from tutorial::rp::tutorialperson as persons where persons.zip < '33445' limit 10",
-                    params, true, 1, "Select max(one field)");
-
-            executeFreeHandSQL(propsinfo,
-                    "select persons.firstname, persons.lastname from tutorial::rp::tutorialperson as persons where persons.firstname >= 'a' order by persons.lastname ASC, persons.firstname DESC limit 10",
-                    params, true, 0, "Select Orderby and sortby, everything filtered");
-
-            executeFreeHandSQL(propsinfo,
-                    "select persons.firstname, persons.lastname from tutorial::rp::tutorialperson as persons where persons.firstname <= 'a' order by persons.lastname ASC, persons.firstname DESC limit 10",
-                    params, true, 10, "Select Orderby and sortby, loose filter");
-
-            //ECL doesn't like this...
-            executeFreeHandSQL(propsinfo,
-                    "select max(persons.lastname), persons.firstname, persons.lastname from tutorial::rp::tutorialperson as persons outer join  tutorial::rp::tutorialperson as people2 on people2.firstname = persons.firstname where persons.firstname > 'a' order by persons.lastname ASC, persons.firstname DESC limit 10",
-                    params, false, 0, "Select full outter join on same file");
-
-            executeFreeHandSQL(propsinfo,
-                    "select count(persons.zip) as zipcount, persons.city as mycity , zip from super::super::tutorial::rp::tutorialperson as persons where persons.zip > ? AND persons.zip < ? group by zip limit 100",
-                    params, true, 1, "Select filter: multiple parametrized");
-
-            executeFreeHandSQL(propsinfo,
-                    "select count(persons.zip) as zipcount, persons.city as mycity , zip, p2.ball from super::super::tutorial::rp::tutorialperson as persons join thor::motionchart_motion_chart_test_fixed as p2 on p2.zip = persons.zip where persons.zip > ? group by zip limit 10",
-                    params, false, 0, "Select invalid join condition (field doesn't exist)");
-
-            //executeFreeHandSQL(propsinfo,
-                    //"select acct.account, acct.personid, persons.firstname, persons.lastname from progguide::exampledata::people as persons outer join  progguide::exampledata::accounts as acct on acct.personid = persons.personid  where persons.personid > 5 limit 10",
-                    //params, true, 10, "Select outter join -- Can be lengthly query");
-
-            executeFreeHandSQL(propsinfo,
-                    "select acct.account, acct.personid, persons.firstname, persons.lastname from progguide::exampledata::people as persons outer join  progguide::exampledata::accounts as acct on acct.personid = persons.personid  where persons.personid = 5 limit 10",
-                    params, true, 10, "Select outter join -- Can be lengthly query");
-
-            executeFreeHandSQL(propsinfo,
-                    "select count(persons.zip) as zipcount, persons.city as mycity , zip, p2.ball from super::super::tutorial::rp::tutorialperson as persons join tutorial::rp::tutorialperson2 as p2 on p2.zip = persons.zip where persons.zip > ? group by zip limit 10",
-                    params, false, 0, "Select invalid column");
-
-            executeFreeHandSQL(propsinfo,
-                    "select count(persons.personid), persons.firstname, persons.lastname from progguide::exampledata::people as persons  limit 10",
-                    params, true, 1, "Select count table and field alias");
-
-            if(!printoutalltablescols(connectionprops))
-                    throw new RuntimeException("printoutalltablescols failed");
 
         }
         catch (Exception e)
@@ -1230,149 +1035,417 @@ public class HPCCDriverTest
         return success;
     }
 
-    public static void main(String[] args)
+    public static void usage()
+    {
+
+        System.out
+                .println("********************************************************************");
+        System.out.println("HPCC JDBC Test Package Usage:");
+        System.out.println(" HPCCDriverTest "
+                + "Config=<configuration file path>"
+                + " ReportPath=<Path where report should be created>"
+                + " [options]\n" + "where options: "
+                + "SqlScript=<path to sql script file>\n" + "-V\n\n");
+        System.out
+                .println(" eg. Config=C:\\Users\\username\\folder\\config_file.txt");
+        System.out
+                .println(" eg.For Windows: ReportPath=C:\\Users\\username\\folder");
+        System.out
+                .println(" eg. SqlScript=C:\\Users\\username\\folder\\Sql_file.txt");
+        System.out.println();
+        System.out.println(" By default Automated Mode is executed.");
+        System.out
+                .println(" To execute SqlScript, add sql statement inside of file:");
+        System.out.println("  Test1=<SQL STATEMENT>");
+        System.out.println("  Test2=<SQL STATEMENT>");
+        System.out.println("  eg. Test1=select * from tablename limit 100");
+        System.out
+                .println("  eg. Test1=[true;1;path to data file]select * from tablename where zip=? limit 100");
+        System.out
+                .println(" By default TraceLevel is set to INFO if property is not found in configuration file\n");
+        System.out
+                .println(" If Verbose Mode is actived, Tracelevel is set to ALL and driver properties are written to Report file ");
+        System.out.println();
+        System.out
+                .println("********************************************************************\n");
+
+    }
+
+    public static void runAutoTest(HPCCConnection connProp, Properties configP)
     {
         try
         {
-            System.out.println("********************************************************************");
-            System.out.println("HPCC JDBC Test Package Usage:");
-            System.out.println(" Connection Parameters: paramname==paramvalue");
-            System.out.println(" eg. ServerAddress==192.168.124.128");
-            System.out.println(" Prepared Statement param value: \"param\"==paramvalue");
-            System.out.println(" eg. param==\'33445\'");
-            System.out.println();
-            System.out.println(" By default full test is executed.");
-            System.out.println(" To execute free hand sql:");
-            System.out.println("  freehandsql==<SQL STATEMENT>");
-            System.out.println("  eg. freehandsql==\"select * from tablename where zip=? limit 100\"");
-            System.out.println();
-            System.out.println("********************************************************************\n");
+            if (connProp == null)
+                throw new RuntimeException(
+                        "Could not connect with properties object");
+
+            ResultSet pro = connProp.getDatabaseMetaData().getProcedures(null,
+                    null, null);
+
+            if (!runFullTest(configP))
+            {
+                throw new RuntimeException("Full test failed.");
+            }
+
+        }
+        catch (SQLException sq)
+        {
+            sq.printStackTrace();
+        }
+
+    }
+
+    public static void main(String[] args)
+    {
+
+        try
+        {
+
+            FileInputStream fin, fin2 = null;
+            File file, Sql_file = null;
 
             Properties info = new Properties();
+            Properties prop = new Properties();
+
+            int countparam = 0;
+            for (String s1 : args)
+            {
+                countparam++;
+            }
+
+            System.out.println(countparam + " Parameters found");
+            Properties myargsprop = new Properties();
+            if (args.length == 0)
+            {
+                System.out.println("0 parameters found. Failed");
+                usage();
+                System.exit(0);
+            }
+
+            if (args.length > 4)
+            {
+                System.out
+                        .println("Exceeding number of  parameters found. Failed");
+                usage();
+                System.exit(0);
+            }
+
+            for (int i = 0; i < args.length; i++)
+            {
+                if (args[i].contains("="))
+                {
+                    String mysplit[] = args[i].split("=");
+                    myargsprop
+                            .put(mysplit[0].trim(), HPCCJDBCUtils
+                                    .handleQuotedString(mysplit[1].trim()));
+                }
+            }
+
+            if (args[args.length - 1].equals("-V"))
+            {
+                vmode = true;
+            }
+
+            if (!(myargsprop.containsKey("Config")))
+            {
+                System.out.println("Config parameter not found. Ended!");
+                usage();
+                System.exit(0);
+            }
+            if (!(myargsprop.containsKey("ReportPath")))
+            {
+                System.out.println("ReportPath parameter not found. Ended!");
+                usage();
+                System.exit(0);
+            }
+
+            String check = myargsprop.getProperty("ReportPath");
+            if ((check.endsWith("/")) || (check.endsWith("\\")))
+            {
+                System.out
+                        .println("Remove seperator at the end of 'ReportPath' parameter and run again-Ended!");
+                usage();
+                System.exit(0);
+            }
+
             List<String> params = new ArrayList<String>();
 
+            driver = new HPCCDriver();
             Driver ldriver = DriverManager.getDriver("jdbc:hpcc");
 
             if (!(ldriver instanceof HPCCDriver))
-                throw new RuntimeException("Driver fetched with 'jdbc:hpcc' url is not of HPCCDriver type");
+                throw new RuntimeException(
+                        "Driver fetched with 'jdbc:hpcc' url is not of HPCCDriver type");
             if (!driver.acceptsURL("jdbc:hpcc"))
-                throw new RuntimeException("Valid lower case JDBC URL test failed");
+                throw new RuntimeException(
+                        "Valid lower case JDBC URL test failed");
             if (!driver.acceptsURL("JDBC:hpcc"))
-                throw new RuntimeException("Valid mixed case JDBC URL test1 failed");
+                throw new RuntimeException(
+                        "Valid mixed case JDBC URL test1 failed");
             if (!driver.acceptsURL("JDBC:HPCC"))
-                throw new RuntimeException("Valid upper case JDBC URL test failed");
+                throw new RuntimeException(
+                        "Valid upper case JDBC URL test failed");
             if (!driver.acceptsURL("jdbc:HPCC"))
-                throw new RuntimeException("Valid mixed case JDBC URL test2 failed");
+                throw new RuntimeException(
+                        "Valid mixed case JDBC URL test2 failed");
             if (!driver.acceptsURL("jDbC:hPcC"))
-                throw new RuntimeException("Valid camel case JDBC URL test2 failed");
+                throw new RuntimeException(
+                        "Valid camel case JDBC URL test2 failed");
 
             if (!driver.acceptsURL("jdbc:hpcc;"))
-                throw new RuntimeException("Valid seperator JDBC URL test failed");
+                throw new RuntimeException(
+                        "Valid seperator JDBC URL test failed");
             if (!driver.acceptsURL("jdbc:hpcc;prop1=val1;prop2=val2"))
-                throw new RuntimeException("Valid properties JDBC URL semicolon test failed");
+                throw new RuntimeException(
+                        "Valid properties JDBC URL semicolon test failed");
             if (!driver.acceptsURL("jdbc:hpcc:prop1=val1:prop2=val2"))
-                throw new RuntimeException("Valid properties JDBC URL colon test failed");
+                throw new RuntimeException(
+                        "Valid properties JDBC URL colon test failed");
             if (!driver.acceptsURL("jdbc:hpcc:"))
-                throw new RuntimeException("Valid seperator JDBC URL test passed");
+                throw new RuntimeException(
+                        "Valid seperator JDBC URL test passed");
             if (driver.acceptsURL("jdbc : hpcc"))
-                throw new RuntimeException("Invalid spaces JDBC URL test passed");
+                throw new RuntimeException(
+                        "Invalid spaces JDBC URL test passed");
             if (!driver.acceptsURL("jdbc:hpcc:prop1=val1;prop2=val2"))
                 throw new RuntimeException("Valid JDBC URL test failed");
             if (driver.acceptsURL("  jdbc:hpcc"))
-                throw new RuntimeException("Invalid spaces JDBC URL test2 passed");
+                throw new RuntimeException(
+                        "Invalid spaces JDBC URL test2 passed");
             if (driver.acceptsURL("Garbage"))
-                throw new RuntimeException("Invalid garbage JDBC URL test passed");
+                throw new RuntimeException(
+                        "Invalid garbage JDBC URL test passed");
             if (driver.acceptsURL("url:jdbc:hpcc"))
-                throw new RuntimeException("Invalid prefix JDBC URL test passed");
+                throw new RuntimeException(
+                        "Invalid prefix JDBC URL test passed");
             if (driver.acceptsURL(""))
                 throw new RuntimeException("Invalid empty JDBC URL test passed");
             if (driver.acceptsURL(" "))
-                throw new RuntimeException("Invalid singlespace JDBC URL test passed");
+                throw new RuntimeException(
+                        "Invalid singlespace JDBC URL test passed");
             if (driver.acceptsURL(null))
                 throw new RuntimeException("Invalid null JDBC URL test passed");
 
-            if (args.length <= 0)
+            file = new File(myargsprop.getProperty("Config"));
+            fin = new FileInputStream(file);
+            prop.load(fin);
+            connectionprops = connectViaProps(prop);
+            if (connectionprops == null)
+                throw new RuntimeException(
+                        "Could not connect with properties object");
+
+            System.out.println("Config parameter found!");
+            System.out.println("ReportPath parameter found!");
+
+            logFile = new File(check + File.separator + "HPCCJDBCTEST_" + date
+                    + ".log");
+            FileWriter fw = new FileWriter(logFile, true);
+            BufferedWriter bwrite = new BufferedWriter(fw);
+
+            if (!logFile.exists())
             {
-                info.put("ServerAddress", "192.168.124.128"); //your HPCC address here
-                info.put("LazyLoad", "true");
-                info.put("TraceToFile", "false");
-                info.put("TraceLevel", "boguslevel");
-                info.put("ReadTimeoutMilli", "30000"); //we have a couple of long running queries
-                info.put("TargetCluster", "myroxie"); //queries will run on this HPCC target cluster
-                info.put("QuerySet", "thor"); //published HPCC queries will run from this queryset
-                info.put("WsECLWatchPort", "8010"); //Target HPCC configured to run WsECLWatch on this port
-                info.put("WsECLWatchAddress", "http://192.168.124.128"); //Target HPCC configured to run WsECLWatch on this port
-                info.put("WsECLDirectPort", "8008"); //Target HPCC configured to run WsECLDirect on this port
-                info.put("EclResultLimit", "ALL"); //I want all records returned
-                info.put("PageSize", "20"); //GetTables and GetProcs will only return 20 entries
+                logFile.createNewFile();
+            }
 
-                HPCCConnection connectionprops = connectViaProps(info);
-                if (connectionprops == null)
-                    throw new RuntimeException("Could not connect with properties object");
+            if (!(prop.containsKey("TraceLevel")))
+            {
+                prop.put("TraceLevel", "INFO");
+            }
 
-                HPCCStatement stmt = (HPCCStatement) connectionprops.createStatement();
-
-                String stmtsql = "select tbl.* from lotto::winning::numbers::date::csv tbl where ((b1='12') or (b2='52') and (b6='11') ) limit 10";
-                if( stmt.execute(stmtsql))
+            if (myargsprop.containsKey("SqlScript"))
+            {
+                if (vmode)
                 {
-                    HPCCResultSet res1 = (HPCCResultSet) stmt.executeQuery(stmtsql);
 
-                    if (res1.getRowCount() > 0)
-                        printOutResultSet(res1,0);
+                    if (!(prop.containsKey("TraceLevel")))
+                    {
+                        prop.put("TraceLevel", "ALL");
+                        System.out.println(prop.getProperty("TraceLevel"));
+                    }
+                    if (!(prop.containsKey("TraceToFile")))
+                    {
+                        prop.put("TraceToFile", "true");
+                    }
+                    System.out.println("Verbose mode ON!");
+                    DriverPropertyInfo[] driver_info = driver.getPropertyInfo(
+                            "", null);
+                    bwrite.write("-----------------Driver Properties----------------------------------"
+                            + sline);
 
-                    HPCCResultSet res2 = (HPCCResultSet) stmt.getResultSet();
-                    if (res1.getRowCount() != res2.getRowCount())
-                        throw new RuntimeException("HPCCStatement test: 2 resultsets differ.");
+                    for (int i = 0; i < driver_info.length; i++)
+                        bwrite.write(driver_info[i].name + ": "
+                                + driver_info[i].description + sline);
+                    bwrite.write("--------------------------------------------------------------------------------------------------------------"
+                            + sline);
                 }
-                else
-                    throw new RuntimeException("HPCCStatement test failed.");
+                else if (!(prop.containsKey("TraceLevel")))
+                {
 
-                if (!runFullTest(info))
-                    throw new RuntimeException("Full test failed.");
+                    prop.put("TraceLevel", "INFO");
+                }
 
+                bwrite.write("                         Status                    ||          SQL          ||             Description    "
+                        + sline);
+                bwrite.write("--------------------------------------------------------------------------------------------------------------"
+                        + sline);
+                bwrite.close();
+                Sql_file = new File(myargsprop.getProperty("SqlScript"));
+                fin2 = new FileInputStream(Sql_file);
+                info.load(fin2);
+                System.out
+                        .println("SqlScript parameter found-Scripted Mode Started...\n");
+
+                List<String> testcase = new ArrayList();
+                System.out
+                        .println("Processing regular and/or prepared statements...");
+                for (String key : info.stringPropertyNames())
+                {
+                    String value = info.getProperty(key);
+
+                    if (HPCCJDBCUtils.testcase(value))
+                    {
+                        testcase = HPCCJDBCUtils.testcaseList(value);
+
+                        String[] parts_ar = testcase
+                                .toArray(new String[testcase.size()]);
+
+                        if (parts_ar[0] == null)
+                        {
+                            executeFreeHandSQL(connectionprops, value, params,
+                                    true, 0, "SQL: " + key);
+                        }
+                        else if (parts_ar[1] != null)
+                        {
+                            String rbrackets = parts_ar[0].substring(
+                                    parts_ar[0].indexOf("[") + 1,
+                                    parts_ar[0].indexOf("]"));
+
+                            String[] location = rbrackets.split(";");
+                            boolean checkb = false;
+                            int bool = Integer.parseInt(location[1]);
+
+                            String csvpath = "";
+                            if (location.length == 2)
+                            {
+                                if (location[0].equals("true"))
+                                {
+                                    checkb = true;
+                                }
+                                else if (location[0].equals("false"))
+                                {
+                                    checkb = false;
+                                }
+                                else
+                                {
+                                    System.out
+                                            .println("Unrecognize parameter inside of brackets:"
+                                                    + key
+                                                    + "=["
+                                                    + location[0]
+                                                    + "]");
+                                    System.exit(0);
+
+                                }
+                                executeFreeHandSQL(connectionprops,
+                                        parts_ar[1], params, checkb, bool,
+                                        "SQL: " + key);
+                            }
+                            if (location.length == 3)
+                            {
+                                csvpath = location[2];
+
+                                if (location[0].equals("true"))
+                                {
+                                    checkb = true;
+                                }
+                                else if (location[0].equals("false"))
+                                {
+                                    checkb = false;
+                                }
+                                else
+                                {
+                                    System.out
+                                            .println("Unrecognize parameter inside of brackets:"
+                                                    + key
+                                                    + "=["
+                                                    + location[0]
+                                                    + "]");
+                                    System.exit(0);
+
+                                }
+                                executeFreeHandSQL(connectionprops,
+                                        parts_ar[1], params, checkb, bool,
+                                        csvpath, "SQL: " + key);
+                            }
+                        }
+
+                    }
+                }
             }
             else
             {
-                for (int i = 0; i < args.length; i++)
+                System.out
+                        .println("SqlScript parameter not found-Printing database info...");
+                System.out
+                        .println("--------------------------------------------------------");
+                System.out.println();
+                String infourl = "jdbc:hpcc;";
+                HPCCConnection connectionurl = connectViaUrl(infourl);
+                if (connectionprops == null)
+                    throw new RuntimeException(
+                            "Could not connect with properties object");
+                if (!(connectionurl != null))
+                    throw new RuntimeException("Could not connect with URL");
+                if (!getDatabaseInfo(connectionurl))
+                    throw new RuntimeException("Could not fetch DB Info");
+                if (!printouttypeinfo(connectViaProps(prop)))
+                    throw new RuntimeException("Print ECL types failed");
+                if (!printouttables(connectionprops))
+                    throw new RuntimeException("printout alltables failed");
+                if (vmode)
                 {
-                    String[] propsplit = args[i].split("==");
-                    if (propsplit.length == 1)
-                    {
-                        info.put(propsplit[0], "true");
-                        System.out.println("added prop: " + propsplit[0] + " = true");
-                    }
-                    else if (propsplit.length == 2)
-                    {
-                        if (propsplit[0].equalsIgnoreCase("param"))
-                        {
-                            params.add(propsplit[1]);
-                            System.out.println("added param( " + (params.size()) + " ) = " + propsplit[1]);
-                        }
-                        else
-                        {
-                            info.put(propsplit[0], propsplit[1]);
-                            System.out.println("added prop: " + propsplit[0] + " = " + propsplit[1]);
-                        }
-                    }
-                    else
-                        System.out.println("arg[" + i + "] ignored");
+                    if (!printoutalltablescols(connectViaProps(prop)))
+                        throw new RuntimeException(
+                                "printout alltablescols failed");
                 }
-
-                if (info.containsKey("freehandsql"))
-                {
-                    executeFreeHandSQL(info, info.getProperty("freehandsql"), params, true, 0, "SQL: "+ info.getProperty("freehandsql"));
-                }
-                else
-                    if (!runFullTest(info))
-                        throw new RuntimeException("Full test failed.");
+                if (!printoutprocs(connectionprops))
+                    throw new RuntimeException("printout procs failed");
+                if (!printoutproccols(connectionprops))
+                    throw new RuntimeException("printout proccols failed");
+                System.out.println("\n Driver and Database Info-Completed");
+                System.exit(0);
             }
+        }
+
+        catch (FileNotFoundException nf)
+        {
+            System.out.println(nf);
+            System.out.println();
+            usage();
+            System.exit(0);
+        }
+        catch (IOException ex)
+        {
+            System.out.println("Invalid ReportPath location-Ended!");
+            System.out.println();
+            usage();
+            System.exit(0);
+        }
+        catch (SQLException sql)
+        {
+            sql.printStackTrace();
         }
         catch (Exception e)
         {
             e.printStackTrace();
             System.out.println(e.getMessage());
+            System.exit(0);
         }
 
-        System.out.println("\nHPCC Driver completed as expected - Verify results.");
+        System.out
+                .println("\nHPCC Driver completed test - Statement executed: "
+                        + err + " -Verify ReportPath location for Report");
+
     }
+
 }

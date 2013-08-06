@@ -1,0 +1,14 @@
+ServerAddress=<address>
+LazyLoad=true
+TraceToFile=false
+TraceLevel=OFF
+ReadTimeoutMilli=30000
+TargetCluster=myroxie
+QuerySet=thor
+WsECLWatchPort=8010
+WsECLWatchAddress=<address>
+WsECLDirectPort=8010
+EclResultLimit=ALL 
+PageSize=20
+
+
