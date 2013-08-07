@@ -186,10 +186,22 @@ public class HPCCDriverTest
         {
             ResultSet tables = connection.getMetaData().getTables(null, null,
                     "%", null);
-
             System.out.println("Tables found: ");
             while (tables.next())
+            {
+                String tablename=null;
                 System.out.println("\t" + tables.getString("TABLE_NAME"));
+                tablename=tables.getString("TABLE_NAME");
+                if(vmode)
+                {
+                    ResultSet tablecols = connection.getMetaData().getColumns(null,
+                            null, tablename, "%");
+                    while (tablecols.next())
+                        System.out.println("\t\t"+ tablecols.getString("COLUMN_NAME") + "( "
+                                + tablecols.getString("TYPE_NAME") + " )");
+                }
+                System.out.println();
+            }
         }
         catch (Exception e)
         {
@@ -249,13 +261,24 @@ public class HPCCDriverTest
         boolean success = true;
         try
         {
+            String procname=null;
             ResultSet procs = connection.getMetaData().getProcedures(null,
                     null, null);
 
-            System.out.println("procs found: ");
+            System.out.println("Procedures found: ");
             while (procs.next())
+            {
                 System.out.println("\t" + procs.getString("PROCEDURE_NAME"));
-
+                if (vmode)
+                {
+                    procname=procs.getString("PROCEDURE_NAME");
+                    ResultSet proccols = connection.getMetaData().getProcedureColumns(
+                            null, null, procname, null);
+                    while (proccols.next())
+                        System.out.println("\t\t"+ proccols.getString("COLUMN_NAME") + " (" + proccols.getInt("COLUMN_TYPE") + ")");
+                }
+                System.out.println();
+            }
         }
         catch (Exception e)
         {
@@ -1106,14 +1129,6 @@ public class HPCCDriverTest
 
             Properties info = new Properties();
             Properties prop = new Properties();
-
-            int countparam = 0;
-            for (String s1 : args)
-            {
-                countparam++;
-            }
-
-            System.out.println(countparam + " Parameters found");
             Properties myargsprop = new Properties();
             if (args.length == 0)
             {
@@ -1140,7 +1155,9 @@ public class HPCCDriverTest
                                     .handleQuotedString(mysplit[1].trim()));
                 }
             }
-
+            System.out.println("-----------------------HPCCJDBC Driver Test Suite-----------------------");
+            System.out.println("========================================================================");
+            System.out.println();
             if (args[args.length - 1].equals("-V"))
             {
                 vmode = true;
@@ -1233,9 +1250,6 @@ public class HPCCDriverTest
             if (connectionprops == null)
                 throw new RuntimeException(
                         "Could not connect with properties object");
-
-            System.out.println("Config parameter found!");
-            System.out.println("ReportPath parameter found!");
 
             logFile = new File(check + File.separator + "HPCCJDBCTEST_" + date
                     + ".log");
@@ -1385,34 +1399,28 @@ public class HPCCDriverTest
             else
             {
                 System.out
-                        .println("SqlScript parameter not found-Printing database info...");
+                        .println("SqlScript parameter not found-Displaying target HPCC System info...");
                 System.out
                         .println("--------------------------------------------------------");
                 System.out.println();
                 String infourl = "jdbc:hpcc;";
-                HPCCConnection connectionurl = connectViaUrl(infourl);
                 if (connectionprops == null)
                     throw new RuntimeException(
                             "Could not connect with properties object");
+                HPCCConnection connectionurl = connectViaUrl(infourl);
                 if (!(connectionurl != null))
                     throw new RuntimeException("Could not connect with URL");
                 if (!getDatabaseInfo(connectionurl))
                     throw new RuntimeException("Could not fetch DB Info");
                 if (!printouttypeinfo(connectViaProps(prop)))
                     throw new RuntimeException("Print ECL types failed");
+                System.out.println("Connecting with properties from Config file...");
+                System.out.println();
                 if (!printouttables(connectionprops))
                     throw new RuntimeException("printout alltables failed");
-                if (vmode)
-                {
-                    if (!printoutalltablescols(connectViaProps(prop)))
-                        throw new RuntimeException(
-                                "printout alltablescols failed");
-                }
                 if (!printoutprocs(connectionprops))
                     throw new RuntimeException("printout procs failed");
-                if (!printoutproccols(connectionprops))
-                    throw new RuntimeException("printout proccols failed");
-                System.out.println("\n Driver and Database Info-Completed");
+                System.out.println("\n Target System Info-Completed");
                 System.exit(0);
             }
         }

@@ -54,7 +54,7 @@ To Run Test Package:
 2. For configuration parameters pass in:
 	Config=<home/user/myfile>
 	ReporthPath=<home/user>
-	SqlScript=<home/user/myfile1>
+	SqlScript=<home/user/mysqlfile1>
 3. To execute "Prepared Statements" specify the location of the data file:
 **Path must be platform specific.
 For Linux: Test1=[true;1;/home/vagrant/mycsvfile.csv]<preparedstament>

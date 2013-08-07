@@ -6,9 +6,9 @@ ReadTimeoutMilli=30000
 TargetCluster=myroxie
 QuerySet=thor
 WsECLWatchPort=8010
-WsECLWatchAddress=<address>
+WsECLWatchAddress=<https://address>
 WsECLDirectPort=8010
-EclResultLimit=ALL 
+EclResultLimit=ALL
 PageSize=20
 
 
