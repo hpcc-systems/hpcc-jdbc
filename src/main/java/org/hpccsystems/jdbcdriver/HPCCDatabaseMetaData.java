@@ -73,6 +73,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     private boolean                     isHPCCMetaDataCached     = false;
     private boolean                     isDFUMetaDataCached      = false;
     private boolean                     isQuerySetMetaDataCached = false;
+    private boolean                     hasHPCCTargetBeenReached = false;
 
     private String                      serverAddress;
     private String                      targetcluster;
@@ -92,8 +93,11 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     final static String                 TABLE_NAME               = "TABLE_NAME";
 
     private static final String         FILEFETCHTYPE_ALL             = "Logical Files and Superfiles";
+    @SuppressWarnings("unused")
     private static final String         FILEFETCHTYPE_LOGICAL_ONLY    = "Logical Files Only";
+    @SuppressWarnings("unused")
     private static final String         FILEFETCHTYPE_SUPER_ONLY      = "Superfiles Only";
+    @SuppressWarnings("unused")
     private static final String         FILEFETCHTYPE_NOT_IN_SUPER    = "Not in Superfiles";
 
     public HPCCDatabaseMetaData(Properties props)
@@ -186,6 +190,11 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         boolean isSuccess = true;
 
         if (serverAddress == null || targetcluster == null)
+            return false;
+
+        hasHPCCTargetBeenReached = isTargetHPCCReachable();
+
+        if (!hasHPCCTargetBeenReached)
             return false;
 
         isSuccess &= fetchHPCCInfo();
@@ -2581,9 +2590,10 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         if (basewseclwatchurl == null)
             return false;
 
+        String urlString = "";
         try
         {
-            String urlString = basewseclwatchurl + "/WsSMC/Activity?rawxml_";
+            urlString = basewseclwatchurl + "/WsSMC/Activity?rawxml_";
 
             HPCCJDBCUtils.traceoutln(Level.INFO, "HPCCDatabaseMetaData Fetching HPCC INFO: " + urlString);
 
@@ -2627,7 +2637,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         }
         catch (Exception e)
         {
-            HPCCJDBCUtils.traceoutln(Level.SEVERE,  "Could not fetch HPCC info.");
+            HPCCJDBCUtils.traceoutln(Level.SEVERE,  "Could not fetch HPCC info from: " + urlString);
             HPCCJDBCUtils.traceoutln(Level.ALL,  e.getMessage());
             return false;
         }
@@ -2932,15 +2942,58 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
 
     protected HttpURLConnection createHPCCESPConnection(URL theurl) throws IOException
     {
+        return createHPCCESPConnection(theurl, connectTimoutMillis, readTimoutMillis);
+    }
+
+    protected HttpURLConnection createHPCCESPConnection(URL theurl, int connecttimeout, int readtimeout) throws IOException
+    {
         HttpURLConnection conn = (HttpURLConnection) theurl.openConnection();
         conn.setInstanceFollowRedirects(false);
         conn.setRequestProperty("Authorization", basicAuth);
         conn.setRequestMethod("GET");
         conn.setDoOutput(true);
         conn.setDoInput(true);
-        conn.setConnectTimeout(connectTimoutMillis);
-        conn.setReadTimeout(readTimoutMillis);
+        conn.setConnectTimeout(connecttimeout);
+        conn.setReadTimeout(readtimeout);
 
         return conn;
+    }
+
+    public boolean isTargetHPCCReachable()
+    {
+        return isTargetHPCCReachable(connectTimoutMillis);
+    }
+
+    public boolean isTargetHPCCReachable(int timeout)
+    {
+        if (basewseclwatchurl == null)
+            return false;
+
+        String urlString = "";
+        try
+        {
+            urlString = basewseclwatchurl + "/WsSMC/Activity?rawxml_";
+
+            HPCCJDBCUtils.traceoutln(Level.INFO, "HPCCDatabaseMetaData Attempting to reach HPCC System: " + urlString);
+
+            URL querysetURL = new URL(urlString);
+            HttpURLConnection querysetconnection = createHPCCESPConnection(querysetURL, timeout, readTimoutMillis);
+
+            querysetconnection.getInputStream();
+
+        }
+        catch (Exception e)
+        {
+            HPCCJDBCUtils.traceoutln(Level.SEVERE,  "Could not fetch HPCC info from: " + urlString);
+            HPCCJDBCUtils.traceoutln(Level.ALL,  e.getMessage());
+            return false;
+        }
+
+        return true;
+    }
+
+    public boolean hasHPCCTargetBeenReached()
+    {
+        return hasHPCCTargetBeenReached;
     }
 }
