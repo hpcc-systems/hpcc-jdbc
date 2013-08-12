@@ -2969,24 +2969,33 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         if (basewseclwatchurl == null)
             return false;
 
-        String urlString = "";
+        HttpURLConnection testconnection = null;
+        String urlString = basewseclwatchurl + "/WsSMC/Activity?rawxml_";
+        HPCCJDBCUtils.traceoutln(Level.INFO, "HPCCDatabaseMetaData Attempting to reach HPCC System: " + urlString);
         try
         {
-            urlString = basewseclwatchurl + "/WsSMC/Activity?rawxml_";
-
-            HPCCJDBCUtils.traceoutln(Level.INFO, "HPCCDatabaseMetaData Attempting to reach HPCC System: " + urlString);
-
             URL querysetURL = new URL(urlString);
-            HttpURLConnection querysetconnection = createHPCCESPConnection(querysetURL, timeout, readTimoutMillis);
-
-            querysetconnection.getInputStream();
-
+            testconnection = createHPCCESPConnection(querysetURL, timeout, readTimoutMillis);
+            testconnection.connect();
         }
         catch (Exception e)
         {
-            HPCCJDBCUtils.traceoutln(Level.SEVERE,  "Could not fetch HPCC info from: " + urlString);
+            HPCCJDBCUtils.traceoutln(Level.SEVERE,  "Could not contact HPCC: " + urlString);
             HPCCJDBCUtils.traceoutln(Level.ALL,  e.getMessage());
             return false;
+        }
+        finally
+        {
+            try
+            {
+                if (testconnection != null)
+                    testconnection.disconnect();
+            }
+            catch (Exception e)
+            {
+                HPCCJDBCUtils.traceoutln(Level.WARNING,  "Could not close test connection:" + urlString);
+                HPCCJDBCUtils.traceoutln(Level.ALL,  e.getMessage());
+            }
         }
 
         return true;
