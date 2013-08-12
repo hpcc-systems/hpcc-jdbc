@@ -60,9 +60,13 @@ public class HPCCConnection implements Connection
         // TODO not doing anything w/ this yet, just exposing it to comply w/ API definition...
         clientInfo = new Properties();
 
-        closed = false;
-
-        HPCCJDBCUtils.traceoutln(Level.INFO,  "HPCCConnection initialized - server: " + this.connectionProps.getProperty("ServerAddress"));
+        if (metadata != null && metadata.hasHPCCTargetBeenReached())
+        {
+            closed = false;
+            HPCCJDBCUtils.traceoutln(Level.INFO,  "HPCCConnection initialized - server: " + this.connectionProps.getProperty("ServerAddress"));
+        }
+        else
+            HPCCJDBCUtils.traceoutln(Level.INFO,  "HPCCConnection not initialized - server: " + this.connectionProps.getProperty("ServerAddress"));
     }
 
     public static String createBasicAuth(String username, String passwd)
@@ -345,7 +349,13 @@ public class HPCCConnection implements Connection
     public boolean isValid(int timeout) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST,  "HPCCConnection: isValid");
-        return timeout >= 0;
+        boolean success = false;
+        if (!closed)
+        {
+            if (metadata != null)
+                success = metadata.isTargetHPCCReachable(timeout);
+        }
+        return success;
     }
 
     public void setClientInfo(String name, String value) throws SQLClientInfoException
