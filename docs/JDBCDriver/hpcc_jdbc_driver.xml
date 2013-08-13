@@ -358,7 +358,12 @@
         </tgroup>
       </informaltable></para>
 
-    <para></para>
+    <para>These configuration settings are used when creating an HPCC JDBC
+    connection. </para>
+
+    <para>They can be passed to the JDBC driver using the JDBC connection URL
+    or as part of the connection properties object. When passed through the
+    connection URL, the values must be URL-encoded.</para>
   </chapter>
 
   <chapter>
@@ -1313,7 +1318,8 @@ HPCCConnection connection = null;
    connprops.put("ServerAddress", "192.168.124.128");
 
 /*or create JDBC connection url string with pertinent connection options*/
-   String jdbcurl = "jdbc:hpcc;ServerAddress=192.168.124.128";
+/* the connection values must be URL-encoded */
+   String jdbcurl = "jdbc:hpcc;ServerAddress=HTTP%3A%2F%2F192.168.124.128";
 
 /*provide all necessary connection properties either by URL, or props object */
     connection = (HPCCConnection) driver.connect(jdbcurl, connprops);
