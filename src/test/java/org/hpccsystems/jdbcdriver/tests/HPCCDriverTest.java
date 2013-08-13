@@ -1,5 +1,6 @@
 package org.hpccsystems.jdbcdriver.tests;
 
+import java.net.URLEncoder;
 import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.DriverPropertyInfo;
@@ -716,9 +717,11 @@ public class HPCCDriverTest
             for(Object okey : propsinfo.keySet() )
             {
                 String key = (String) okey;
-                infourl += key + "=" + propsinfo.getProperty(key) + ";";
-                System.out.println(key +": " + propsinfo.getProperty(key));
+                String value = URLEncoder.encode(propsinfo.getProperty(key), "UTF-8");
+                infourl += key + "=" + value + ";";
+                System.out.println(key +": " + value);
             }
+            System.out.println(infourl);
             System.out.println("************************************************");
 
             if (!testLazyLoading(propsinfo))
@@ -790,20 +793,21 @@ public class HPCCDriverTest
 
             executeFreeHandSQL(propsinfo,
                     "call myroxie::fetchpeoplebyzipservice()",
-                    params, false, 0, "Call published query not enough in-params");
+                    params, true, 0, "Call published query not enough in-params");
 
             executeFreeHandSQL(propsinfo,
                     "call bogusSPName()",
                     params, false, 0, "Call non-existant published query");
-
-            params.add("'33445'");
-            params.add("'90210'");
 
             params.clear();
             params.add("'zip'");
             executeFreeHandSQL(propsinfo,
                     "select  zip from super::super::tutorial::rp::tutorialperson as persons where count (?) > 0  limit 100",
                     params, true, 1, "Select paremeterized function param");
+
+            params.clear();
+            params.add("'33445'");
+            params.add("'90210'");
 
             executeFreeHandSQL(propsinfo,
                     "select  zip from tutorial::rp::tutorialperson as persons, where zip = '33445'  limit 100",
