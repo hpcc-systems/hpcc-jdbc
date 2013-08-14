@@ -2970,13 +2970,12 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
             return false;
 
         HttpURLConnection testconnection = null;
-        String urlString = "";
+
+        String urlString = basewseclwatchurl + "/WsSMC/Activity?rawxml_";
+        HPCCJDBCUtils.traceoutln(Level.INFO, "HPCCDatabaseMetaData Attempting to reach HPCC System: " + urlString);
+
         try
         {
-            urlString = basewseclwatchurl + "/WsSMC/Activity?rawxml_";
-
-            HPCCJDBCUtils.traceoutln(Level.INFO, "HPCCDatabaseMetaData Attempting to reach HPCC System: " + urlString);
-
             URL querysetURL = new URL(urlString);
             testconnection = createHPCCESPConnection(querysetURL, timeout, readTimoutMillis);
             testconnection.connect();

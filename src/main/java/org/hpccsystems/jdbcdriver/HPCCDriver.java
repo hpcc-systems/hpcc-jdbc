@@ -18,6 +18,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package org.hpccsystems.jdbcdriver;
 
+import java.net.URLDecoder;
 import java.sql.Connection;
 import java.sql.Driver;
 import java.sql.DriverManager;
@@ -93,7 +94,7 @@ public class HPCCDriver implements Driver
                             String key = keyvalues.nextToken();
                             String value = keyvalues.nextToken();
                             if (!connprops.containsKey(key))
-                                connprops.put(key, value);
+                                connprops.put(key, URLDecoder.decode(value, "UTF-8"));
                             else
                                 HPCCJDBCUtils.traceoutln(Level.FINEST,  "Connection property: " + key + " found in info properties and URL, ignoring URL value");
                         }
