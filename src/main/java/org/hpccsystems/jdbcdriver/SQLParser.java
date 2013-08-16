@@ -716,7 +716,7 @@ public class SQLParser
 
     public int getParameterizedCount() { return parameterizedCount;}
 
-    public void assignParameterIndexes() throws SQLException
+    public int assignParameterIndexes() throws SQLException
     {
         int paramIndex = 1;
 
@@ -724,6 +724,7 @@ public class SQLParser
             paramIndex = whereClause.setParameterizedNames(paramIndex);
 
         parameterizedCount = paramIndex - 1;
+        return parameterizedCount;
     }
 
     public int getWhereClauseExpressionsCount()
