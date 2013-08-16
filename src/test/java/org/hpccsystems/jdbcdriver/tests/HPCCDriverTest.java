@@ -30,7 +30,6 @@ public class HPCCDriverTest
 {
     static private HPCCDriver driver;
     static String             sline = System.getProperty("line.separator");
-    //static String             pathsept = File.separator;
     int testcasecount = 0;
     HPCCConnection connectionByProperties = null;
     Properties connectionProperties = null;
@@ -310,7 +309,7 @@ public class HPCCDriverTest
                 }
                 else
                 {
-                    freeHandSQL_Report("FAILED: " + errormessage, testName, SQL);
+                    freeHandSQL_Report("FAILED: unsupported SQL statement type " + errormessage, testName, SQL);
                     return;
                 }
 
@@ -318,8 +317,7 @@ public class HPCCDriverTest
                 try
                 {
                     errormessage = "";
-                    qrs = (HPCCResultSet) ((HPCCPreparedStatement) p)
-                            .executeQuery();
+                    qrs = (HPCCResultSet) ((HPCCPreparedStatement) p).executeQuery();
                 }
                 catch (Exception sqle)
                 {
@@ -383,7 +381,7 @@ public class HPCCDriverTest
                 }
                 catch (IOException e)
                 {
-                    System.out.println("File: "+csvpath+" could not be closed.");
+                    System.out.println("Buffered Reader object inside of executeFreeHandSQL could not be closed.");
                 }
             }
         }
@@ -393,6 +391,7 @@ public class HPCCDriverTest
     {
         boolean success = true;
         String errorMessage = null;
+        int resultcount=0;
 
         try
         {
@@ -403,20 +402,11 @@ public class HPCCDriverTest
 
             ResultSetMetaData meta = qrs.getMetaData();
 
-            int resultcount = qrs.getRowCount();
+            resultcount= qrs.getRowCount();
 
             if (resultcount > 0 && vmode)
             {
                     printTableInVerboseMode( meta, qrs);
-            }
-
-            if(resultcount >= minResults)
-            {
-                success=true;
-            }
-            else if(resultcount<minResults)
-            {
-                success=false;
             }
         }
         catch (Exception e)
@@ -434,7 +424,18 @@ public class HPCCDriverTest
         {
             freeHandSQL_Report( "UNEXPECTED (success)", testName,SQL);
         }
-        else if (success && expectPass || (!success && !expectPass))
+        else if (success && expectPass)
+        {
+            if(resultcount >= minResults)
+            {
+                freeHandSQL_Report( "EXECUTED AS EXPECTED", testName,SQL);
+            }
+            else if(resultcount<minResults)
+            {
+                freeHandSQL_Report( "Detected less rows than expected", testName,SQL);
+            }
+        }
+        else if(!success && !expectPass)
         {
             freeHandSQL_Report( "EXECUTED AS EXPECTED", testName,SQL);
         }
@@ -747,6 +748,9 @@ public class HPCCDriverTest
                     }
                 }
             }
+            else{
+                System.out.println("Value could not be found for test case:"+key);
+            }
         }
         }
 
@@ -763,15 +767,7 @@ public class HPCCDriverTest
 
     private static String ensureTrailingPathSeparator(String incomingPath)
     {
-        if(incomingPath == null || incomingPath.length()==0)
-        {
-            return incomingPath;
-        }
-        else if(incomingPath.endsWith(File.separator))
-        {
-            return incomingPath;
-        }
-        else if(!(incomingPath.endsWith(File.separator)))
+        if(incomingPath != null && !incomingPath.isEmpty() && !(incomingPath.trim().endsWith(File.separator)))
         {
             incomingPath= incomingPath+File.separator;
         }
