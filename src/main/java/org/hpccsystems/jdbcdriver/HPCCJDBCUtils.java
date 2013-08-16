@@ -182,33 +182,32 @@ public class HPCCJDBCUtils
             (char) 0x00, (char) 0x00, (char) 0x00 };
 
     private final static Pattern TESTCASEPATTERN = Pattern.compile("\\s*(\\[.*\\])?(.*)\\s*",Pattern.DOTALL);
-    public static boolean identifyPattern(String testcase)
-    {
-        if (testcase == null)
-        {
-            return false;
-        }
-        else
-        {
-        Matcher matcher = TESTCASEPATTERN.matcher(testcase);
-
-        return true;
-        }
-    }
     public static List<String> returnTestCaseParams(String testcase)
     {
-    List<String> containsGroups= new ArrayList<String>();
+        List<String> containsGroups = new ArrayList<String>();
         Matcher matcher = TESTCASEPATTERN.matcher(testcase);
-
-        if(matcher.matches())
+        if (matcher.matches())
         {
-            for (int i = 1; i <= matcher.groupCount();i++)
+            for (int i = 1; i <= matcher.groupCount(); i++)
             {
                 containsGroups.add(matcher.group(i));
             }
         }
         return containsGroups;
     }
+
+    static Pattern CALLSTATEMENTSPATTERN = Pattern.compile("(\\$\\{)|(\\?)",Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+    public static int parseCallParameters(String testcase)
+    {
+        Matcher matcher = CALLSTATEMENTSPATTERN.matcher(testcase);
+        int countOccurences = 0;
+        while (matcher.find())
+        {
+            countOccurences++;
+        }
+        return countOccurences;
+    }
+
     public static String Base64Encode(byte[] input, boolean addLineBreaks)
     {
         int length = input.length;

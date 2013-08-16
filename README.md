@@ -50,16 +50,20 @@ To Run Test Package:
 1. Two files are required:
 	a) configuration file- Target HPCC system connection information
 	b) Test script file- Contains SQL test cases
-	See Example: hpcc-jdbc/src/SampleTestScripts/
-NOTES: 1)To execute "Prepared Statements" specify the location of the data file:
-**Path must be platform specific.
-For Linux: Test1=[true;1;/home/vagrant/mycsvfile.csv]<preparedstament>
-For Windows: Test1=[true;1;C:\\Users\\mycsvfile.csv]<preparedstament>
-
+		Test cases are specified using following format:
+		= ["["ExpectSuccess;MinResultExpected[;DataFile]"]"]
+		Where:
+		ExpectedSuccess = true|false - true signifies that the test case should succeed, false it should fail.
+		MinResultExpected = int - the minimum number of records expected if successful.
+		DataFile = platform specific path - Path to data file used to populate prepared statements.
+		Examples:
+		For Linux: Test1=[true;1;/home/vagrant/mycsvfile.csv]
+		For Windows: Test1=[true;1;C:\Users\mycsvfile.csv]
+		See Example: src/SampleTestScripts/
 2)To execute "Regular Statements":
 Test1=[true;1]< sqlstatements>
 
 2. Execute HPCCJDBCDriverTest with the following parameters:
 	Config=/path/to/configfile.config
-	ReporthPath=path/to/reportpath.log
+	ReporthPath=path/to/reportfiles/
 	SqlScript=path/to/testcases.txt
