@@ -22,7 +22,9 @@ import java.lang.reflect.Field;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.text.NumberFormat;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.logging.ConsoleHandler;
@@ -179,45 +181,32 @@ public class HPCCJDBCUtils
             (char) 0x00, (char) 0x00, (char) 0x00, (char) 0x00, (char) 0x00, (char) 0x00, (char) 0x00, (char) 0x00,
             (char) 0x00, (char) 0x00, (char) 0x00 };
 
-    // public static String Base64Decode(byte [] input)
-    // {
-    // StringBuilder out = new StringBuilder("");
-    //
-    // char c1, c2, c3, c4;
-    // char d1, d2, d3, d4;
-    //
-    // for(int i = 0;;)
-    // {
-    // c1 = (char)input[i++];
-    // if (c1 == 0)
-    // break;
-    // //else if (!isspace(c1))
-    // else if (!String.valueOf(c1).equals(" "))
-    // {
-    // c2 = (char)input[i++];
-    // c3 = (char)input[i++];
-    // c4 = (char)input[i++];
-    // d1 = BASE64_dec[c1];
-    // d2 = BASE64_dec[c2];
-    // d3 = BASE64_dec[c3];
-    // d4 = BASE64_dec[c4];
-    //
-    // out.append((char)((d1 << 2) | (d2 >> 4)));
-    //
-    // if(c3 == pad)
-    // break;
-    //
-    // out.append((char)((d2 << 4) | (d3 >> 2)));
-    //
-    // if(c4 == pad)
-    // break;
-    //
-    // out.append((char)((d3 << 6) | d4));
-    // }
-    // }
-    //
-    // return out.toString();
-    // }
+    private final static Pattern TESTCASEPATTERN = Pattern.compile("\\s*(\\[.*\\])?(.*)\\s*",Pattern.DOTALL);
+    public static List<String> returnTestCaseParams(String testcase)
+    {
+        List<String> containsGroups = new ArrayList<String>();
+        Matcher matcher = TESTCASEPATTERN.matcher(testcase);
+        if (matcher.matches())
+        {
+            for (int i = 1; i <= matcher.groupCount(); i++)
+            {
+                containsGroups.add(matcher.group(i));
+            }
+        }
+        return containsGroups;
+    }
+
+    static Pattern CALLSTATEMENTSPATTERN = Pattern.compile("(\\$\\{)|(\\?)",Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+    public static int parseCallParameters(String testcase)
+    {
+        Matcher matcher = CALLSTATEMENTSPATTERN.matcher(testcase);
+        int countOccurences = 0;
+        while (matcher.find())
+        {
+            countOccurences++;
+        }
+        return countOccurences;
+    }
 
     public static String Base64Encode(byte[] input, boolean addLineBreaks)
     {
