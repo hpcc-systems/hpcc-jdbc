@@ -21,6 +21,9 @@ package org.hpccsystems.jdbcdriver;
 import java.lang.reflect.Field;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.sql.Date;
+import java.sql.Time;
+import java.sql.Timestamp;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -389,7 +392,7 @@ public class HPCCJDBCUtils
 
     public static String handleQuotedString(String quotedString)
     {
-        if (quotedString == null)
+        if (quotedString == null || quotedString.length() <= 0)
             return "";
 
         Matcher matcher = QUOTEDSTRPATTERN.matcher(quotedString);
@@ -398,6 +401,13 @@ public class HPCCJDBCUtils
             return matcher.group(2).trim();
         else
             return quotedString;
+    }
+
+    public static String ensureECLString(String instr) throws Exception
+    {
+        if (instr == null)
+            return "''";
+        return '\'' + replaceSQLwithECLEscapeChar(handleQuotedString(instr)) + '\'';
     }
 
     public static boolean isParameterizedStr(String value)
@@ -441,13 +451,26 @@ public class HPCCJDBCUtils
         return handleQuotedString(quotedString).contains(EscapedSingleQuote);
     }
 
+    private final static  String eclescaped = "\\\'";
+    public final static Pattern SQLESCAPEDPATTERN = Pattern.compile(
+            "(.*)(\'\')(.*)(\'\')(.*)",Pattern.DOTALL);
+
     public static String replaceSQLwithECLEscapeChar(String quotedString) throws Exception
     {
         if (quotedString == null)
             return "";
 
-        String eclescaped = "\\\\'";
-        String replaced = '\''+handleQuotedString(quotedString).replaceAll("\'\'", eclescaped)+'\'';
+        Matcher m = SQLESCAPEDPATTERN.matcher(quotedString);
+
+        String replaced;
+        if (m.matches())
+        {
+            replaced = m.group(1) + eclescaped + m.group(3) + eclescaped + m.group(5);
+        }
+        else
+        {
+            replaced = quotedString.replace("\'", "\\\'");
+        }
 
         return replaced;
     }
@@ -611,6 +634,10 @@ public class HPCCJDBCUtils
     private final static HashMap<Integer, String> mapSQLtypeCodeToJavaClass = new HashMap<Integer, String>();
     static
     {
+        //http://docs.oracle.com/javase/1.5.0/docs/guide/jdbc/getstart/mapping.html#1051555
+        //Adhering to type mapping table in oracle doc referenced above.
+        //one exception is the CHAR type, which is mapped to Character in order to
+        //appease some ODBC/JDBC bridges.
         mapSQLtypeCodeToJavaClass.put(java.sql.Types.CHAR,          "java.lang.Character");
         mapSQLtypeCodeToJavaClass.put(java.sql.Types.VARCHAR,       "java.lang.String");
         mapSQLtypeCodeToJavaClass.put(java.sql.Types.LONGVARCHAR,   "java.lang.String");
@@ -621,7 +648,7 @@ public class HPCCJDBCUtils
         mapSQLtypeCodeToJavaClass.put(java.sql.Types.SMALLINT,      "java.lang.Short");
         mapSQLtypeCodeToJavaClass.put(java.sql.Types.INTEGER,       "java.lang.Integer");
         mapSQLtypeCodeToJavaClass.put(java.sql.Types.BIGINT,        "java.lang.Long");
-        mapSQLtypeCodeToJavaClass.put(java.sql.Types.REAL,          "java.lang.Real");
+        mapSQLtypeCodeToJavaClass.put(java.sql.Types.REAL,          "java.lang.Float");
         mapSQLtypeCodeToJavaClass.put(java.sql.Types.FLOAT,         "java.lang.Double");
         mapSQLtypeCodeToJavaClass.put(java.sql.Types.DOUBLE,        "java.lang.Double");
         mapSQLtypeCodeToJavaClass.put(java.sql.Types.BINARY,        "java.lang.Byte[]");
@@ -650,6 +677,33 @@ public class HPCCJDBCUtils
             return mapSQLtypeCodeToJavaClass.get(type);
         else
             return JAVA_OBJECT_TYPE_NAME;
+    }
+
+    public static Object createSqlTypeObjFromStringObj(int sqltype, Object objstrrepresentation)
+    {
+        if (objstrrepresentation == null)
+            return null;
+        else
+            return createSqlTypeObjFromString(sqltype, objstrrepresentation.toString()); //cast to String instead???
+    }
+
+    public static Object createSqlTypeObjFromString(int type, String strrepresentation)
+    {
+        if (strrepresentation == null)
+            return null;
+        else
+        {
+            try
+            {
+                return Class.forName(convertSQLtype2JavaClassName(type)).getConstructor(String.class).newInstance(strrepresentation);
+            }
+            catch (Exception e)
+            {
+                HPCCJDBCUtils.traceoutln(Level.WARNING, "HPCC JDBC: Field of type: java.sql.Types-" + type + " could not be cast to native Java type (treat as String).");
+                HPCCJDBCUtils.traceoutln(Level.WARNING,  e.getLocalizedMessage());
+                return strrepresentation;
+            }
+        }
     }
 
     /**

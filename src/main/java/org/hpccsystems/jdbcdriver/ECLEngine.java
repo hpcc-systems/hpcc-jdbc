@@ -20,10 +20,13 @@ package org.hpccsystems.jdbcdriver;
 
 import java.io.InputStream;
 import java.io.OutputStreamWriter;
+import java.math.BigDecimal;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.sql.SQLException;
+import java.sql.Time;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -38,6 +41,7 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.hpccsystems.jdbcdriver.HPCCColumnMetaData.ColumnType;
+import org.hpccsystems.jdbcdriver.SQLParser.SQLType;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -686,6 +690,14 @@ public class ECLEngine
         eclEntities.put("SELECTSTRUCT", selectStructSB.toString());
     }
 
+    public SQLType getQueryType()
+    {
+        if (sqlParser != null)
+            return sqlParser.getSqlType();
+        else
+            return SQLType.UNKNOWN;
+    }
+
     public void generateECL() throws SQLException
     {
         eclCode = new StringBuilder("");
@@ -949,12 +961,96 @@ public class ECLEngine
                 {
                     for (int paramIndex = 1; paramIndex <= inParameters.size(); paramIndex++)
                     {
-                        //TODO the type has to be better inferred/determined.
-                        String value = (String) inParameters.get(paramIndex);
-                        if (HPCCJDBCUtils.isNumeric(value))
-                            sb.append("INTEGER ");
+                        Object invalue = inParameters.get(paramIndex);
+                        String value = null;
+
+                        if (invalue != null)
+                        {
+                            try
+                            {
+                                if (invalue instanceof String)
+                                {
+                                    sb.append("STRING ");
+                                    value = (String)invalue;
+                                    if (value.isEmpty())
+                                        value = "''";
+                                }
+                                else if (invalue instanceof Boolean)
+                                {
+                                    sb.append("BOOLEAN ");
+                                    value = ((Boolean) invalue).toString();
+                                }
+                                else if (invalue instanceof Byte)
+                                {
+                                    value = ((Byte) invalue).toString();
+                                }
+                                else if (invalue instanceof Short)
+                                {
+                                    value = ((Short) invalue).toString();
+                                }
+                                else if (invalue instanceof Integer)
+                                {
+                                    sb.append("INTEGER ");
+                                    value = ((Integer) invalue).toString();
+                                }
+                                else if (invalue instanceof Long)
+                                {
+                                    sb.append("INTEGER ");
+                                    value = ((Long) invalue).toString();
+                                }
+                                else if (invalue instanceof Float)
+                                {
+                                    sb.append("REAL ");
+                                    value = ((Float) invalue).toString();
+                                }
+                                else if (invalue instanceof Double)
+                                {
+                                    sb.append("DECIMAL");
+                                    value = ((Double) invalue).toString();
+                                }
+                                else if (invalue instanceof BigDecimal)
+                                {
+                                    sb.append("DECIMAL");
+                                    value = ((BigDecimal)invalue).toString();
+                                }
+                                else if (invalue instanceof byte[])
+                                {
+                                    sb.append("STRING ");
+                                    value = ((byte[]) invalue).toString();
+                                }
+                                else if (invalue instanceof Time)
+                                {
+                                    sb.append("STRING ");
+                                    value = ((Time) invalue).toString();
+                                }
+                                else if (invalue instanceof java.sql.Date)
+                                {
+                                    sb.append("STRING ");
+                                    value = ((java.sql.Date) invalue).toString();
+                                }
+                                else if (invalue instanceof Timestamp)
+                                {
+                                    sb.append("STRING ");
+                                    value = ((Timestamp) invalue).toString();
+                                }
+                                else if (invalue instanceof InputStream)
+                                {
+                                    sb.append("STRING ");
+                                    value = ((InputStream) invalue).toString();
+                                }
+                                else
+                                {
+                                    sb.append("STRING ");
+                                    value = invalue.toString();
+                                }
+                            }
+                            catch (Exception e)
+                            {
+                                throw new SQLException("Error while converting input parameter(" + paramIndex + ") to string representation.");
+                            }
+                        }
                         else
-                            sb.append("STRING ");
+                            throw new SQLException("Could not bind parameter (null)");
 
                         sb.append(SQLParser.parameterizedPrefix).append(paramIndex).append(" := ").append(value).append(";\n");
                     }
@@ -1049,7 +1145,51 @@ public class ECLEngine
                     {
                         if (inParameters != null && parameterindex <= inParameters.size())
                         {
-                            value = (String) inParameters.get(parameterindex + 1);
+                            Object invalue = inParameters.get(parameterindex + 1);
+
+                            if (invalue != null)
+                            {
+                                try
+                                {
+                                    if (invalue instanceof String)
+                                        value = (String)invalue;
+                                    else if (invalue instanceof Boolean)
+                                        value = ((Boolean) invalue).toString();
+                                    else if (invalue instanceof Byte)
+                                        value = ((Byte) invalue).toString();
+                                    else if (invalue instanceof Short)
+                                        value = ((Short) invalue).toString();
+                                    else if (invalue instanceof Integer)
+                                        value = ((Integer) invalue).toString();
+                                    else if (invalue instanceof Long)
+                                        value = ((Long) invalue).toString();
+                                    else if (invalue instanceof Float)
+                                        value = ((Float) invalue).toString();
+                                    else if (invalue instanceof Double)
+                                        value = ((Double) invalue).toString();
+                                    else if (invalue instanceof BigDecimal)
+                                        value = ((BigDecimal)invalue).toString();
+                                    else if (invalue instanceof byte[])
+                                        value = ((byte[]) invalue).toString();
+                                    else if (invalue instanceof Time)
+                                        value = ((Time) invalue).toString();
+                                    else if (invalue instanceof java.sql.Date)
+                                        value = ((java.sql.Date) invalue).toString();
+                                    else if (invalue instanceof Timestamp)
+                                        value = ((Timestamp) invalue).toString();
+                                    else if (invalue instanceof InputStream)
+                                        value = ((InputStream) invalue).toString();
+                                    else
+                                        value = invalue.toString();
+                                }
+                                catch (Exception e)
+                                {
+                                    throw new SQLException("Error while converting input parameter(" + parameterindex +") to string representation.");
+                                }
+                            }
+                            else
+                                throw new SQLException("Could not bind parameter");
+
                             if (value == null)
                                 throw new SQLException("Could not bind parameter");
                             parameterindex++;
@@ -1057,7 +1197,8 @@ public class ECLEngine
                         else
                             throw new SQLException("Detected empty input parameter list");
                     }
-                    sb.append("&").append(key).append("=").append(value);
+                    if (value != null && !value.isEmpty())
+                        sb.append("&").append(key).append("=").append(URLEncoder.encode(value, "UTF-8"));
                 }
             }
 
