@@ -685,9 +685,9 @@
                 <entry><emphasis>logicalExpression</emphasis></entry>
 
                 <entry>Logical expression based on standard SQL filtering
-                syntax. Compound verbs such as NOT IN or IS NULL must be in
-                ALL CAPS or all lower case and can have one and only one space
-                between the words. (NOT IN, not in, IS NULL, is null,
+                syntax. Compound operators such as NOT IN or IS NULL must be
+                in ALL CAPS or all lower case and can have one and only one
+                space between the words. (NOT IN, not in, IS NULL, is null,
                 etc.)</entry>
               </row>
 
@@ -758,7 +758,7 @@
               <row>
                 <entry></entry>
 
-                <entry>IS NULL </entry>
+                <entry>IS NULL</entry>
               </row>
 
               <row>
@@ -1011,9 +1011,9 @@ Jane Row FL 33024
                 <entry><emphasis>logicalExpression</emphasis></entry>
 
                 <entry>Logical expression based on standard SQL filtering
-                syntax. Compound verbs such as NOT IN or IS NULL must be in
-                ALL CAPS or all lower case and can have one and only one space
-                between the words. (NOT IN, not in, IS NULL, is null,
+                syntax. Compound operators such as NOT IN or IS NULL must be
+                in ALL CAPS or all lower case and can have one and only one
+                space between the words. (NOT IN, not in, IS NULL, is null,
                 etc.)</entry>
               </row>
 
