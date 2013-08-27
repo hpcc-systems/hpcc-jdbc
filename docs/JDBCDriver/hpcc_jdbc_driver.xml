@@ -127,7 +127,7 @@
     next section. The manner in which you define these settings is dependent
     on your SQL client.</para>
 
-    <para>The driver’s full class path is:</para>
+    <para>The driver's full class path is:</para>
 
     <para><emphasis
     role="bold">org.hpccsystems.jdbcdriver.HPCCDriver</emphasis></para>
@@ -359,7 +359,7 @@
       </informaltable></para>
 
     <para>These configuration settings are used when creating an HPCC JDBC
-    connection. </para>
+    connection.</para>
 
     <para>They can be passed to the JDBC driver using the JDBC connection URL
     or as part of the connection properties object. When passed through the
@@ -385,7 +385,7 @@
             This metadata exists on any file or index which is written to the
             HPCC Distributed File System. Sprayed data files typically undergo
             some processing and an OUTPUT of the transformed data to disk
-            before use, so this should not interfere with the driver’s
+            before use, so this should not interfere with the driver's
             usefulness.</para>
           </listitem>
         </varlistentry>
@@ -685,7 +685,10 @@
                 <entry><emphasis>logicalExpression</emphasis></entry>
 
                 <entry>Logical expression based on standard SQL filtering
-                syntax.</entry>
+                syntax. Compound verbs such as NOT IN or IS NULL must be in
+                ALL CAPS or all lower case and can have one and only one space
+                between the words. (NOT IN, not in, IS NULL, is null,
+                etc.)</entry>
               </row>
 
               <row>
@@ -755,14 +758,14 @@
               <row>
                 <entry></entry>
 
-                <entry></entry>
+                <entry>IS NULL </entry>
               </row>
 
               <row>
                 <entry><emphasis>limitNumber</emphasis></entry>
 
                 <entry>The number of rows to return. This overrides the
-                driver’s configuration attribute (EclResultLimit ) but cannot
+                driver's configuration attribute (EclResultLimit ) but cannot
                 be set to ALL.</entry>
               </row>
 
@@ -1008,7 +1011,10 @@ Jane Row FL 33024
                 <entry><emphasis>logicalExpression</emphasis></entry>
 
                 <entry>Logical expression based on standard SQL filtering
-                syntax.</entry>
+                syntax. Compound verbs such as NOT IN or IS NULL must be in
+                ALL CAPS or all lower case and can have one and only one space
+                between the words. (NOT IN, not in, IS NULL, is null,
+                etc.)</entry>
               </row>
 
               <row>
@@ -1078,14 +1084,14 @@ Jane Row FL 33024
               <row>
                 <entry></entry>
 
-                <entry></entry>
+                <entry>IS NULL</entry>
               </row>
 
               <row>
                 <entry><emphasis>limitNumber</emphasis></entry>
 
                 <entry>Optional. The number of rows to return. This overrides
-                the driver’s configuration attribute (<emphasis
+                the driver's configuration attribute (<emphasis
                 role="code">EclResultLimit </emphasis>) but cannot be set to
                 ALL.</entry>
               </row>
