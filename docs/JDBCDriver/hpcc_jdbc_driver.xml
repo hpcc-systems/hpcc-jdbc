@@ -1362,9 +1362,9 @@ HPCCConnection connection = null;
    }
 
 
-</programlisting>More code samples available from:</para>
+</programlisting>More code samples are available from: </para>
 
     <para><ulink
-    url="https://github.com/hpcc-systems/hpcc-jdbc/blob/master/src/org/hpccsystems/jdbcdriver/tests/HPCCDriverTest.java">https://github.com/hpcc-systems/hpcc-jdbc/blob/master/src/org/hpccsystems/jdbcdriver/tests/HPCCDriverTest.java</ulink></para>
+    url="https://github.com/hpcc-systems/hpcc-jdbc/tree/master/src/test/java/org/hpccsystems/jdbcdriver/tests">https://github.com/hpcc-systems/hpcc-jdbc/tree/master/src/test/java/org/hpccsystems/jdbcdriver/tests</ulink></para>
   </chapter>
 </book>
