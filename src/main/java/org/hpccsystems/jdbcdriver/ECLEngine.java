@@ -1046,11 +1046,11 @@ public class ECLEngine
                             }
                             catch (Exception e)
                             {
-                                throw new SQLException("Error while converting input parameter to string representation.");
+                                throw new SQLException("Error while converting input parameter(" + paramIndex + ") to string representation.");
                             }
                         }
                         else
-                            throw new SQLException("Could not bind parameter");
+                            throw new SQLException("Could not bind parameter (null)");
 
                         sb.append(SQLParser.parameterizedPrefix).append(paramIndex).append(" := ").append(value).append(";\n");
                     }
@@ -1184,7 +1184,7 @@ public class ECLEngine
                                 }
                                 catch (Exception e)
                                 {
-                                    throw new SQLException("Error while converting input parameter to string representation.");
+                                    throw new SQLException("Error while converting input parameter(" + parameterindex +") to string representation.");
                                 }
                             }
                             else
