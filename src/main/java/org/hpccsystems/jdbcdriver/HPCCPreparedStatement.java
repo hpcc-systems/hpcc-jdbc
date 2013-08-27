@@ -40,7 +40,11 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Calendar;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.logging.Level;
+
+import org.hpccsystems.jdbcdriver.SQLParser.SQLType;
 
 /**
  *
@@ -80,102 +84,116 @@ public class HPCCPreparedStatement extends HPCCStatement implements PreparedStat
     public void setNull(int parameterIndex, int sqlType) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setNull(" + parameterIndex + ", " + sqlType + " )");
-        parameters.put(new Integer(parameterIndex), sqlType);
+
+        if( this.eclQuery.getQueryType() == SQLType.CALL)
+            parameters.put(parameterIndex, "");
+        else
+            throw new SQLException("NULL cannot be represented in ECL.");
     }
 
     public void setBoolean(int parameterIndex, boolean x) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setBoolean(" + parameterIndex + ", " + x + " )");
-        parameters.put(new Integer(parameterIndex), x);
+        parameters.put(parameterIndex, x);
     }
 
     public void setByte(int parameterIndex, byte x) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setByte(" + parameterIndex + ", " + x + " )");
-        parameters.put(new Integer(parameterIndex), x);
+        parameters.put(parameterIndex, x);
     }
 
     public void setShort(int parameterIndex, short x) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setShort(" + parameterIndex + ", " + x + " )");
-        parameters.put(new Integer(parameterIndex), x);
+        parameters.put(parameterIndex, x);
     }
 
     public void setInt(int parameterIndex, int x) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setInt(" + parameterIndex + ", " + x + " )");
-        parameters.put(new Integer(parameterIndex), x);
+        parameters.put(parameterIndex, x);
     }
 
     public void setLong(int parameterIndex, long x) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setLong(" + parameterIndex + ", " + x + " )");
-        parameters.put(new Integer(parameterIndex), x);
+        parameters.put(parameterIndex, x);
     }
 
     public void setFloat(int parameterIndex, float x) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setFloat(" + parameterIndex + ", " + x + " )");
-        parameters.put(new Integer(parameterIndex), x);
+        parameters.put(parameterIndex, x);
     }
 
     public void setDouble(int parameterIndex, double x) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setDouble(" + parameterIndex + ", " + x + " )");
-        parameters.put(new Integer(parameterIndex), x);
+        parameters.put(parameterIndex, x);
     }
 
     public void setBigDecimal(int parameterIndex, BigDecimal x) throws SQLException
     {
-        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setDouble(" + parameterIndex + ", " + x + " )");
-        parameters.put(new Integer(parameterIndex), x);
+        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setBigDecimal(" + parameterIndex + ", " + x + " )");
+        parameters.put(parameterIndex, x);
     }
 
     public void setString(int parameterIndex, String x) throws SQLException
     {
-        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setDouble(" + parameterIndex + ", " + x + " )");
-        parameters.put(new Integer(parameterIndex), x);
+        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setString(" + parameterIndex + ", " + x + " )");
+        try
+        {
+            if( this.eclQuery.getQueryType() == SQLType.CALL)
+                parameters.put(parameterIndex, x);
+            else
+                parameters.put(parameterIndex, HPCCJDBCUtils.ensureECLString(x));
+        }
+        catch (Exception e)
+        {
+            throw new SQLException("Cannot setString: " + e.getLocalizedMessage());
+        }
     }
 
     public void setBytes(int parameterIndex, byte[] x) throws SQLException
     {
-        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setDouble(" + parameterIndex + ", " + x + " )");
-        parameters.put(new Integer(parameterIndex), x);
+        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setBytes(" + parameterIndex + ", " + x + " )");
+        parameters.put(parameterIndex, x);
     }
 
     public void setDate(int parameterIndex, Date x) throws SQLException
     {
-        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setDouble(" + parameterIndex + ", " + x + " )");
-        parameters.put(new Integer(parameterIndex), x);
+        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setDate(" + parameterIndex + ", " + x + " )");
+        parameters.put(parameterIndex, x);
     }
 
     public void setTime(int parameterIndex, Time x) throws SQLException
     {
-        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setDouble(" + parameterIndex + ", " + x + " )");
-        parameters.put(new Integer(parameterIndex), x);
+        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setTime(" + parameterIndex + ", " + x + " )");
+        parameters.put(parameterIndex, x);
     }
 
     public void setTimestamp(int parameterIndex, Timestamp x) throws SQLException
     {
-        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setDouble(" + parameterIndex + ", " + x + " )");
-        parameters.put(new Integer(parameterIndex), x);
+        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setTimestamp(" + parameterIndex + ", " + x + " )");
+        parameters.put(parameterIndex, x);
     }
 
     public void setAsciiStream(int parameterIndex, InputStream x, int length) throws SQLException
     {
-        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setDouble(" + parameterIndex + ", " + x + " )");
+        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setAsciiStream(" + parameterIndex + ", " + x + " )");
         throw new UnsupportedOperationException(className + ":  setAsciiStream Not supported yet.");
     }
 
     public void setUnicodeStream(int parameterIndex, InputStream x, int length) throws SQLException
     {
-        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setDouble(" + parameterIndex + ", " + x + " )");
+        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setUnicodeStream(" + parameterIndex + ", " + x + " )");
         throw new UnsupportedOperationException(className + ":  setUnicodeStream Not supported yet.");
     }
 
     public void setBinaryStream(int parameterIndex, InputStream x, int length) throws SQLException
     {
-        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setDouble(" + parameterIndex + ", " + x + " )");
+        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setBinaryStream(" + parameterIndex + ", " + x + " )");
         throw new UnsupportedOperationException(className + ":  setBinaryStream Not supported yet.");
     }
 
@@ -185,16 +203,47 @@ public class HPCCPreparedStatement extends HPCCStatement implements PreparedStat
         parameters.clear();
     }
 
-    public void setObject(int parameterIndex, Object x, int targetSqlType) throws SQLException
-    {
-        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setDouble(" + parameterIndex + ", " + x + " )");
-        parameters.put(new Integer(parameterIndex), x);
-    }
-
     public void setObject(int parameterIndex, Object x) throws SQLException
     {
-        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setDouble(" + parameterIndex + ", " + x + " )");
-        parameters.put(new Integer(parameterIndex), x);
+        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setObject(" + parameterIndex + ", " + x + " )");
+
+        if (x != null)
+        {
+            if (x instanceof String)
+                setString(parameterIndex, (String) x);
+            else if (x instanceof Boolean)
+                setBoolean(parameterIndex, ((Boolean) x).booleanValue());
+            else if (x instanceof Byte)
+                setByte(parameterIndex, (Byte) x);
+            else if (x instanceof Short)
+                setShort(parameterIndex, ((Short) x).shortValue());
+            else if (x instanceof Integer)
+                setInt(parameterIndex, ((Integer) x).intValue());
+            else if (x instanceof Long)
+                setLong(parameterIndex, ((Long) x).longValue());
+            else if (x instanceof Float)
+                setFloat(parameterIndex, ((Float) x).floatValue());
+            else if (x instanceof Double)
+                setDouble(parameterIndex, ((Double) x).doubleValue());
+            else if (x instanceof BigDecimal)
+                setBigDecimal(parameterIndex, (BigDecimal) x);
+            else if (x instanceof byte[])
+                setBytes(parameterIndex, (byte[]) x);
+            else if (x instanceof Time)
+                setTime(parameterIndex, (Time) x);
+            else if (x instanceof java.sql.Date)
+                setDate(parameterIndex, (java.sql.Date) x);
+            else if (x instanceof Timestamp)
+                setTimestamp(parameterIndex, (Timestamp) x);
+            else if (x instanceof InputStream)
+                setBinaryStream(parameterIndex, (InputStream) x, -1);
+            else
+                parameters.put(parameterIndex, x);
+        }
+        else
+        {
+            setNull(parameterIndex, java.sql.Types.OTHER);
+        }
     }
 
     public boolean execute() throws SQLException
@@ -219,25 +268,25 @@ public class HPCCPreparedStatement extends HPCCStatement implements PreparedStat
     public void setRef(int parameterIndex, Ref x) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setRef(" + parameterIndex + ", " + x + " )");
-        parameters.put(new Integer(parameterIndex), x);
+        parameters.put(parameterIndex, x);
     }
 
     public void setBlob(int parameterIndex, Blob x) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setBlob(" + parameterIndex + ", " + x + " )");
-        parameters.put(new Integer(parameterIndex), x);
+        parameters.put(parameterIndex, x);
     }
 
     public void setClob(int parameterIndex, Clob x) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setClob(" + parameterIndex + ", " + x + " )");
-        parameters.put(new Integer(parameterIndex), x);
+        parameters.put(parameterIndex, x);
     }
 
     public void setArray(int parameterIndex, Array x) throws SQLException
     {
-        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setDouble(" + parameterIndex + ", " + x + " )");
-        parameters.put(new Integer(parameterIndex), x);
+        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setArray(" + parameterIndex + ", " + x + " )");
+        parameters.put(parameterIndex, x);
     }
 
     public ResultSetMetaData getMetaData() throws SQLException
@@ -267,13 +316,13 @@ public class HPCCPreparedStatement extends HPCCStatement implements PreparedStat
     public void setNull(int parameterIndex, int sqlType, String typeName) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setNull(" + parameterIndex + ", " + sqlType + " )");
-        throw new UnsupportedOperationException(className + ": setNull Not supported yet.");
+        setNull(parameterIndex, sqlType);
     }
 
     public void setURL(int parameterIndex, URL x) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setURL(" + parameterIndex + ", " + x + " )");
-        parameters.put(new Integer(parameterIndex), x);
+        parameters.put(parameterIndex, x);
     }
 
     public ParameterMetaData getParameterMetaData() throws SQLException
@@ -291,7 +340,7 @@ public class HPCCPreparedStatement extends HPCCStatement implements PreparedStat
     public void setNString(int parameterIndex, String value) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setNString(" + parameterIndex + ", " + value + " )");
-        parameters.put(new Integer(parameterIndex), value);
+        parameters.put(parameterIndex, value);
     }
 
     public void setNCharacterStream(int parameterIndex, Reader value, long length) throws SQLException
@@ -303,7 +352,7 @@ public class HPCCPreparedStatement extends HPCCStatement implements PreparedStat
     public void setNClob(int parameterIndex, NClob value) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setNClob(" + parameterIndex + ", " + value + " )");
-        parameters.put(new Integer(parameterIndex), value);
+        parameters.put(parameterIndex, value);
     }
 
     public void setClob(int parameterIndex, Reader reader, long length) throws SQLException
@@ -327,13 +376,348 @@ public class HPCCPreparedStatement extends HPCCStatement implements PreparedStat
     public void setSQLXML(int parameterIndex, SQLXML xmlObject) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setSQLXML(" + parameterIndex + ", " + xmlObject + " )");
-        parameters.put(new Integer(parameterIndex), xmlObject);
+        parameters.put(parameterIndex, xmlObject);
+    }
+
+    public void setObject(int parameterIndex, Object x, int targetSqlType) throws SQLException
+    {
+        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setObject(" + parameterIndex + ", " + x + ", " + targetSqlType + " )");
+        if (x != null)
+        {
+            setObject(parameterIndex, x, targetSqlType, 0);
+        }
+        else
+        {
+            setNull(parameterIndex, targetSqlType);
+        }
     }
 
     public void setObject(int parameterIndex, Object x, int targetSqlType, int scaleOrLength) throws SQLException
     {
-        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setDouble(" + parameterIndex + ", " + x + " )");
-        parameters.put(new Integer(parameterIndex), x);
+        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setObject(" + parameterIndex + ", " + x + " )");
+
+        String targetSqlTypeName = null;
+        try
+        {
+            targetSqlTypeName = HPCCJDBCUtils.getSQLTypeName(targetSqlType);
+        }
+        catch (Exception e)
+        {
+            targetSqlTypeName = "java.sql.Types." + targetSqlType;
+        }
+        if (x != null)
+        {
+            try
+            {
+                Class<?> clazz = x.getClass();
+
+                switch (targetSqlType)
+                {
+                    case java.sql.Types.CHAR:
+                    case java.sql.Types.VARCHAR:
+                    case java.sql.Types.LONGVARCHAR:
+                        if (clazz.equals(String.class))
+                           setString(parameterIndex, (String)x);
+                        else
+                           setString(parameterIndex, x.toString());
+                        break;
+                    case java.sql.Types.BIT:
+                    case java.sql.Types.BOOLEAN:
+                        if (clazz.equals(String.class))
+                            setBoolean(parameterIndex, Boolean.valueOf((String)x));
+                        else if (clazz.equals(Integer.class) || clazz.equals(Integer.TYPE))
+                            setBoolean(parameterIndex, (Integer)x <= 0 ? false : true);
+                        else if (clazz.equals(Boolean.class) || clazz.equals(Boolean.TYPE))
+                            setBoolean(parameterIndex, (Boolean)x);
+                        else if (clazz.equals(Byte.class) || clazz.equals(Byte.TYPE))
+                            setBoolean(parameterIndex, Boolean.valueOf(x.toString()));
+                        else if (clazz.equals(Short.class) || clazz.equals(Short.TYPE))
+                            setBoolean(parameterIndex, ((Byte)x).intValue() <= 0 ? false : true);
+                        else if (clazz.equals(Double.class) || clazz.equals(Double.TYPE))
+                            setBoolean(parameterIndex, ((Double)x) <= 0 ? false : true);
+                        else if (clazz.equals(Long.class) || clazz.equals(Long.TYPE))
+                            setBoolean(parameterIndex, ((Long)x) <= 0 ? false : true);
+                        else if (clazz.equals(Float.class) || clazz.equals(Float.TYPE))
+                            setBoolean(parameterIndex, ((Float)x) <= 0 ? false : true);
+                        else if (clazz.equals(Character.TYPE))
+                            throw new Exception();
+                        break;
+                    case java.sql.Types.FLOAT:
+                    case java.sql.Types.DOUBLE:
+                        if (clazz.equals(String.class))
+                            setDouble(parameterIndex, java.lang.Double.valueOf((String)x));
+                        else if (clazz.equals(Integer.class) || clazz.equals(Integer.TYPE))
+                            setDouble(parameterIndex, ((Integer)x).doubleValue());
+                        else if (clazz.equals(Boolean.class) || clazz.equals(Boolean.TYPE))
+                            setDouble(parameterIndex, ((Boolean)x) == true ? 1.0 : 0.0);
+                        else if (clazz.equals(Byte.class) || clazz.equals(Byte.TYPE))
+                            setDouble(parameterIndex, ((Byte)x).doubleValue());
+                        else if (clazz.equals(Short.class) || clazz.equals(Short.TYPE))
+                            setDouble(parameterIndex, ((Short)x).doubleValue());
+                        else if (clazz.equals(Double.class) || clazz.equals(Double.TYPE))
+                            setDouble(parameterIndex, (Double)x);
+                        else if (clazz.equals(Long.class) || clazz.equals(Long.TYPE))
+                            setDouble(parameterIndex, ((Long)x).doubleValue());
+                        else if (clazz.equals(Float.class) || clazz.equals(Float.TYPE))
+                            setDouble(parameterIndex, ((Float)x).doubleValue());
+                        else if (clazz.equals(Character.TYPE))
+                            throw new Exception();
+                        break;
+
+                    case java.sql.Types.NUMERIC:
+                    case java.sql.Types.DECIMAL:
+                    {
+                        BigDecimal bd = null;
+                        if (clazz.equals(String.class))
+                            bd = new BigDecimal((String)x);
+                        else if (clazz.equals(Integer.class) || clazz.equals(Integer.TYPE))
+                            bd = new BigDecimal((Integer)x);
+                        else if (clazz.equals(Boolean.class) || clazz.equals(Boolean.TYPE))
+                            bd = new BigDecimal((Boolean)x == true ? 1 : 0);
+                        else if (clazz.equals(Character.class) || clazz.equals(Character.TYPE))
+                            bd = new BigDecimal((Character)x);
+                        else if (clazz.equals(Byte.class) || clazz.equals(Byte.TYPE))
+                            bd = new BigDecimal((Byte)x);
+                        else if (clazz.equals(Short.class) || clazz.equals(Short.TYPE))
+                            bd = new BigDecimal((Short)x);
+                        else if (clazz.equals(Double.class) || clazz.equals(Double.TYPE))
+                            bd = new BigDecimal((Double)x);
+                        else if (clazz.equals(Long.class) || clazz.equals(Long.TYPE))
+                            bd = new BigDecimal((Long)x);
+                        else if (clazz.equals(Float.class) || clazz.equals(Float.TYPE))
+                            bd = new BigDecimal((Float)x);
+
+                        if (bd != null)
+                        {
+                            if (scaleOrLength > 0)
+                                bd.setScale(scaleOrLength);
+                            setBigDecimal(parameterIndex, bd);
+                        }
+                        else
+                            throw new Exception();
+                        break;
+                    }
+                    case java.sql.Types.TINYINT:
+                        if (clazz.equals(String.class))
+                            setByte(parameterIndex,java.lang.Byte.parseByte((String)x));
+                        else if (clazz.equals(Integer.class) || clazz.equals(Integer.TYPE))
+                            setByte(parameterIndex, ((Integer)x).byteValue());
+                        else if (clazz.equals(Boolean.class) || clazz.equals(Boolean.TYPE))
+                            setByte(parameterIndex, ((Boolean)x == true ? ((Integer)1).byteValue() : ((Integer)0).byteValue()));
+                        else if (clazz.equals(Character.class) || clazz.equals(Character.TYPE))
+                            setByte(parameterIndex,java.lang.Byte.parseByte(x.toString()));
+                        else if (clazz.equals(Byte.class) || clazz.equals(Byte.TYPE))
+                            setByte(parameterIndex, (Byte)x);
+                        else if (clazz.equals(Short.class) || clazz.equals(Short.TYPE))
+                            setByte(parameterIndex, ((Short)x).byteValue());
+                        else if (clazz.equals(Double.class) || clazz.equals(Double.TYPE))
+                            setByte(parameterIndex, ((Double)x).byteValue());
+                        else if (clazz.equals(Long.class) || clazz.equals(Long.TYPE))
+                            setByte(parameterIndex, ((Long)x).byteValue());
+                        else if (clazz.equals(Float.class) || clazz.equals(Float.TYPE))
+                            setByte(parameterIndex, ((Float)x).byteValue());
+                        else
+                            throw new Exception();
+                        break;
+                    case java.sql.Types.SMALLINT:
+                        if (clazz.equals(String.class))
+                            setShort(parameterIndex, java.lang.Short.parseShort((String)x));
+                        else if (clazz.equals(Integer.class) || clazz.equals(Integer.TYPE))
+                            setShort(parameterIndex, ((Integer)x).shortValue());
+                        else if (clazz.equals(Boolean.class) || clazz.equals(Boolean.TYPE))
+                            setShort(parameterIndex, ((Boolean)x == true ? ((Integer)1).shortValue() : ((Integer)0).shortValue()));
+                        else if (clazz.equals(Character.class) || clazz.equals(Character.TYPE))
+                            setShort(parameterIndex, java.lang.Short.parseShort(x.toString()));
+                        else if (clazz.equals(Byte.class) || clazz.equals(Byte.TYPE))
+                            setShort(parameterIndex, ((Byte)x).shortValue());
+                        else if (clazz.equals(Short.class) || clazz.equals(Short.TYPE))
+                            setShort(parameterIndex, (Short)x);
+                        else if (clazz.equals(Double.class) || clazz.equals(Double.TYPE))
+                            setShort(parameterIndex, ((Double)x).shortValue());
+                        else if (clazz.equals(Long.class) || clazz.equals(Long.TYPE))
+                            setShort(parameterIndex, ((Long)x).shortValue());
+                        else if (clazz.equals(Float.class) || clazz.equals(Float.TYPE))
+                            setShort(parameterIndex, ((Float)x).shortValue());
+                        else
+                            throw new Exception();
+                        break;
+                    case java.sql.Types.INTEGER:
+                        if (clazz.equals(String.class))
+                            setInt(parameterIndex, java.lang.Integer.parseInt((String)x));
+                        else if (clazz.equals(Integer.class) || clazz.equals(Integer.TYPE))
+                            setInt(parameterIndex, ((Integer)x));
+                        else if (clazz.equals(Boolean.class) || clazz.equals(Boolean.TYPE))
+                            setInt(parameterIndex, ((Boolean)x == true ? 1 : 0));
+                        else if (clazz.equals(Character.class) || clazz.equals(Character.TYPE))
+                               setInt(parameterIndex, java.lang.Integer.parseInt((String)x));
+                        else if (clazz.equals(Byte.class) || clazz.equals(Byte.TYPE))
+                            setInt(parameterIndex, ((Byte)x).intValue());
+                        else if (clazz.equals(Short.class) || clazz.equals(Short.TYPE))
+                            setInt(parameterIndex, ((Short)x).intValue());
+                        else if (clazz.equals(Double.class) || clazz.equals(Double.TYPE))
+                            setInt(parameterIndex, ((Double)x).intValue());
+                        else if (clazz.equals(Long.class) || clazz.equals(Long.TYPE))
+                            setInt(parameterIndex, ((Long)x).intValue());
+                        else if (clazz.equals(Float.class) || clazz.equals(Float.TYPE))
+                            setInt(parameterIndex, ((Float)x).intValue());
+                        else
+                            throw new Exception();
+                        break;
+
+                    case java.sql.Types.BIGINT:
+                        Long l = null;
+                        if (clazz.equals(String.class))
+                        {
+                            if (scaleOrLength > 0)
+                                l = java.lang.Long.parseLong((String)x, scaleOrLength);
+                            else
+                                l = java.lang.Long.parseLong((String)x);
+                        }
+                        else if (clazz.equals(Integer.class) || clazz.equals(Integer.TYPE))
+                            l = ((Integer)x).longValue();
+                        else if (clazz.equals(Boolean.class) || clazz.equals(Boolean.TYPE))
+                            l = ((Boolean)x == true ? ((Integer)1).longValue() : ((Integer)0).longValue());
+                        else if (clazz.equals(Character.class) || clazz.equals(Character.TYPE))
+                        {
+                            if (scaleOrLength > 0)
+                                l = java.lang.Long.parseLong(x.toString(), scaleOrLength);
+                            else
+                                l = java.lang.Long.parseLong(x.toString());
+                        }
+                        else if (clazz.equals(Byte.class) || clazz.equals(Byte.TYPE))
+                            l = ((Byte)x).longValue();
+                        else if (clazz.equals(Short.class) || clazz.equals(Short.TYPE))
+                            l = ((Short)x).longValue();
+                        else if (clazz.equals(Double.class) || clazz.equals(Double.TYPE))
+                            l = ((Double)x).longValue();
+                        else if (clazz.equals(Long.class) || clazz.equals(Long.TYPE))
+                            l = ((Long)x).longValue();
+                        else if (clazz.equals(Float.class) || clazz.equals(Float.TYPE))
+                            l = ((Float)x).longValue();
+
+                        if (l != null)
+                        {
+                            setLong(parameterIndex, l);
+                        }
+                        else
+                            throw new Exception();
+
+                        break;
+                    case java.sql.Types.REAL:
+                        if (clazz.equals(String.class))
+                            setFloat(parameterIndex, java.lang.Float.valueOf((String)x));
+                        else if (clazz.equals(Integer.class) || clazz.equals(Integer.TYPE))
+                            setFloat(parameterIndex, ((Integer)x).floatValue());
+                        else if (clazz.equals(Boolean.class) || clazz.equals(Boolean.TYPE))
+                            setFloat(parameterIndex, ((Boolean)x == true ? ((Integer)1).floatValue() : ((Integer)0).floatValue()));
+                        else if (clazz.equals(Character.class) || clazz.equals(Character.TYPE))
+                            setFloat(parameterIndex, java.lang.Float.valueOf((x.toString())));
+                        else if (clazz.equals(Byte.class) || clazz.equals(Byte.TYPE))
+                            setFloat(parameterIndex, ((Byte)x).floatValue());
+                        else if (clazz.equals(Short.class) || clazz.equals(Short.TYPE))
+                            setFloat(parameterIndex, ((Short)x).floatValue());
+                        else if (clazz.equals(Double.class) || clazz.equals(Double.TYPE))
+                            setFloat(parameterIndex, ((Double)x).floatValue());
+                        else if (clazz.equals(Long.class) || clazz.equals(Long.TYPE))
+                            setFloat(parameterIndex, (Long)x);
+                        else if (clazz.equals(Float.class) || clazz.equals(Float.TYPE))
+                            setFloat(parameterIndex, ((Float)x).floatValue());
+                        else
+                            throw new Exception();
+                        break;
+                    case java.sql.Types.BINARY:
+                    case java.sql.Types.VARBINARY:
+                    case java.sql.Types.LONGVARBINARY:
+                        if (clazz.equals(String.class))
+                            setBytes(parameterIndex, ((String) x).getBytes());
+                        else if (clazz.equals(Integer.class) || clazz.equals(Integer.TYPE))
+                            setBytes(parameterIndex, (((Integer)x).toString()).getBytes());
+                        else if (clazz.equals(Boolean.class) || clazz.equals(Boolean.TYPE))
+                            setBytes(parameterIndex, ((Boolean)x == true ? "1".getBytes() : "0".getBytes()));
+                        else if (clazz.equals(Character.class) || clazz.equals(Character.TYPE))
+                            setBytes(parameterIndex, x.toString().getBytes());
+                        else if (clazz.equals(Byte.class) || clazz.equals(Byte.TYPE))
+                            setBytes(parameterIndex, (byte [])x);
+                        else if (clazz.equals(Short.class) || clazz.equals(Short.TYPE))
+                            setBytes(parameterIndex, ((Short) x).toString().getBytes());
+                        else if (clazz.equals(Double.class) || clazz.equals(Double.TYPE))
+                            setBytes(parameterIndex, ((Double)x).toString().getBytes());
+                        else if (clazz.equals(Long.class) || clazz.equals(Long.TYPE))
+                            setBytes(parameterIndex, ((Long)x).toString().getBytes());
+                        else if (clazz.equals(Float.class) || clazz.equals(Float.TYPE))
+                            setBytes(parameterIndex, ((Float)x).toString().getBytes());
+                        else
+                            throw new Exception();
+                        break;
+                    case java.sql.Types.DATE:
+                        if (clazz.equals(String.class))
+                            setDate(parameterIndex,java.sql.Date.valueOf((String)x));
+                        else if (clazz.equals(Integer.class) || clazz.equals(Integer.TYPE))
+                            setDate(parameterIndex, new java.sql.Date(((Integer)x).longValue()));
+                        else if (clazz.equals(Byte.class) || clazz.equals(Byte.TYPE))
+                            setDate(parameterIndex, new java.sql.Date(((Byte)x).longValue()));
+                        else if (clazz.equals(Short.class) || clazz.equals(Short.TYPE))
+                            setDate(parameterIndex, new java.sql.Date(((Short)x).longValue()));
+                        else if (clazz.equals(Double.class) || clazz.equals(Double.TYPE))
+                            setDate(parameterIndex, new java.sql.Date(((Double)x).longValue()));
+                        else if (clazz.equals(Long.class) || clazz.equals(Long.TYPE))
+                            setDate(parameterIndex, new java.sql.Date(((Long)x)));
+                        else if (clazz.equals(Float.class) || clazz.equals(Float.TYPE))
+                            setDate(parameterIndex, new java.sql.Date(((Float)x).longValue()));
+                        else
+                            throw new Exception();
+                        break;
+                    case java.sql.Types.TIME:
+                        if (clazz.equals(String.class))
+                            setTime(parameterIndex, java.sql.Time.valueOf((String)x));
+                        else if (clazz.equals(Integer.class) || clazz.equals(Integer.TYPE))
+                            setTime(parameterIndex, new java.sql.Time(((Integer)x).longValue()));
+                        else if (clazz.equals(Byte.class) || clazz.equals(Byte.TYPE))
+                            setTime(parameterIndex, new java.sql.Time(((Byte)x).longValue()));
+                        else if (clazz.equals(Short.class) || clazz.equals(Short.TYPE))
+                            setTime(parameterIndex, new java.sql.Time(((Short)x).longValue()));
+                        else if (clazz.equals(Double.class) || clazz.equals(Double.TYPE))
+                            setTime(parameterIndex, new java.sql.Time(((Double)x).longValue()));
+                        else if (clazz.equals(Long.class) || clazz.equals(Long.TYPE))
+                            setTime(parameterIndex, new java.sql.Time(((Long)x)));
+                        else if (clazz.equals(Float.class) || clazz.equals(Float.TYPE))
+                            setTime(parameterIndex, new java.sql.Time(((Float)x).longValue()));
+                        else
+                            throw new Exception();
+                        break;
+                    case java.sql.Types.TIMESTAMP:
+                        if (clazz.equals(String.class))
+                            setTimestamp(parameterIndex, java.sql.Timestamp.valueOf((String)x));
+                        else if (clazz.equals(Integer.class) || clazz.equals(Integer.TYPE))
+                            setTimestamp(parameterIndex, new java.sql.Timestamp(((Integer)x).longValue()));
+                        else if (clazz.equals(Byte.class) || clazz.equals(Byte.TYPE))
+                            setTimestamp(parameterIndex, new java.sql.Timestamp(((Byte)x).longValue()));
+                        else if (clazz.equals(Short.class) || clazz.equals(Short.TYPE))
+                            setTimestamp(parameterIndex, new java.sql.Timestamp(((Short)x).longValue()));
+                        else if (clazz.equals(Double.class) || clazz.equals(Double.TYPE))
+                            setTimestamp(parameterIndex, new java.sql.Timestamp(((Double)x).longValue()));
+                        else if (clazz.equals(Long.class) || clazz.equals(Long.TYPE))
+                            setTimestamp(parameterIndex, new java.sql.Timestamp(((Long)x)));
+                        else if (clazz.equals(Float.class) || clazz.equals(Float.TYPE))
+                            setTimestamp(parameterIndex, new java.sql.Timestamp(((Float)x).longValue()));
+                        else
+                            throw new Exception();
+                        break;
+                    default:
+                        throw new Exception();
+                }
+            }
+            catch (Exception e)
+            {
+                throw new SQLException("Cannot convert " + x.toString() + "(" + x.getClass() + ") to: " + targetSqlTypeName);
+            }
+        }
+        else
+        {
+            setNull(parameterIndex, targetSqlType);
+        }
+
+        System.out.println(parameters.get(parameterIndex));
     }
 
     public void setAsciiStream(int parameterIndex, InputStream x, long length) throws SQLException
@@ -350,7 +734,7 @@ public class HPCCPreparedStatement extends HPCCStatement implements PreparedStat
 
     public void setCharacterStream(int parameterIndex, Reader reader, long length) throws SQLException
     {
-        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setDouble(" + parameterIndex + ", " + reader + " )");
+        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setCharacterStream(" + parameterIndex + ", " + reader + " )");
         throw new UnsupportedOperationException(className + ": setCharacterStream Not supported yet.");
     }
 
@@ -398,7 +782,6 @@ public class HPCCPreparedStatement extends HPCCStatement implements PreparedStat
 
     public void close() throws SQLException
     {
-
         HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": close( )");
         if (!closed)
         {

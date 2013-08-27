@@ -245,6 +245,7 @@ public class HPCCDriverTest
             }
         }
     }
+
     private void executeFreeHandSQL(String SQL, boolean expectPass, int minResults, String csvpath, String testName)
     {
         BufferedReader readDataFile = null;
