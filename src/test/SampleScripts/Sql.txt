@@ -1,0 +1,5 @@
+Test1=call roxie::fetchpeoplebyzipservice(33024)
+Test2=[true;0;/home/vagrant/Testparams.csv]call roxie::fetchpeoplebyzipservice(?)
+boolean-test-true-and-false-Test21=[true;0]select firstname from badword::search::bool AS badwords where foundword=false and foundword=tRUE
+Fully-qualified-published-query-Test3=[true;1]call thor::rp::fetchpeoplebyzipservice(33445,,two)
+Fully-qualified-published-query-Test4=[true;1]call thor::rp::fetchpeoplebyzipservice(33447,"","")

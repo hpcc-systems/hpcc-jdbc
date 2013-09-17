@@ -863,7 +863,7 @@ public class HPCCResultSet implements ResultSet
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet getObject( " + columnIndex + " )" );
         if (index >= 0 && index <= rows.size())
         {
-            lastResult = rows.get(index).get(columnIndex - 1);
+            lastResult = HPCCJDBCUtils.createSqlTypeObjFromStringObj(resultMetadata.getColumnType(columnIndex), rows.get(index).get(columnIndex - 1));
             return lastResult;
         }
         else
@@ -881,9 +881,9 @@ public class HPCCResultSet implements ResultSet
             List<?> row = rows.get(index);
             if (row != null)
             {
-                lastResult = row.get(columnIndex - 1);
-                if (lastResult == null)
-                    return null;
+                lastResult = HPCCJDBCUtils.createSqlTypeObjFromStringObj(
+                                resultMetadata.getColumnType(columnIndex),
+                                row.get(columnIndex - 1));
                 return lastResult;
             }
             else
