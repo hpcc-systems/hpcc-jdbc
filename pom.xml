@@ -48,6 +48,8 @@
 		<maven.compiler.plugin.version>3.0</maven.compiler.plugin.version>
 		<maven.javadoc.plugin.version>2.9</maven.javadoc.plugin.version>
 		<maven.source.plugin.version>2.2.1</maven.source.plugin.version>
+		<antlr3.maven.plugin.version>3.4</antlr3.maven.plugin.version>
+		<antlr.runtime.version>3.4</antlr.runtime.version>
 		<surefire.version>2.11</surefire.version>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -93,7 +95,7 @@
 			<plugin>
 				<groupId>org.antlr</groupId>
 				<artifactId>antlr3-maven-plugin</artifactId>
-				<version>3.5</version>
+				<version>${antlr3.maven.plugin.version}</version>
 				<executions>
 					<execution>
 						<goals>
@@ -110,8 +112,6 @@
 					<source>1.6</source>
 					<target>1.6</target>
 				</configuration>
-				<!-- <executions> <execution> <phase>compile</phase> <goals> <goal>compile</goal> 
-					</goals> </execution> </executions> -->
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -173,7 +173,7 @@
 											antlr3-maven-plugin
 										</artifactId>
 										<versionRange>
-											[3.5,)
+											[3.4,)
 										</versionRange>
 										<goals>
 											<goal>antlr</goal>
@@ -233,7 +233,7 @@
 		<dependency>
 			<groupId>org.antlr</groupId>
 			<artifactId>antlr-runtime</artifactId>
-			<version>3.5</version>
+			<version>${antlr.runtime.version}</version>
 		</dependency>
 	</dependencies>
 
