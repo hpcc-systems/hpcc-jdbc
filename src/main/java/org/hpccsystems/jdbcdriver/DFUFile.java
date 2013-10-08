@@ -79,6 +79,8 @@ public class DFUFile
         FLAT,
         THOR,
         XML,
+        UTF8N,
+        KEY,
         CSV;
     }
 
@@ -505,6 +507,11 @@ public class DFUFile
         return format != null ? format.name() : "";
     }
 
+    public FileFormat getFormatValue()
+    {
+        return format;
+    }
+
     public String getCsvSeparate()
     {
         return csvSeparate;
@@ -524,10 +531,17 @@ public class DFUFile
             try
             {
                 format = HPCCJDBCUtils.findEnumValFromString(FileFormat.class, formatstr.trim());
+                if (format == FileFormat.UTF8N)
+                {
+                    HPCCJDBCUtils.traceoutln(Level.SEVERE, "Found File with reported format UTF8N, treating as CSV format" + (fullyQualifiedName == null ? "!" : ": " + fullyQualifiedName));
+                    format = FileFormat.CSV;
+                }
+                else if (format == FileFormat.KEY)
+                    setIsKeyFile(true);
             }
             catch (Exception e)
             {
-                HPCCJDBCUtils.traceoutln(Level.SEVERE,   "Invalid file format detected");
+                HPCCJDBCUtils.traceoutln(Level.SEVERE,   "Invalid file format detected, treating as FLAT format" + (fullyQualifiedName == null ? "!" : ": " + fullyQualifiedName));
             }
         }
     }
@@ -866,4 +880,5 @@ public class DFUFile
     {
         return hasKeyedFieldInfoBeenSet;
     }
+
 }

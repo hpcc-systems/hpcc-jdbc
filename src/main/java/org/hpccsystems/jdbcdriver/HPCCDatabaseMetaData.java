@@ -42,6 +42,7 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
+import org.hpccsystems.jdbcdriver.DFUFile.FileFormat;
 import org.hpccsystems.jdbcdriver.HPCCJDBCUtils.EclTypes;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -252,6 +253,8 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         {
             NodeList resultslist = fileDetail.item(0).getChildNodes(); // ECLResult nodes
 
+            String contentType = ""; //only appears as of HPCCv4.2 and /WsDfu/DFUInfo v1.21
+
             for (int i = 0; i < resultslist.getLength(); i++)
             {
                 Node currentfiledetail = resultslist.item(i);
@@ -266,9 +269,9 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                 {
                     file.setFileName(currentfiledetail.getTextContent());
                 }
-                else if (nodename.equals("Format"))
+                else if (nodename.equals("Format") && contentType.length() <=0 )
                 {
-                    file.setFormat(currentfiledetail.getTextContent());
+                    contentType = currentfiledetail.getTextContent();
                 }
                 else if (nodename.equals("Description"))
                 {
@@ -282,7 +285,13 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                         file.addSubfile(subfilelist.item(y).getTextContent());
                     }
                 }
+                else if (nodename.equals("ContentType") && currentfiledetail.getTextContent().length() > 0)
+                {
+                    contentType = currentfiledetail.getTextContent();
+                }
             }
+
+            file.setFormat(contentType);
         }
         return 0;
     }
@@ -2042,7 +2051,9 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
             if (file.getFullyQualifiedName().length() > 0)
             {
                 String filedetailUrl = basewseclwatchurl + "/WsDfu/DFUInfo?Name="
-                        + URLEncoder.encode(file.getFullyQualifiedName(), "UTF-8") + "&rawxml_";
+                        + URLEncoder.encode(file.getFullyQualifiedName(), "UTF-8") + "&rawxml_" 
+                        + "&ver_=1.21"; //As of HPCCv4.2 and /WsDfu/DFUInfo v1.21 the ContentType tag 
+                                        //is used to determine file content type (or data format)
 
                 // now request the schema for this file.
                 URL queryschema = HPCCJDBCUtils.makeURL(filedetailUrl);
@@ -2055,11 +2066,20 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                 // Get all pertinent detail info regarding this file
                 registerFileDetails(docElement, file);
 
+                if (file.getFormatValue() == FileFormat.XML)
+                {
+                    HPCCJDBCUtils.traceoutln(Level.INFO, "Detected non-supported XML based HPCC file: " + file.getFullyQualifiedName());
+                    isSuccess = false;
+                }
+
                 // Add this file name to files structure
                 dfufiles.putFile(file.getFullyQualifiedName(), file);
             }
             else
+            {
                 HPCCJDBCUtils.traceoutln(Level.INFO, "Not fetching info for HPCC file: " + file.getFullyQualifiedName());
+                isSuccess = false;
+            }
         }
         catch (Exception e)
         {
