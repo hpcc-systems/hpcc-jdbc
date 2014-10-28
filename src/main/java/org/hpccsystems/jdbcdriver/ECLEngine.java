@@ -1131,9 +1131,6 @@ public class ECLEngine
         StringBuilder sb = new StringBuilder();
         try
         {
-            sb.append(URLEncoder.encode("submit_type_=xml", "UTF-8"));
-            sb.append("&").append(URLEncoder.encode("S1=Submit", "UTF-8"));
-
             if (procInParamValues != null)
             {
                 for (int columindex = 0, parameterindex = 0; columindex < procInParamValues.length && columindex < storeProcInParams.size(); columindex++)
