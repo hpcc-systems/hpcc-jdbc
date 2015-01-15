@@ -364,6 +364,21 @@
     <para>They can be passed to the JDBC driver using the JDBC connection URL
     or as part of the connection properties object. When passed through the
     connection URL, the values must be URL-encoded.</para>
+
+    <para>The connection URL syntax is as follows:</para>
+
+    <programlisting>jdbc:hpcc[;urlencodedkey=urlencodedvalue]*</programlisting>
+
+    <variablelist>
+      <varlistentry>
+        <term>Note:</term>
+
+        <listitem>
+          <para>The <emphasis role="bluebold">jdbc:hpcc</emphasis> prefix is
+          required.</para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
   </chapter>
 
   <chapter>
@@ -1362,7 +1377,7 @@ HPCCConnection connection = null;
    }
 
 
-</programlisting>More code samples are available from: </para>
+</programlisting>More code samples are available from:</para>
 
     <para><ulink
     url="https://github.com/hpcc-systems/hpcc-jdbc/tree/master/src/test/java/org/hpccsystems/jdbcdriver/tests">https://github.com/hpcc-systems/hpcc-jdbc/tree/master/src/test/java/org/hpccsystems/jdbcdriver/tests</ulink></para>
