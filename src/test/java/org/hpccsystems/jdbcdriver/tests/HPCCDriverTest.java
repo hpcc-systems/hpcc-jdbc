@@ -17,13 +17,14 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Properties;
+
 import org.hpccsystems.jdbcdriver.HPCCConnection;
 import org.hpccsystems.jdbcdriver.HPCCDatabaseMetaData;
 import org.hpccsystems.jdbcdriver.HPCCDriver;
 import org.hpccsystems.jdbcdriver.HPCCJDBCUtils;
 import org.hpccsystems.jdbcdriver.HPCCPreparedStatement;
 import org.hpccsystems.jdbcdriver.HPCCResultSet;
-import org.hpccsystems.jdbcdriver.SQLParser;
+import org.hpccsystems.jdbcdriver.HPCCStatement;
 
 
 public class HPCCDriverTest
@@ -39,8 +40,9 @@ public class HPCCDriverTest
         return testcasecount;
     }
 
-     private BufferedWriter reportBufferedWriter;
-     private boolean            vmode = false;
+    private BufferedWriter reportBufferedWriter;
+    private boolean            vmode = false;
+
     public boolean isVmode()
     {
         return vmode;
@@ -95,23 +97,24 @@ public class HPCCDriverTest
         {
             if(connectionByProperties!=null)
             {
-            ResultSet tables = connectionByProperties.getMetaData().getTables(null, null, "%", null);
+                ResultSet tables = connectionByProperties.getMetaData().getTables(null, null, "%", null);
 
-            System.out.println("Tables found: ");
-            while (tables.next())
-            {
-                String tablename=null;
-                System.out.println("\t" + tables.getString("TABLE_NAME"));
-                tablename=tables.getString("TABLE_NAME");
-                if(vmode)
+                System.out.println("Tables found: ");
+                while (tables.next())
                 {
-                    ResultSet tablecols = connectionByProperties.getMetaData().getColumns(null,
-                            null, tablename, "%");
-                    while (tablecols.next())
-                        System.out.println("\t\t"+ tablecols.getString("COLUMN_NAME") + "( "+ tablecols.getString("TYPE_NAME") + " )");
+                    String tablename=null;
+                    System.out.println("\t" + tables.getString("TABLE_NAME"));
+                    tablename=tables.getString("TABLE_NAME");
+                    if(vmode)
+                    {
+                        ResultSet tablecols = connectionByProperties.getMetaData().getColumns(null, null, tablename, "%");
+                        while (tablecols.next())
+                        {
+                            System.out.println("\t\t"+ tablecols.getString("COLUMN_NAME") + "( "+ tablecols.getString("TYPE_NAME") + " )");
+                        }
+                    }
+                    System.out.println();
                 }
-                System.out.println();
-            }
             }
             else
             {
@@ -134,8 +137,9 @@ public class HPCCDriverTest
 
             System.out.println("Table cols found: ");
             while (tablecols.next())
-                System.out.println("\t" + tablecols.getString("TABLE_NAME") + "::" + tablecols.getString("COLUMN_NAME")
-                        + "( " + tablecols.getString("TYPE_NAME") + " )");
+            {
+                System.out.println("\t" + tablecols.getString("TABLE_NAME") + "::" + tablecols.getString("COLUMN_NAME")+"( " + tablecols.getString("TYPE_NAME") + " )");
+            }
         }
         catch (Exception e)
         {
@@ -160,8 +164,7 @@ public class HPCCDriverTest
                 if (vmode)
                 {
                     procname=procs.getString("PROCEDURE_NAME");
-                    ResultSet proccols = connectionByProperties.getMetaData().getProcedureColumns(
-                            null, null, procname, null);
+                    ResultSet proccols = connectionByProperties.getMetaData().getProcedureColumns( null, null, procname, null);
                     while (proccols.next())
                         System.out.println("\t\t"+ proccols.getString("COLUMN_NAME") + " (" + proccols.getInt("COLUMN_TYPE") + ")");
                 }
@@ -186,8 +189,7 @@ public class HPCCDriverTest
         boolean success = true;
         try
         {
-            ResultSet proccols = connection.getMetaData().getProcedureColumns(
-                    null, null, null, null);
+            ResultSet proccols = connection.getMetaData().getProcedureColumns(null, null, null, null);
             if (vmode)
             {
                 System.out.println("procs cols found: ");
@@ -246,7 +248,7 @@ public class HPCCDriverTest
         }
     }
 
-    private void executeFreeHandSQL(String SQL, boolean expectPass, int minResults, String csvpath, String testName)
+    private void executeFreeHandSQL(String sql, boolean expectPass, int minResults, String csvpath, String testName)
     {
         BufferedReader readDataFile = null;
         String line = null;
@@ -257,12 +259,12 @@ public class HPCCDriverTest
             PreparedStatement p = null;
             try
             {
-                p = connectionByProperties.prepareStatement(SQL);
+                p = connectionByProperties.prepareStatement(sql);
             }
             catch (Exception e)
             {
                 errormessage = e.getLocalizedMessage();
-                freeHandSQL_Report("FAILED: " + errormessage, testName, SQL);
+                freeHandSQL_Report("FAILED: " + errormessage, testName, sql);
                 return;
             }
             p.clearParameters();
@@ -271,8 +273,6 @@ public class HPCCDriverTest
             while (!((line = readDataFile.readLine()).isEmpty()))
             {
                 boolean success = true;
-                SQLParser sqlParser = new SQLParser();
-                sqlParser.process(SQL);
                 String[] csvlines = line.split(";");
                 prepParamValue = "";
                 for (int i = 0; i < csvlines.length; i++)
@@ -283,35 +283,15 @@ public class HPCCDriverTest
 
                 if (vmode)
                 {
-                    System.out.println(SQL + "values: " + prepParamValue);
-                }
-
-                if (sqlParser.getSqlType() == SQLParser.SQLType.CALL)
-                {
-                    int callparam = HPCCJDBCUtils.parseCallParameters(SQL);
-                    if (callparam != csvlines.length)
+                    System.out.print(sql + " values: ");
+                    for (int i = 0; i < csvlines.length; i++)
                     {
-                        System.out.println("Warning: Parameters size:"
-                                + prepParamValue
-                                + " does not match the size of"
-                                + "prepared statement:" + SQL);
+                        System.out.print(csvlines[i]);
+                        if (i < csvlines.length)
+                            System.out.print(", ");
+                        else
+                            System.out.println();
                     }
-                }
-                else if (sqlParser.getSqlType() == SQLParser.SQLType.SELECT)
-                {
-                    int countparam = sqlParser.assignParameterIndexes();
-                    if (countparam != csvlines.length)
-                    {
-                        System.out.println("Warning: Parameters size:"
-                                + prepParamValue
-                                + " does not match the size of"
-                                + "prepared statement:" + SQL);
-                    }
-                }
-                else
-                {
-                    freeHandSQL_Report("FAILED: unsupported SQL statement type " + errormessage, testName, SQL);
-                    return;
                 }
 
                 HPCCResultSet qrs = null;
@@ -331,30 +311,25 @@ public class HPCCDriverTest
                 if (success && expectPass)
                 {
                     if (resultcount < minResults)
-                    {
-                        freeHandSQL_Report("Detected less rows than expected", testName,
-                                SQL + "--Value:" + prepParamValue);
-                    }
+                        freeHandSQL_Report("Detected less rows than expected", testName, sql + "--Value:" + prepParamValue);
                     else
-                    {
-                        freeHandSQL_Report("EXECUTED AS EXPECTED", testName, SQL + "--Value:" + prepParamValue);
-                    }
+                        freeHandSQL_Report("EXECUTED AS EXPECTED", testName, sql + "--Value:" + prepParamValue);
                 }
                 else if (!success && !expectPass)
                 {
-                    freeHandSQL_Report("EXECUTED AS EXPECTED", testName, SQL + "--Value:" + prepParamValue);
+                    freeHandSQL_Report("EXECUTED AS EXPECTED", testName, sql + "--Value:" + prepParamValue);
                 }
                 else if (!success && expectPass)
                 {
-                    freeHandSQL_Report("UNEXPECTED (failure): " + errormessage, testName, SQL + "--Value:" + prepParamValue);
+                    freeHandSQL_Report("UNEXPECTED (failure): " + errormessage, testName, sql + "--Value:" + prepParamValue);
                 }
                 else if (success && !expectPass)
                 {
-                    freeHandSQL_Report("UNEXPECTED (success)", testName, SQL + "--Value:" + prepParamValue);
+                    freeHandSQL_Report("UNEXPECTED (success)", testName, sql + "--Value:" + prepParamValue);
                 }
                 else
                 {
-                    freeHandSQL_Report("UNKNOWN Result state", testName, SQL + "--Value:" + prepParamValue);
+                    freeHandSQL_Report("UNKNOWN Result state", testName, sql + "--Value:" + prepParamValue);
                 }
 
                 if (resultcount > 0 && vmode)
@@ -370,7 +345,7 @@ public class HPCCDriverTest
         }
         catch (Exception e)
         {
-            freeHandSQL_Report("Error:"+e.getLocalizedMessage(),testName,SQL);
+            freeHandSQL_Report("Error:"+e.getLocalizedMessage(),testName,sql);
         }
         finally
         {
@@ -396,6 +371,12 @@ public class HPCCDriverTest
 
         try
         {
+            HPCCStatement statement = (HPCCStatement)connectionByProperties.createStatement();
+            statement.execute(SQL);
+            HPCCResultSet resultSet = (HPCCResultSet) statement.getResultSet();
+
+            printTableInVerboseMode( resultSet.getMetaData(), resultSet);
+
             PreparedStatement p = connectionByProperties.prepareStatement(SQL);
             p.clearParameters();
 
@@ -407,7 +388,7 @@ public class HPCCDriverTest
 
             if (resultcount > 0 && vmode)
             {
-                    printTableInVerboseMode( meta, qrs);
+                printTableInVerboseMode( meta, qrs);
             }
         }
         catch (Exception e)
@@ -787,6 +768,7 @@ public class HPCCDriverTest
                 e.printStackTrace();
             }
     }
+
     public static void main(String[] args) throws IOException
     {
         HPCCDriverTest hpccTestObject = null;
@@ -909,6 +891,5 @@ public class HPCCDriverTest
                 System.out.println("\n HPCC Driver test completed- 0 statement executed.");
             }
         }
-
     }
 }

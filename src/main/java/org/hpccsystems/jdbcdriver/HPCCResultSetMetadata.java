@@ -43,7 +43,6 @@ public class HPCCResultSetMetadata implements ResultSetMetaData
         for (HPCCColumnMetaData col : columnList)
         {
             col.setIndex(colIndex++);
-
             columnListHash.put(col.getColumnNameOrAlias().toUpperCase(), col);
         }
     }
@@ -92,7 +91,10 @@ public class HPCCResultSetMetadata implements ResultSetMetaData
 
     public int getColumnCount() throws SQLException
     {
-        return columnList.size();
+        if (columnList != null)
+            return columnList.size();
+
+        throw new SQLException("Metadata not set");
     }
 
     public boolean isAutoIncrement(int column) throws SQLException

@@ -19,18 +19,11 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 package org.hpccsystems.jdbcdriver;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.SocketTimeoutException;
-import java.net.URL;
-import java.net.URLEncoder;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.RowIdLifetime;
 import java.sql.SQLException;
-import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Iterator;
@@ -38,22 +31,20 @@ import java.util.List;
 import java.util.Properties;
 import java.util.logging.Level;
 
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-
-import org.hpccsystems.jdbcdriver.DFUFile.FileFormat;
 import org.hpccsystems.jdbcdriver.HPCCJDBCUtils.EclTypes;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
-import org.xml.sax.SAXException;
-
-/**
- *
- * @author rpastrana
- */
+import org.hpccsystems.ws.client.gen.extended.wssql.v1_0.HPCCColumn;
+import org.hpccsystems.ws.client.gen.extended.wssql.v1_0.HPCCQuerySet;
+import org.hpccsystems.ws.client.gen.extended.wssql.v1_0.HPCCTable;
+import org.hpccsystems.ws.client.gen.extended.wssql.v1_0.OutputDataset;
+import org.hpccsystems.ws.client.gen.extended.wssql.v1_0.PublishedQuery;
+import org.hpccsystems.ws.client.gen.extended.wssql.v1_0.QuerySetAliasMap;
+import org.hpccsystems.ws.client.gen.extended.wssql.v1_0.QuerySignature;
+import org.hpccsystems.ws.client.gen.wsdfu.v1_29.DFUDataColumn;
+import org.hpccsystems.ws.client.gen.wsdfu.v1_29.DFUSearchDataResponse;
+import org.hpccsystems.ws.client.platform.Cluster;
+import org.hpccsystems.ws.client.platform.DataQuerySet;
+import org.hpccsystems.ws.client.platform.Platform;
+import org.hpccsystems.ws.client.platform.Version;
 
 public class HPCCDatabaseMetaData implements DatabaseMetaData
 {
@@ -65,81 +56,41 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public static final short           JDBCVerMajor             = 3;
     public static final short           JDBCVerMinor             = 0;
 
-    private static String               HPCCBuildVersionFull     = "";
-    @SuppressWarnings("unused")
-    private static String               HPCCBuildType            = "";
-    private static short                HPCCBuildMajor           = 0;
-    private static float                HPCCBuildMinor           = 0;
+    private static Version              hpccVersion              = null;
 
     private boolean                     isHPCCMetaDataCached     = false;
     private boolean                     isDFUMetaDataCached      = false;
     private boolean                     isQuerySetMetaDataCached = false;
-    private boolean                     hasHPCCTargetBeenReached = false;
 
-    private String                      serverAddress;
+    private String                      userName;
     private String                      targetcluster;
     private String                      queryset;
-    private String                      basewseclwatchurl;
-    private String                      basicAuth;
-    private String                      UserName;
     private boolean                     lazyLoad;
-    private int                         pageSize;
-    private int                         pageOffset;
-    private int                         connectTimoutMillis;
-    private int                         readTimoutMillis;
-
-    private DocumentBuilderFactory      dbf;
 
     final static String                 PROCEDURE_NAME           = "PROCEDURE_NAME";
     final static String                 TABLE_NAME               = "TABLE_NAME";
+    private HPCCConnection              connection = null;
 
-    private static final String         FILEFETCHTYPE_ALL             = "Logical Files and Superfiles";
-    @SuppressWarnings("unused")
-    private static final String         FILEFETCHTYPE_LOGICAL_ONLY    = "Logical Files Only";
-    @SuppressWarnings("unused")
-    private static final String         FILEFETCHTYPE_SUPER_ONLY      = "Superfiles Only";
-    @SuppressWarnings("unused")
-    private static final String         FILEFETCHTYPE_NOT_IN_SUPER    = "Not in Superfiles";
-
-    public HPCCDatabaseMetaData(Properties props)
+    public HPCCDatabaseMetaData(HPCCConnection connection)
     {
         super();
-        this.serverAddress = props.getProperty("ServerAddress", HPCCDriver.SERVERADDRESSDEFAULT);
-        this.targetcluster = props.getProperty("TargetCluster", HPCCDriver.CLUSTERDEFAULT);
-        this.queryset = props.getProperty("QuerySet", HPCCDriver.QUERYSETDEFAULT);
+        this.connection = connection;
+        Properties props = this.connection.getProperties();
 
-        this.basewseclwatchurl = props.getProperty("WsECLWatchAddress", this.serverAddress) + ":" +
-                             props.getProperty("WsECLWatchPort", HPCCDriver.WSECLWATCHPORTDEFAULT);
-        this.UserName = props.getProperty("username", "");
-        this.basicAuth = props.getProperty("BasicAuth",
-                HPCCConnection.createBasicAuth(this.UserName, props.getProperty("password", "")));
+        this.userName = props.getProperty("username", "");
         this.lazyLoad = Boolean.parseBoolean(props.getProperty("LazyLoad", HPCCDriver.LAZYLOADDEFAULT));
-        this.pageSize = HPCCJDBCUtils.stringToInt(
-                props.getProperty("PageSize"),
-                Integer.valueOf(HPCCDriver.FETCHPAGESIZEDEFAULT));
-        this.pageOffset = HPCCJDBCUtils.stringToInt(
-                props.getProperty("PageOffset"),
-                Integer.valueOf(HPCCDriver.FETCHPAGEOFFSETDEFAULT));
-        this.connectTimoutMillis = HPCCJDBCUtils.stringToInt(props.getProperty("ConnectTimeoutMilli"),
-                Integer.valueOf(HPCCDriver.CONNECTTIMEOUTMILDEFAULT));
-        this.readTimoutMillis = HPCCJDBCUtils.stringToInt(props.getProperty("ReadTimeoutMilli"),
-                Integer.valueOf(HPCCDriver.READTIMEOUTMILDEFAULT));
-
-        HPCCJDBCUtils.traceoutln(Level.INFO, "HPCCDatabaseMetaData ServerAddress: " + serverAddress
-                + " TargetCluster: " + targetcluster + " eclwatch: " + basewseclwatchurl);
+        this.targetcluster = props.getProperty("TargetCluster", HPCCDriver.CLUSTERDEFAULT);
 
         targetclusters = new ArrayList<String>();
         querysets = new ArrayList<String>();
         dfufiles = new HPCCLogicalFiles();
         eclqueries = new HPCCQueries();
 
-        dbf = DocumentBuilderFactory.newInstance();
-
         if (!isHPCCMetaDataCached())
         {
-            setHPCCMetaDataCached(CacheMetaData());
+            cacheMetaData();
 
-            if (targetclusters.size() > 0 && !targetclusters.contains(this.targetcluster))
+            if (targetclusters != null && targetclusters.size() > 0 && !targetclusters.contains(this.targetcluster))
             {
                 props.setProperty("TargetCluster", targetclusters.get(0));
                 HPCCJDBCUtils.traceoutln(Level.INFO, "Invalid cluster name found: "+ this.targetcluster+ ". using: "+targetclusters.get(0));
@@ -186,16 +137,14 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         this.isHPCCMetaDataCached = isMetaDataCached;
     }
 
-    private boolean CacheMetaData()
+    private boolean cacheMetaData()
     {
         boolean isSuccess = true;
 
-        if (serverAddress == null || targetcluster == null)
+        if (connection == null || connection.isClosed() || !connection.isTargetHPCCReachable())
             return false;
 
-        hasHPCCTargetBeenReached = isTargetHPCCReachable();
-
-        if (!hasHPCCTargetBeenReached)
+        if (connection.getHPCCPlatform() == null || targetcluster == null)
             return false;
 
         isSuccess &= fetchHPCCInfo();
@@ -206,7 +155,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
 
         if (!lazyLoad)
         {
-            setDFUMetaDataCached(fetchHPCCFilesInfo());
+            setDFUMetaDataCached(fetchHPCCFilesInfo(null));
 
             if (isDFUMetaDataCached())
             {
@@ -239,172 +188,9 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         if (!isSuccess)
            HPCCJDBCUtils.traceoutln(Level.SEVERE, "Could not query HPCC metadata check server address, cluster name, wsecl, and wseclwatch configuration.");
 
+        setHPCCMetaDataCached(isSuccess);
+
         return isSuccess;
-    }
-
-    private int registerFileDetails(Element node, DFUFile file)
-    {
-        if (file.isSuperFile())
-            HPCCJDBCUtils.traceoutln(Level.INFO, "Found super file: " + file.getFullyQualifiedName());
-
-        NodeList fileDetail = node.getElementsByTagName("FileDetail");
-
-        if (fileDetail.getLength() > 0)
-        {
-            NodeList resultslist = fileDetail.item(0).getChildNodes(); // ECLResult nodes
-
-            String contentType = ""; //only appears as of HPCCv4.2 and /WsDfu/DFUInfo v1.21
-
-            for (int i = 0; i < resultslist.getLength(); i++)
-            {
-                Node currentfiledetail = resultslist.item(i);
-
-                String nodename = currentfiledetail.getNodeName();
-
-                if (nodename.equals("Ecl"))
-                {
-                    file.setFileRecDef(currentfiledetail.getTextContent());
-                }
-                else if (nodename.equals("Filename"))
-                {
-                    file.setFileName(currentfiledetail.getTextContent());
-                }
-                else if (nodename.equals("Format") && contentType.length() <=0 )
-                {
-                    contentType = currentfiledetail.getTextContent();
-                }
-                else if (nodename.equals("Description"))
-                {
-                    file.setDescription(currentfiledetail.getTextContent());
-                }
-                else if (file.isSuperFile() && nodename.equals("subfiles"))
-                {
-                    NodeList subfilelist = currentfiledetail.getChildNodes();
-                    for (int y = 0; y < subfilelist.getLength(); y++)
-                    {
-                        file.addSubfile(subfilelist.item(y).getTextContent());
-                    }
-                }
-                else if (nodename.equals("ContentType") && currentfiledetail.getTextContent().length() > 0)
-                {
-                    contentType = currentfiledetail.getTextContent();
-                }
-            }
-
-            file.setFormat(contentType);
-        }
-        return 0;
-    }
-
-    public static int registerSchemaElements(Element node, HPCCQuery query)
-    {
-        NodeList results = node.getElementsByTagName("Results");
-        if (results.getLength() > 0)
-        {
-            NodeList resultslist = results.item(0).getChildNodes(); // ECLResult nodes
-
-            for (int i = 0; i < resultslist.getLength(); i++)
-            {
-                Node currentresult = resultslist.item(i);
-                NodeList resultprops = currentresult.getChildNodes();
-                String tablename = "";
-                for (int j = 0; j < resultprops.getLength(); j++)
-                {
-                    Node currentresultprop = resultprops.item(j);
-                    if (currentresultprop.getNodeName().equals("Name"))
-                    {
-                        tablename = currentresultprop.getTextContent();
-                        query.addResultDataset(tablename);
-                    }
-                    else if (currentresultprop.getNodeName().equals("ECLSchemas"))
-                    {
-                        NodeList schemaitems = currentresultprop.getChildNodes(); // ECLSchemaItem
-                        String columname = "";
-                        String columntype = "";
-                        for (int x = 0; x < schemaitems.getLength(); x++)
-                        {
-                            NodeList schemaitemfields = schemaitems.item(x).getChildNodes();
-
-                            for (int y = 0; y < schemaitemfields.getLength(); y++)
-                            {
-                                Node elem = schemaitemfields.item(y);
-                                if (elem.getNodeName().equals("ColumnName"))
-                                    columname = elem.getTextContent();
-                                else if (elem.getNodeName().equals("ColumnType"))
-                                    columntype = elem.getTextContent();
-                            }
-
-                            HPCCColumnMetaData elemmeta = new HPCCColumnMetaData(columname.toUpperCase(), 0, java.sql.Types.OTHER);
-                            elemmeta.setEclType(columntype);
-                            elemmeta.setTableName(tablename);
-                            elemmeta.setParamType(procedureColumnOut);
-                            try
-                            {
-                                query.addResultElement(elemmeta);
-                            }
-                            catch (Exception e)
-                            {
-                                HPCCJDBCUtils.traceoutln(Level.SEVERE,  "Could not add dataset element: "
-                                        + tablename + ":" + elemmeta.getColumnName());
-                            }
-                        }
-
-                    }
-                }
-            }
-        }
-
-        NodeList variables = node.getElementsByTagName("Variables");
-        if (variables.getLength() > 0)
-        {
-            NodeList resultslist = variables.item(0).getChildNodes(); // ECLResult  nodes
-
-            for (int i = 0; i < resultslist.getLength(); i++)
-            {
-                Node currentresult = resultslist.item(i);
-                NodeList resultprops = currentresult.getChildNodes();
-                String inParam = "";
-                for (int j = 0; j < resultprops.getLength(); j++)
-                {
-                    Node currentresultprop = resultprops.item(j);
-
-                    if (currentresultprop.getNodeName().equals("ECLSchemas"))
-                    {
-                        NodeList schemaitems = currentresultprop.getChildNodes(); // ECLSchemaItem
-                        String columname = "";
-                        String columntype = "";
-                        for (int x = 0; x < schemaitems.getLength(); x++)
-                        {
-                            NodeList schemaitemfields = schemaitems.item(x).getChildNodes();
-
-                            for (int y = 0; y < schemaitemfields.getLength(); y++)
-                            {
-                                Node elem = schemaitemfields.item(y);
-                                if (elem.getNodeName().equals("ColumnName"))
-                                    columname = elem.getTextContent();
-                                else if (elem.getNodeName().equals("ColumnType"))
-                                    columntype = elem.getTextContent();
-                            }
-                            HPCCColumnMetaData elemmeta = new HPCCColumnMetaData(columname, i + 1,java.sql.Types.OTHER);
-                            elemmeta.setEclType(columntype);
-                            elemmeta.setTableName(query.getName());
-                            elemmeta.setParamType(procedureColumnIn);
-                            try
-                            {
-                                query.addResultElement(elemmeta);
-                            }
-                            catch (Exception e)
-                            {
-                                HPCCJDBCUtils.traceoutln(Level.SEVERE,  "Could not add dataset element: "
-                                        + inParam + ":" + elemmeta.getColumnName());
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        return 0;
     }
 
     @Override
@@ -432,7 +218,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public String getUserName() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getUserName");
-        return UserName;
+        return userName;
     }
 
     @Override
@@ -485,7 +271,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getDatabaseProductVersion");
         // Some ODBC/JDBC bridges/clients do not like alpha chars.
-        return HPCCBuildMajor + "." + HPCCBuildMinor;
+        return hpccVersion.major + "." + hpccVersion.minor;
     }
 
     @Override
@@ -1248,28 +1034,30 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         return true;
     }
 
+    static ArrayList<HPCCColumnMetaData> procsmetacols = new ArrayList<HPCCColumnMetaData>();
+    static
+    {
+        procsmetacols.add(new HPCCColumnMetaData("PROCEDURE_CAT", 1, java.sql.Types.VARCHAR));
+        procsmetacols.add(new HPCCColumnMetaData("PROCEDURE_SCHEM", 2, java.sql.Types.VARCHAR));
+        procsmetacols.add(new HPCCColumnMetaData(PROCEDURE_NAME, 3, java.sql.Types.VARCHAR));
+        procsmetacols.add(new HPCCColumnMetaData("R1", 4, java.sql.Types.VARCHAR));
+        procsmetacols.add(new HPCCColumnMetaData("R2", 5, java.sql.Types.VARCHAR));
+        procsmetacols.add(new HPCCColumnMetaData("R6", 6, java.sql.Types.VARCHAR));
+        procsmetacols.add(new HPCCColumnMetaData("REMARKS", 7, java.sql.Types.VARCHAR));
+        procsmetacols.add(new HPCCColumnMetaData("PROCEDURE_TYPE", 8, java.sql.Types.SMALLINT));
+        procsmetacols.add(new HPCCColumnMetaData("SPECIFIC_NAME", 9, java.sql.Types.VARCHAR));
+    }
+
     @Override
-    public ResultSet getProcedures(String catalog, String schemaPattern, String procedureNamePattern)
-            throws SQLException
+    public ResultSet getProcedures(String catalog, String schemaPattern, String procedureNamePattern) throws SQLException
     {
         List<List> procedures = new ArrayList<List>();
-        ArrayList<HPCCColumnMetaData> metacols = new ArrayList<HPCCColumnMetaData>();
 
         boolean allprocsearch = procedureNamePattern == null || procedureNamePattern.length() == 0
                 || procedureNamePattern.trim().equals("*") || procedureNamePattern.trim().equals("%");
 
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData GETPROCS catalog: " + catalog
                 + ", schemaPattern: " + schemaPattern + ", procedureNamePattern: " + procedureNamePattern);
-
-        metacols.add(new HPCCColumnMetaData("PROCEDURE_CAT", 1, java.sql.Types.VARCHAR));
-        metacols.add(new HPCCColumnMetaData("PROCEDURE_SCHEM", 2, java.sql.Types.VARCHAR));
-        metacols.add(new HPCCColumnMetaData(PROCEDURE_NAME, 3, java.sql.Types.VARCHAR));
-        metacols.add(new HPCCColumnMetaData("R1", 4, java.sql.Types.VARCHAR));
-        metacols.add(new HPCCColumnMetaData("R2", 5, java.sql.Types.VARCHAR));
-        metacols.add(new HPCCColumnMetaData("R6", 6, java.sql.Types.VARCHAR));
-        metacols.add(new HPCCColumnMetaData("REMARKS", 7, java.sql.Types.VARCHAR));
-        metacols.add(new HPCCColumnMetaData("PROCEDURE_TYPE", 8, java.sql.Types.SMALLINT));
-        metacols.add(new HPCCColumnMetaData("SPECIFIC_NAME", 9, java.sql.Types.VARCHAR));
 
         if (allprocsearch)
         {
@@ -1289,7 +1077,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
             procedures.add(populateProcedureRow(getHpccQuery(procedureNamePattern)));
         }
 
-        return new HPCCResultSet(procedures, metacols, "Procedures");
+        return new HPCCResultSet(procedures, procsmetacols, "HPCC Procedures");
     }
 
     private ArrayList populateProcedureRow(HPCCQuery query)
@@ -1328,6 +1116,23 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         return rowValues;
     }
 
+    static ArrayList<HPCCColumnMetaData> proccolsmetacols = new ArrayList<HPCCColumnMetaData>();
+    static
+    {
+        proccolsmetacols.add(new HPCCColumnMetaData("PROCEDURE_CAT", 1, java.sql.Types.VARCHAR));
+        proccolsmetacols.add(new HPCCColumnMetaData("PROCEDURE_SCHEM", 2, java.sql.Types.VARCHAR));
+        proccolsmetacols.add(new HPCCColumnMetaData(PROCEDURE_NAME, 3, java.sql.Types.VARCHAR));
+        proccolsmetacols.add(new HPCCColumnMetaData("COLUMN_NAME", 4, java.sql.Types.VARCHAR));
+        proccolsmetacols.add(new HPCCColumnMetaData("COLUMN_TYPE", 5, java.sql.Types.SMALLINT));
+        proccolsmetacols.add(new HPCCColumnMetaData("DATA_TYPE", 6, java.sql.Types.INTEGER));
+        proccolsmetacols.add(new HPCCColumnMetaData("TYPE_NAME", 7, java.sql.Types.VARCHAR));
+        proccolsmetacols.add(new HPCCColumnMetaData("PRECISION", 8, java.sql.Types.INTEGER));
+        proccolsmetacols.add(new HPCCColumnMetaData("LENGTH", 9, java.sql.Types.INTEGER));
+        proccolsmetacols.add(new HPCCColumnMetaData("SCALE", 10, java.sql.Types.SMALLINT));
+        proccolsmetacols.add(new HPCCColumnMetaData("RADIX", 11, java.sql.Types.SMALLINT));
+        proccolsmetacols.add(new HPCCColumnMetaData("NULLABLE", 12, java.sql.Types.SMALLINT));
+        proccolsmetacols.add(new HPCCColumnMetaData("REMARKS", 13, java.sql.Types.VARCHAR));
+    }
     @Override
     public ResultSet getProcedureColumns(String catalog, String schemaPattern, String procedureNamePattern,
             String columnNamePattern) throws SQLException
@@ -1337,24 +1142,9 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                 + " columnanmepat: " + columnNamePattern);
 
         List<List> procedurecols = new ArrayList<List>();
-        ArrayList<HPCCColumnMetaData> metacols = new ArrayList<HPCCColumnMetaData>();
 
         boolean allcolumnsearch = columnNamePattern == null || columnNamePattern.length() == 0
                 || columnNamePattern.trim().equals("*") || columnNamePattern.trim().equals("%");
-
-        metacols.add(new HPCCColumnMetaData("PROCEDURE_CAT", 1, java.sql.Types.VARCHAR));
-        metacols.add(new HPCCColumnMetaData("PROCEDURE_SCHEM", 2, java.sql.Types.VARCHAR));
-        metacols.add(new HPCCColumnMetaData(PROCEDURE_NAME, 3, java.sql.Types.VARCHAR));
-        metacols.add(new HPCCColumnMetaData("COLUMN_NAME", 4, java.sql.Types.VARCHAR));
-        metacols.add(new HPCCColumnMetaData("COLUMN_TYPE", 5, java.sql.Types.SMALLINT));
-        metacols.add(new HPCCColumnMetaData("DATA_TYPE", 6, java.sql.Types.INTEGER));
-        metacols.add(new HPCCColumnMetaData("TYPE_NAME", 7, java.sql.Types.VARCHAR));
-        metacols.add(new HPCCColumnMetaData("PRECISION", 8, java.sql.Types.INTEGER));
-        metacols.add(new HPCCColumnMetaData("LENGTH", 9, java.sql.Types.INTEGER));
-        metacols.add(new HPCCColumnMetaData("SCALE", 10, java.sql.Types.SMALLINT));
-        metacols.add(new HPCCColumnMetaData("RADIX", 11, java.sql.Types.SMALLINT));
-        metacols.add(new HPCCColumnMetaData("NULLABLE", 12, java.sql.Types.SMALLINT));
-        metacols.add(new HPCCColumnMetaData("REMARKS", 13, java.sql.Types.VARCHAR));
 
         int coltype = java.sql.Types.NULL;
         ResultSet procs = getProcedures(catalog, schemaPattern, procedureNamePattern);
@@ -1398,7 +1188,23 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
             }
         }
 
-        return new HPCCResultSet(procedurecols, metacols, "ProcedureColumns");
+        return new HPCCResultSet(procedurecols, proccolsmetacols, "Procedure Columns");
+    }
+
+    static ArrayList<HPCCColumnMetaData> tablesmetacols = new ArrayList<HPCCColumnMetaData>();
+    static
+    {
+        tablesmetacols.add(new HPCCColumnMetaData("TABLE_CAT", 1, java.sql.Types.VARCHAR));
+        tablesmetacols.add(new HPCCColumnMetaData("TABLE_SCHEM", 2, java.sql.Types.VARCHAR));
+        tablesmetacols.add(new HPCCColumnMetaData(TABLE_NAME, 3, java.sql.Types.VARCHAR));
+        tablesmetacols.add(new HPCCColumnMetaData("TABLE_TYPE", 4, java.sql.Types.VARCHAR));
+        tablesmetacols.add(new HPCCColumnMetaData("REMARKS", 5, java.sql.Types.VARCHAR));
+        tablesmetacols.add(new HPCCColumnMetaData("TYPE_CAT", 6, java.sql.Types.VARCHAR));
+        tablesmetacols.add(new HPCCColumnMetaData("TABLE_CAT", 7, java.sql.Types.VARCHAR));
+        tablesmetacols.add(new HPCCColumnMetaData("TYPE_SCHEM", 8, java.sql.Types.VARCHAR));
+        tablesmetacols.add(new HPCCColumnMetaData("TYPE_NAME", 9, java.sql.Types.VARCHAR));
+        tablesmetacols.add(new HPCCColumnMetaData("SELF_REFERENCING_COL_NAME", 10, java.sql.Types.VARCHAR));
+        tablesmetacols.add(new HPCCColumnMetaData("REF_GENERATION", 11, java.sql.Types.VARCHAR));
     }
 
     @Override
@@ -1406,17 +1212,16 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
             throws SQLException
     {
         /*
-         * TABLE_CAT String => table catalog (may be null) TABLE_SCHEM String =>
-         * table schema (may be null) TABLE_NAME String => table name TABLE_TYPE
-         * String => table type. Typical types are "TABLE", "VIEW",
-         * "SYSTEM TABLE", "GLOBAL TEMPORARY", "LOCAL TEMPORARY", "ALIAS",
-         * "SYNONYM". REMARKS String => explanatory comment on the table
-         * TYPE_CAT String => the types catalog (may be null) TYPE_SCHEM String
-         * => the types schema (may be null) TYPE_NAME String => type name (may
-         * be null) SELF_REFERENCING_COL_NAME String => name of the designated
-         * "identifier" column of a typed table (may be null) REF_GENERATION
-         * String => specifies how values in SELF_REFERENCING_COL_NAME are
-         * created. Values are "SYSTEM", "USER", "DERIVED". (may be null)
+         * TABLE_CAT String => table catalog (may be null)
+         * TABLE_SCHEM String => table schema (may be null)
+         * TABLE_NAME String => table name
+         * TABLE_TYPE String => table type. Typical types are "TABLE", "VIEW", "SYSTEM TABLE", "GLOBAL TEMPORARY", "LOCAL TEMPORARY", "ALIAS", "SYNONYM".
+         * REMARKS String => explanatory comment on the table
+         * TYPE_CAT String => the types catalog (may be null)
+         * TYPE_SCHEM String => the types schema (may be null)
+         * TYPE_NAME String => type name (may be null)
+         * SELF_REFERENCING_COL_NAME String => name of the designated "identifier" column of a typed table (may be null)
+         * REF_GENERATION String => specifies how values in SELF_REFERENCING_COL_NAME are created. Values are "SYSTEM", "USER", "DERIVED". (may be null)
          */
 
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData GETTABLES:");
@@ -1444,24 +1249,11 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                 || tableNamePattern.trim().equals("*") || tableNamePattern.trim().equals("%");
 
         List<List<String>> tables = new ArrayList<List<String>>();
-        ArrayList<HPCCColumnMetaData> metacols = new ArrayList<HPCCColumnMetaData>();
-
-        metacols.add(new HPCCColumnMetaData("TABLE_CAT", 1, java.sql.Types.VARCHAR));
-        metacols.add(new HPCCColumnMetaData("TABLE_SCHEM", 2, java.sql.Types.VARCHAR));
-        metacols.add(new HPCCColumnMetaData(TABLE_NAME, 3, java.sql.Types.VARCHAR));
-        metacols.add(new HPCCColumnMetaData("TABLE_TYPE", 4, java.sql.Types.VARCHAR));
-        metacols.add(new HPCCColumnMetaData("REMARKS", 5, java.sql.Types.VARCHAR));
-        metacols.add(new HPCCColumnMetaData("TYPE_CAT", 6, java.sql.Types.VARCHAR));
-        metacols.add(new HPCCColumnMetaData("TABLE_CAT", 7, java.sql.Types.VARCHAR));
-        metacols.add(new HPCCColumnMetaData("TYPE_SCHEM", 8, java.sql.Types.VARCHAR));
-        metacols.add(new HPCCColumnMetaData("TYPE_NAME", 9, java.sql.Types.VARCHAR));
-        metacols.add(new HPCCColumnMetaData("SELF_REFERENCING_COL_NAME", 10, java.sql.Types.VARCHAR));
-        metacols.add(new HPCCColumnMetaData("REF_GENERATION", 11, java.sql.Types.VARCHAR));
 
         if (alltablesearch)
         {
             if (!isDFUMetaDataCached())
-                setDFUMetaDataCached(fetchHPCCFilesInfo());
+                setDFUMetaDataCached(fetchHPCCFilesInfo(null));
 
             Enumeration<Object> files = dfufiles.getFiles();
             while (files.hasMoreElements())
@@ -1477,7 +1269,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
             if (file != null && file.hasFileRecDef())
                 tables.add(populateTableInfo(file));
         }
-        return new HPCCResultSet(tables, metacols, "HPCC Tables");
+        return new HPCCResultSet(tables, tablesmetacols, "HPCC Tables");
     }
 
     private ArrayList<String> populateTableInfo(DFUFile table)
@@ -1504,7 +1296,8 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public ResultSet getSchemas() throws SQLException
     {
         if (!isDFUMetaDataCached())
-            setDFUMetaDataCached(fetchHPCCFilesInfo());
+            setDFUMetaDataCached(fetchHPCCFilesInfo(null));
+
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData GETSCHEMAS");
 
         List<List<String>> tables = new ArrayList<List<String>>();
@@ -1560,9 +1353,35 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         return null;
     }
 
+    static ArrayList<HPCCColumnMetaData> tablecolsmetacols = new ArrayList<HPCCColumnMetaData>();
+    static
+    {
+        tablecolsmetacols.add(new HPCCColumnMetaData("TABLE_CAT", 1, java.sql.Types.VARCHAR));
+        tablecolsmetacols.add(new HPCCColumnMetaData("TABLE_SCHEM", 2, java.sql.Types.VARCHAR));
+        tablecolsmetacols.add(new HPCCColumnMetaData(TABLE_NAME, 3, java.sql.Types.VARCHAR));
+        tablecolsmetacols.add(new HPCCColumnMetaData("COLUMN_NAME", 4, java.sql.Types.VARCHAR));
+        tablecolsmetacols.add(new HPCCColumnMetaData("DATA_TYPE", 5, java.sql.Types.INTEGER));
+        tablecolsmetacols.add(new HPCCColumnMetaData("TYPE_NAME", 6, java.sql.Types.VARCHAR));
+        tablecolsmetacols.add(new HPCCColumnMetaData("COLUMN_SIZE", 7, java.sql.Types.INTEGER));
+        tablecolsmetacols.add(new HPCCColumnMetaData("BUFFER_LENGTH", 8, java.sql.Types.VARCHAR));
+        tablecolsmetacols.add(new HPCCColumnMetaData("DECIMAL_DIGITS", 9, java.sql.Types.INTEGER));
+        tablecolsmetacols.add(new HPCCColumnMetaData("NUM_PREC_RADIX", 10, java.sql.Types.INTEGER));
+        tablecolsmetacols.add(new HPCCColumnMetaData("NULLABLE", 11, java.sql.Types.INTEGER));
+        tablecolsmetacols.add(new HPCCColumnMetaData("REMARKS", 12, java.sql.Types.VARCHAR));
+        tablecolsmetacols.add(new HPCCColumnMetaData("COLUMN_DEF", 13, java.sql.Types.VARCHAR));
+        tablecolsmetacols.add(new HPCCColumnMetaData("SQL_DATA_TYPE", 14, java.sql.Types.INTEGER));
+        tablecolsmetacols.add(new HPCCColumnMetaData("SQL_DATETIME_SUB", 15, java.sql.Types.INTEGER));
+        tablecolsmetacols.add(new HPCCColumnMetaData("CHAR_OCTET_LENGTH", 16, java.sql.Types.INTEGER));
+        tablecolsmetacols.add(new HPCCColumnMetaData("ORDINAL_POSITION", 17, java.sql.Types.INTEGER));
+        tablecolsmetacols.add(new HPCCColumnMetaData("IS_NULLABLE", 18, java.sql.Types.VARCHAR));
+        tablecolsmetacols.add(new HPCCColumnMetaData("SCOPE_CATLOG", 19, java.sql.Types.VARCHAR));
+        tablecolsmetacols.add(new HPCCColumnMetaData("SCOPE_SCHEMA", 20, java.sql.Types.VARCHAR));
+        tablecolsmetacols.add(new HPCCColumnMetaData("SCOPE_TABLE", 21, java.sql.Types.VARCHAR));
+        tablecolsmetacols.add(new HPCCColumnMetaData("SOURCE_DATA_TYPE", 22, java.sql.Types.SMALLINT));
+    }
+
     @Override
-    public ResultSet getColumns(String catalog, String schemaPattern, String tableNamePattern, String columnNamePattern)
-            throws SQLException
+    public ResultSet getColumns(String catalog, String schemaPattern, String tableNamePattern, String columnNamePattern) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData GETCOLUMNS catalog: " + catalog + ", schemaPattern: " + schemaPattern
                 + ", tableNamePattern: " + tableNamePattern + ", columnNamePattern: " + columnNamePattern);
@@ -1571,30 +1390,6 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                 || columnNamePattern.trim().equals("*") || columnNamePattern.trim().equals("%");
 
         List<List<String>> columns = new ArrayList<List<String>>();
-        ArrayList<HPCCColumnMetaData> metacols = new ArrayList<HPCCColumnMetaData>();
-
-        metacols.add(new HPCCColumnMetaData("TABLE_CAT", 1, java.sql.Types.VARCHAR));
-        metacols.add(new HPCCColumnMetaData("TABLE_SCHEM", 2, java.sql.Types.VARCHAR));
-        metacols.add(new HPCCColumnMetaData(TABLE_NAME, 3, java.sql.Types.VARCHAR));
-        metacols.add(new HPCCColumnMetaData("COLUMN_NAME", 4, java.sql.Types.VARCHAR));
-        metacols.add(new HPCCColumnMetaData("DATA_TYPE", 5, java.sql.Types.INTEGER));
-        metacols.add(new HPCCColumnMetaData("TYPE_NAME", 6, java.sql.Types.VARCHAR));
-        metacols.add(new HPCCColumnMetaData("COLUMN_SIZE", 7, java.sql.Types.INTEGER));
-        metacols.add(new HPCCColumnMetaData("BUFFER_LENGTH", 8, java.sql.Types.VARCHAR));
-        metacols.add(new HPCCColumnMetaData("DECIMAL_DIGITS", 9, java.sql.Types.INTEGER));
-        metacols.add(new HPCCColumnMetaData("NUM_PREC_RADIX", 10, java.sql.Types.INTEGER));
-        metacols.add(new HPCCColumnMetaData("NULLABLE", 11, java.sql.Types.INTEGER));
-        metacols.add(new HPCCColumnMetaData("REMARKS", 12, java.sql.Types.VARCHAR));
-        metacols.add(new HPCCColumnMetaData("COLUMN_DEF", 13, java.sql.Types.VARCHAR));
-        metacols.add(new HPCCColumnMetaData("SQL_DATA_TYPE", 14, java.sql.Types.INTEGER));
-        metacols.add(new HPCCColumnMetaData("SQL_DATETIME_SUB", 15, java.sql.Types.INTEGER));
-        metacols.add(new HPCCColumnMetaData("CHAR_OCTET_LENGTH", 16, java.sql.Types.INTEGER));
-        metacols.add(new HPCCColumnMetaData("ORDINAL_POSITION", 17, java.sql.Types.INTEGER));
-        metacols.add(new HPCCColumnMetaData("IS_NULLABLE", 18, java.sql.Types.VARCHAR));
-        metacols.add(new HPCCColumnMetaData("SCOPE_CATLOG", 19, java.sql.Types.VARCHAR));
-        metacols.add(new HPCCColumnMetaData("SCOPE_SCHEMA", 20, java.sql.Types.VARCHAR));
-        metacols.add(new HPCCColumnMetaData("SCOPE_TABLE", 21, java.sql.Types.VARCHAR));
-        metacols.add(new HPCCColumnMetaData("SOURCE_DATA_TYPE", 22, java.sql.Types.SMALLINT));
 
         ResultSet tables = getTables(catalog, schemaPattern, tableNamePattern, null);
 
@@ -1647,7 +1442,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
             }
         }
 
-        return new HPCCResultSet(columns, metacols, tableNamePattern +"'s columns");
+        return new HPCCResultSet(columns, tablecolsmetacols, tableNamePattern +"'s columns");
     }
 
     @Override
@@ -1696,7 +1491,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         metacols.add(new HPCCColumnMetaData("KEY_SEQ", 5, java.sql.Types.SMALLINT));
         metacols.add(new HPCCColumnMetaData("PK_NAME", 6, java.sql.Types.VARCHAR));
 
-        return new HPCCResultSet(importedkeys, metacols, "PrimaryKeys");
+        return new HPCCResultSet(importedkeys, metacols, "Primary Keys");
     }
 
     @Override
@@ -1723,7 +1518,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         metacols.add(new HPCCColumnMetaData("PK_NAME", 13, java.sql.Types.VARCHAR));
         metacols.add(new HPCCColumnMetaData("DEFERRABILITY", 14, java.sql.Types.SMALLINT));
 
-        return new HPCCResultSet(importedkeys, metacols, "ImportedKeys");
+        return new HPCCResultSet(importedkeys, metacols, "Imported Keys");
     }
 
     @Override
@@ -1749,7 +1544,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         metacols.add(new HPCCColumnMetaData("PK_NAME", 13, java.sql.Types.VARCHAR));
         metacols.add(new HPCCColumnMetaData("DEFERRABILITY", 14, java.sql.Types.SMALLINT));
 
-        return new HPCCResultSet(exportedkeys, metacols, "ExportedKeys");
+        return new HPCCResultSet(exportedkeys, metacols, "Exported Keys");
     }
 
     @Override
@@ -1760,32 +1555,35 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         throw new UnsupportedOperationException("HPCCDBMetaData: getCrossReference Not  supported yet.");
     }
 
+    static ArrayList<HPCCColumnMetaData> typesmetacols = new ArrayList<HPCCColumnMetaData>();
+    static
+    {
+        typesmetacols.add(new HPCCColumnMetaData("TYPE_NAME", 1, java.sql.Types.VARCHAR));
+        typesmetacols.add(new HPCCColumnMetaData("DATA_TYPE", 2, java.sql.Types.INTEGER));// SQL data type from java.sql.Types
+        typesmetacols.add(new HPCCColumnMetaData("PRECISION", 3, java.sql.Types.INTEGER));// maximum precision
+        typesmetacols.add(new HPCCColumnMetaData("LITERAL_PREFIX", 4, java.sql.Types.VARCHAR));// prefix used to quote a literal (may be null)
+        typesmetacols.add(new HPCCColumnMetaData("LITERAL_SUFFIX", 5, java.sql.Types.VARCHAR));// suffix used to quote a literal (may be null)
+        typesmetacols.add(new HPCCColumnMetaData("CREATE_PARAMS", 6, java.sql.Types.VARCHAR));// parameters  used  in  creating the  type (may be null)
+        typesmetacols.add(new HPCCColumnMetaData("NULLABLE", 7, java.sql.Types.SMALLINT));// can you use NULL for this type.
+        typesmetacols.add(new HPCCColumnMetaData("CASE_SENSITIVE", 8, java.sql.Types.BOOLEAN));
+        typesmetacols.add(new HPCCColumnMetaData("SEARCHABLE", 9, java.sql.Types.SMALLINT));
+        typesmetacols.add(new HPCCColumnMetaData("UNSIGNED_ATTRIBUTE", 10, java.sql.Types.BOOLEAN));
+        typesmetacols.add(new HPCCColumnMetaData("FIXED_PREC_SCALE", 11, java.sql.Types.BOOLEAN));// can it be a money value
+        typesmetacols.add(new HPCCColumnMetaData("AUTO_INCREMENT", 12, java.sql.Types.BOOLEAN));// can it be used for an auto-increment value
+        typesmetacols.add(new HPCCColumnMetaData("LOCAL_TYPE_NAME", 13, java.sql.Types.VARCHAR));// localized version of type name (may be null)
+        typesmetacols.add(new HPCCColumnMetaData("MINIMUM_SCALE", 14, java.sql.Types.SMALLINT));
+        typesmetacols.add(new HPCCColumnMetaData("MAXIMUM_SCALE", 15, java.sql.Types.SMALLINT));
+        typesmetacols.add(new HPCCColumnMetaData("SQL_DATA_TYPE", 16, java.sql.Types.INTEGER));// unused
+        typesmetacols.add(new HPCCColumnMetaData("SQL_DATETIME_SUB", 17, java.sql.Types.INTEGER));// unused
+        typesmetacols.add(new HPCCColumnMetaData("NUM_PREC_RADIX", 18, java.sql.Types.INTEGER));// unused
+    }
+
     @Override
     public ResultSet getTypeInfo() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData GETTYPEINFO");
 
         List<List<String>> types = new ArrayList<List<String>>();
-        ArrayList<HPCCColumnMetaData> metacols = new ArrayList<HPCCColumnMetaData>();
-
-        metacols.add(new HPCCColumnMetaData("TYPE_NAME", 1, java.sql.Types.VARCHAR));
-        metacols.add(new HPCCColumnMetaData("DATA_TYPE", 2, java.sql.Types.INTEGER));// SQL data type from java.sql.Types
-        metacols.add(new HPCCColumnMetaData("PRECISION", 3, java.sql.Types.INTEGER));// maximum precision
-        metacols.add(new HPCCColumnMetaData("LITERAL_PREFIX", 4, java.sql.Types.VARCHAR));// prefix used to quote a literal (may be null)
-        metacols.add(new HPCCColumnMetaData("LITERAL_SUFFIX", 5, java.sql.Types.VARCHAR));// suffix used to quote a literal (may be null)
-        metacols.add(new HPCCColumnMetaData("CREATE_PARAMS", 6, java.sql.Types.VARCHAR));// parameters  used  in  creating the  type (may be null)
-        metacols.add(new HPCCColumnMetaData("NULLABLE", 7, java.sql.Types.SMALLINT));// can you use NULL for this type.
-        metacols.add(new HPCCColumnMetaData("CASE_SENSITIVE", 8, java.sql.Types.BOOLEAN));
-        metacols.add(new HPCCColumnMetaData("SEARCHABLE", 9, java.sql.Types.SMALLINT));
-        metacols.add(new HPCCColumnMetaData("UNSIGNED_ATTRIBUTE", 10, java.sql.Types.BOOLEAN));
-        metacols.add(new HPCCColumnMetaData("FIXED_PREC_SCALE", 11, java.sql.Types.BOOLEAN));// can it be a money value
-        metacols.add(new HPCCColumnMetaData("AUTO_INCREMENT", 12, java.sql.Types.BOOLEAN));// can it be used for an auto-increment value
-        metacols.add(new HPCCColumnMetaData("LOCAL_TYPE_NAME", 13, java.sql.Types.VARCHAR));// localized version of type name (may be null)
-        metacols.add(new HPCCColumnMetaData("MINIMUM_SCALE", 14, java.sql.Types.SMALLINT));
-        metacols.add(new HPCCColumnMetaData("MAXIMUM_SCALE", 15, java.sql.Types.SMALLINT));
-        metacols.add(new HPCCColumnMetaData("SQL_DATA_TYPE", 16, java.sql.Types.INTEGER));// unused
-        metacols.add(new HPCCColumnMetaData("SQL_DATETIME_SUB", 17, java.sql.Types.INTEGER));// unused
-        metacols.add(new HPCCColumnMetaData("NUM_PREC_RADIX", 18, java.sql.Types.INTEGER));// unused
 
         for (EclTypes ecltype : EclTypes.values())
         {
@@ -1812,7 +1610,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
             /* 18 */rowValues.add(0);
         }
 
-        return new HPCCResultSet(types, metacols, "Types");
+        return new HPCCResultSet(types, typesmetacols, "Types");
     }
 
     @Override
@@ -1957,7 +1755,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public Connection getConnection() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getConnection");
-        throw new UnsupportedOperationException("HPCCDBMetaData: getConnection Not  supported yet.");
+        return connection;
     }
 
     @Override
@@ -2029,277 +1827,76 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public int getDatabaseMajorVersion() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getDatabaseMajorVersion");
-        return HPCCBuildMajor;
+        return hpccVersion.major;
     }
 
     @Override
     public int getDatabaseMinorVersion() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getDatabaseMinorVersion");
-        return (int) HPCCBuildMinor;
+        return hpccVersion.minor;
     }
 
-    private boolean fetchHPCCFileColumnInfo(DFUFile file, DocumentBuilder db)
+    private boolean fetchHPCCFilesInfo(String filename)
     {
         boolean isSuccess = true;
 
-        if (basewseclwatchurl == null)
-            return false;
-
-        try
-        {
-            if (file.getFullyQualifiedName().length() > 0)
-            {
-                String filedetailUrl = basewseclwatchurl + "/WsDfu/DFUInfo?Name="
-                        + URLEncoder.encode(file.getFullyQualifiedName(), "UTF-8") + "&rawxml_" 
-                        + "&ver_=1.21"; //As of HPCCv4.2 and /WsDfu/DFUInfo v1.21 the ContentType tag 
-                                        //is used to determine file content type (or data format)
-
-                // now request the schema for this file.
-                URL queryschema = HPCCJDBCUtils.makeURL(filedetailUrl);
-                HttpURLConnection queryschemaconnection = createHPCCESPConnection(queryschema);
-
-                InputStream schema = queryschemaconnection.getInputStream();
-                Document dom2 = db.parse(schema);
-                Element docElement = dom2.getDocumentElement();
-
-                // Get all pertinent detail info regarding this file
-                registerFileDetails(docElement, file);
-
-                if (file.getFormatValue() == FileFormat.XML)
-                {
-                    HPCCJDBCUtils.traceoutln(Level.INFO, "Detected non-supported XML based HPCC file: " + file.getFullyQualifiedName());
-                    isSuccess = false;
-                }
-
-                // Add this file name to files structure
-                dfufiles.putFile(file.getFullyQualifiedName(), file);
-            }
-            else
-            {
-                HPCCJDBCUtils.traceoutln(Level.INFO, "Not fetching info for HPCC file: " + file.getFullyQualifiedName());
-                isSuccess = false;
-            }
-        }
-        catch (Exception e)
-        {
-            isSuccess = false;
-            e.printStackTrace();
-            HPCCJDBCUtils.traceoutln(Level.SEVERE,  e.getMessage());
-        }
-        return isSuccess;
-    }
-
-    private int parseDFULogicalFiles(InputStream xml, boolean setReportedFileCount)
-    {
-        int dfuFileParsedCount = 0;
-
-        try
-        {
-            DocumentBuilder db = dbf.newDocumentBuilder();
-            Document dom = db.parse(xml);
-
-            if (setReportedFileCount)
-            {
-                try
-                {
-                    NodeList NumFilesCount = dom.getElementsByTagName("NumFiles");
-
-                    if (NumFilesCount.getLength() > 0)
-                    {
-                        dfufiles.setReportedFileCount(NumFilesCount.item(0).getTextContent());
-                        HPCCJDBCUtils.traceoutln(Level.INFO, "Fetching " + pageSize + " files (tables) out of "
-                                + dfufiles.getReportedFileCount() + " reported files.");
-                    }
-                }
-                catch (Exception e)
-                {
-                    HPCCJDBCUtils.traceoutln(Level.SEVERE,  "Could not determine total HPCC Logical file count");
-                }
-            }
-            NodeList querySetList = dom.getElementsByTagName("DFULogicalFiles");
-
-            if (querySetList.getLength() > 0)
-            {
-                NodeList queryList = querySetList.item(0).getChildNodes();
-                for (int i = 0; i < queryList.getLength(); i++)
-                {
-                    Node currentNode = queryList.item(i);
-                    if (currentNode.getNodeName().equals("DFULogicalFile"))
-                    {
-                        NodeList querysetquerychildren = currentNode.getChildNodes();
-
-                        DFUFile file = new DFUFile();
-                        String currentTextCont = "";
-
-                        for (int j = 0; j < querysetquerychildren.getLength(); j++)
-                        {
-                            currentTextCont = querysetquerychildren.item(j).getTextContent();
-                            if (!currentTextCont.equals(""))
-                            {
-                                String NodeName = querysetquerychildren.item(j).getNodeName();
-                                if (NodeName.equals("Prefix"))
-                                {
-                                    file.setPrefix(currentTextCont);
-                                }
-                                else if (NodeName.equals("ClusterName"))
-                                {
-                                    file.setClusterName(currentTextCont);
-                                }
-                                else if (NodeName.equals("Name"))
-                                {
-                                    file.setFullyQualifiedName(currentTextCont);
-                                }
-                                else if (NodeName.equals("Owner"))
-                                {
-                                    file.setOwner(currentTextCont);
-                                }
-                                else if (NodeName.equals("Totalsize"))
-                                {
-                                    file.setTotalSize(HPCCJDBCUtils.NUMFORMATTER.get().parse(currentTextCont).longValue());
-                                }
-                                else if (NodeName.equals("RecordCount"))
-                                {
-                                    file.setRecordCount(HPCCJDBCUtils.NUMFORMATTER.get().parse(currentTextCont).longValue());
-                                }
-                                else if (NodeName.equals("LongSize"))
-                                {
-                                    file.setLongSize(HPCCJDBCUtils.NUMFORMATTER.get().parse(currentTextCont).longValue());
-                                }
-                                else if (NodeName.equals("LongRecordCount"))
-                                {
-                                    file.setLongRecordCount(Long.parseLong(currentTextCont));
-                                }
-                                else if (NodeName.equals("isSuperfile"))
-                                {
-                                    file.setSuperFile(currentTextCont.equals("1"));
-                                }
-                                else if (NodeName.equals("isZipfile"))
-                                {
-                                    file.setZipFile(currentTextCont.equals("1"));
-                                }
-                                else if (NodeName.equals("isDirectory"))
-                                {
-                                    file.setDirectory(currentTextCont);
-                                }
-                                else if (NodeName.equals("IntSize"))
-                                {
-                                    file.setIntSize(Integer.parseInt(currentTextCont));
-                                }
-                                else if (NodeName.equals("IntRecordCount"))
-                                {
-                                    file.setIntRecordCount(Integer.parseInt(currentTextCont));
-                                }
-                                else if (NodeName.equals("FromRoxieCluster"))
-                                {
-                                    file.setFromRoxieCluster(currentTextCont.equals("1"));
-                                }
-                                else if (NodeName.equals("IsKeyFile"))
-                                {
-                                    file.setIsKeyFile(currentTextCont.equals("1"));
-                                }
-                            }
-                        }
-
-                        if (file.getFullyQualifiedName().length() > 0)
-                        {
-                            if (file.getRecordCount() >= 0)
-                            {
-                                if (fetchHPCCFileColumnInfo(file, db))
-                                    dfuFileParsedCount++;
-                            }
-                            else
-                                HPCCJDBCUtils.traceoutln(Level.INFO, file.getFullyQualifiedName()
-                                        + " does not appear to contain a valid record definition.");
-                        }
-                        else
-                            HPCCJDBCUtils.traceoutln(Level.SEVERE,  "Found DFU file but could not determine name");
-                    }
-                }
-            }
-        }
-        catch (ParserConfigurationException e)
-        {
-            e.printStackTrace();
-        }
-        catch (SAXException e)
-        {
-            e.printStackTrace();
-        }
-        catch (ParseException e)
-        {
-            e.printStackTrace();
-        }
-        catch (IOException e)
-        {
-            e.printStackTrace();
-        }
-
-        return dfuFileParsedCount;
-    }
-
-    private boolean fetchHPCCFileInfo(String filename)
-    {
-        boolean isSuccess = false;
-
-        if (basewseclwatchurl == null || filename.length() <= 0)
-            return isSuccess;
-
-        String urlString = "";
-        try
-        {
-            urlString = basewseclwatchurl + "/WsDfu/DFUQuery?LogicalName=" + filename + "&rawxml_&filetype=" + FILEFETCHTYPE_ALL;
-            URL dfuLogicalFilesURL = HPCCJDBCUtils.makeURL(urlString);
-            HttpURLConnection dfulogfilesConn = createHPCCESPConnection(dfuLogicalFilesURL);
-
-            HPCCJDBCUtils.traceoutln(Level.INFO, "Fetching file information: " + urlString);
-            isSuccess = parseDFULogicalFiles(dfulogfilesConn.getInputStream(), false) > 0 ? true : false;
-        }
-        catch (SocketTimeoutException e)
-        {
-            HPCCJDBCUtils.traceoutln(Level.SEVERE,  "Warning: Connection to HPCC timed out while fetching: "
-                    + filename);
-        }
-        catch (MalformedURLException e)
-        {
-            HPCCJDBCUtils.traceoutln(Level.SEVERE,  "Error fetching HPCC File: " + urlString);
-        }
-        catch (IOException e)
-        {
-            e.printStackTrace();
-        }
-        catch (Exception e)
-        {
-            e.printStackTrace();
-        }
-
-        return isSuccess;
-    }
-
-    private boolean fetchHPCCFilesInfo()
-    {
-        boolean isSuccess = false;
-
         if (isDFUMetaDataCached())
         {
-            HPCCJDBCUtils.traceoutln(Level.INFO, "HPCC dfufile info already present (reconnect to force fetch)");
+            HPCCJDBCUtils.traceoutln(Level.INFO, "HPCC dfufile info already present (reconnect to force re-fetch)");
             return true;
         }
-
-        if (basewseclwatchurl == null)
+        Platform hpccPlatform = connection.getHPCCPlatform();
+        if (hpccPlatform == null)
+        {
+            HPCCJDBCUtils.traceoutln(Level.INFO, "Could not fetch HPCC files (HPCCDatabaseMetaData.hpccPlatform not initialized)");
             return false;
+        }
 
-        String urlString = "";
+        int dfuFileParsedCount = 0;
+        HPCCJDBCUtils.traceoutln(Level.INFO, "Fetching HPCC tables...");
         try
         {
-            urlString = basewseclwatchurl + "/WsDfu/DFUQuery?LogicalName=*&PageSize=" + pageSize + "&PageStartFrom=" + pageOffset + "&rawxml_&filetype=" + FILEFETCHTYPE_ALL;
-            HPCCJDBCUtils.traceoutln(Level.INFO, "Fetching tables: " + urlString);
-            URL dfuLogicalFilesURL = HPCCJDBCUtils.makeURL(urlString);
-            HttpURLConnection dfulogfilesConn = createHPCCESPConnection(dfuLogicalFilesURL);
+            HPCCTable[] tables = connection.getHPCCTables(filename);
 
-            isSuccess = parseDFULogicalFiles(dfulogfilesConn.getInputStream(), true) > 0 ? true : false;
+            if (tables != null)
+            {
+                for (int dfufileindex = 0; dfufileindex < tables.length; dfufileindex++)
+                {
+                    HPCCTable dfuLogicalFile = tables[dfufileindex];
+                    DFUFile file = new DFUFile();
 
-            if (isSuccess)
+                    file.setFullyQualifiedName(dfuLogicalFile.getName());
+                    file.setColumns(dfuLogicalFile.getColumns());
+
+                    file.setOwner(dfuLogicalFile.getOwner());
+                    file.setDescription(dfuLogicalFile.getDescription());
+
+                    //rodrigo, let's add record count
+                    //String recordCount = dfuLogicalFile.getRecordCount();
+                    //if (recordCount != null && recordCount.length() > 0)
+                    //    file.setRecordCount(HPCCJDBCUtils.NUMFORMATTER.get().parse(recordCount).longValue());
+
+                    //String longRecordCount = dfuLogicalFile.getLongRecordCount();
+                    //if (longRecordCount != null && longRecordCount.length() > 0)
+                    //    file.setLongRecordCount(Long.parseLong(longRecordCount));
+
+                    Boolean thisbool = null;
+                    thisbool = dfuLogicalFile.getIsSuper();
+                    file.setSuperFile(thisbool == null ? false : thisbool);
+                    thisbool = dfuLogicalFile.getIsKeyed();
+                    file.setIsKeyFile(thisbool == null ? false : thisbool);
+
+                    if (file.getFullyQualifiedName().length() > 0)
+                    {
+                        dfufiles.putFile(file.getFullyQualifiedName(), file);
+                        dfuFileParsedCount++;
+                    }
+                    else
+                        HPCCJDBCUtils.traceoutln(Level.SEVERE,  "Found DFU file but could not determine name");
+                }
+            }
+            if (dfuFileParsedCount > 0)
             {
                 try
                 {
@@ -2310,243 +1907,211 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                     HPCCJDBCUtils.traceoutln(Level.INFO, "WARNING: updating superfiles failed.");
                 }
             }
+            else
+            {
+                if (filename != null)
+                    isSuccess = false;
+            }
         }
-        catch (SocketTimeoutException e)
+        catch (Exception e)
         {
-            HPCCJDBCUtils.traceoutln(Level.SEVERE,
-                    "Warning: Connection to HPCC timed out while fetching HPCC Files");
-        }
-        catch (MalformedURLException e)
-        {
-            HPCCJDBCUtils.traceoutln(Level.SEVERE,  "Error fetching HPCC Files: " + urlString);
-        }
-        catch (IOException e)
-        {
+            HPCCJDBCUtils.traceoutln(Level.ALL, "WARNING: Fetching HPCC file information failed.");
             e.printStackTrace();
+            return false;
         }
+
+        if ((filename == null || filename.isEmpty()) && isSuccess && dfuFileParsedCount > 0)
+            setDFUMetaDataCached(true);
 
         return isSuccess;
     }
 
-    private int parseHPCCQuery(InputStream xml)
+    private int parseHPCCQuery(HPCCQuerySet[] querysets)
     {
         int hpccQueryParsedCount = 0;
 
-        String querysetname = this.queryset;
-
         try
         {
-            DocumentBuilder db = dbf.newDocumentBuilder();
-            Document dom = db.parse(xml);
-
-            NodeList querySetNameNode = dom.getElementsByTagName("QuerySetName");
-            if (querySetNameNode.getLength() > 0)
+            for (int querysetindex = 0; querysetindex < querysets.length; querysetindex++)
             {
-                querysetname = querySetNameNode.item(0).getTextContent();
-            }
-
-            NodeList querySetqueryList = dom.getElementsByTagName("QuerySetQuery");
-
-            for (int i = 0; i < querySetqueryList.getLength() && i < this.pageSize; i++)
-            {
-                NodeList querysetquerychildren = querySetqueryList.item(i).getChildNodes();
-
-                HPCCQuery query = new HPCCQuery();
-                query.setQueryset(querysetname);
-
-                for (int j = 0; j < querysetquerychildren.getLength(); j++)
+                HPCCQuerySet hpccQuerySet = querysets[querysetindex];
+                String querySetName = hpccQuerySet.getName();
+                PublishedQuery[] querySetQueries = hpccQuerySet.getQuerySetQueries();
+                for (int querysetqueriesindex = 0; querysetqueriesindex < querySetQueries.length; querysetqueriesindex++)
                 {
-                    String NodeName = querysetquerychildren.item(j).getNodeName();
-                    if (NodeName.equals("Id"))
+                    HPCCQuery query = new HPCCQuery();
+                    PublishedQuery publishedQuery = querySetQueries[querysetqueriesindex];
+                    query.setQueryset(querySetName);
+                    query.setID(publishedQuery.getId());
+                    query.setSuspended(publishedQuery.getSuspended());
+                    query.setWUID(publishedQuery.getWuid());
+                    query.setName(publishedQuery.getName());
+
+                    QuerySignature signature = publishedQuery.getSignature();
+                    OutputDataset[] resultSets = signature.getResultSets();
+                    for (int currentresset = 0; currentresset < resultSets.length; currentresset++)
                     {
-                        query.setID(querysetquerychildren.item(j).getTextContent());
+                        OutputDataset outputDataset = resultSets[currentresset];
+                        String tablename = outputDataset.getName();
+                        query.addResultDataset(tablename);
+
+                        HPCCColumn[] outParams = outputDataset.getOutParams();
+
+                        for (int currentoutparam = 0; currentoutparam < outParams.length; currentoutparam++)
+                        {
+                            HPCCColumn hpccColumn = outParams[currentoutparam];
+
+                            HPCCColumnMetaData elemmeta = new HPCCColumnMetaData(hpccColumn.getName().toUpperCase(), 0, java.sql.Types.OTHER);
+                            elemmeta.setEclType(hpccColumn.getType());
+                            elemmeta.setTableName(tablename);
+                            elemmeta.setParamType(java.sql.DatabaseMetaData.procedureColumnOut);
+
+                            try
+                            {
+                                query.addResultElement(elemmeta);
+                            }
+                            catch (Exception e)
+                            {
+                                HPCCJDBCUtils.traceoutln(Level.SEVERE,  "Could not add dataset element: " + tablename + ":" + elemmeta.getColumnName());
+                            }
+                        }
                     }
-                    else if (NodeName.equals("Name"))
+
+                    HPCCColumn[] inParams = signature.getInParams();
+                    if (inParams != null && inParams.length > 0)
                     {
-                        query.setName(querysetquerychildren.item(j).getTextContent());
+                        for (int currentinparamindex = 0; currentinparamindex < inParams.length; currentinparamindex++)
+                        {
+                            HPCCColumnMetaData elemmeta = new HPCCColumnMetaData(inParams[currentinparamindex].getName(), currentinparamindex + 1,java.sql.Types.OTHER);
+                            elemmeta.setEclType(inParams[currentinparamindex].getType());
+                            elemmeta.setTableName(publishedQuery.getName());
+                            elemmeta.setParamType(java.sql.DatabaseMetaData.procedureColumnIn);
+                            try
+                            {
+                                query.addResultElement(elemmeta);
+                            }
+                            catch (Exception e)
+                            {
+                                HPCCJDBCUtils.traceoutln(Level.SEVERE,  "Could not add dataset element: " + elemmeta.getColumnName());
+                            }
+                        }
                     }
-                    else if (NodeName.equals("Wuid"))
-                    {
-                        query.setWUID(querysetquerychildren.item(j).getTextContent());
-                    }
-                    else if (NodeName.equals("Dll"))
-                    {
-                        query.setDLL(querysetquerychildren.item(j).getTextContent());
-                    }
-                    else if (NodeName.equals("Suspended"))
-                    {
-                        query.setSuspended(Boolean.parseBoolean(querysetquerychildren.item(j).getTextContent()));
-                    }
-                }
-                // for each QuerySetQuery found above, get all schema related info:
-                String queryinfourl = basewseclwatchurl
-                        + "/WsWorkunits/WUInfo/WUInfoRequest?Wuid=" + query.getWUID() + "&IncludeExceptions=1"
-                        + "&IncludeGraphs=0" + "&IncludeSourceFiles=0" + "&IncludeTimers=0" + "&IncludeDebugValues=0"
-                        + "&IncludeApplicationValues=0" + "&IncludeWorkflows=0" + "&IncludeHelpers=0" + "&rawxml_";
-
-                // now request the schema for each hpcc query
-                URL queryschema = HPCCJDBCUtils.makeURL(queryinfourl);
-                HttpURLConnection queryschemaconnection = createHPCCESPConnection(queryschema);
-
-                InputStream schema = queryschemaconnection.getInputStream();
-
-                try
-                {
-                    Document dom2 = db.parse(schema);
-
-                    Element docElement = dom2.getDocumentElement();
-
-                    // Get all pertinent info regarding this query (analogous to
-                    // SQL Stored Procedure)
-                    registerSchemaElements(docElement, query);
-
-                    // Add this query name to queries structure
                     eclqueries.put(query);
                     hpccQueryParsedCount++;
                 }
-                catch (Exception e)
-                {
-                    HPCCJDBCUtils.traceoutln(Level.SEVERE,
-                            "Could not retreive Query info for: " + query.getID() + "(" + query.getWUID() + ")");
-                }
-            }
 
-            NodeList querySetAliases = dom.getElementsByTagName("QuerySetAlias");
-            for (int i = 0; i < querySetAliases.getLength(); i++)
-            {
-                String aliasid = null;
-                String aliasname = null;
-
-                NodeList querysetaliaschildren = querySetAliases.item(i).getChildNodes();
-                for (int j = 0; j < querysetaliaschildren.getLength(); j++)
+                QuerySetAliasMap[] querySetAliases = hpccQuerySet.getQuerySetAliases();
+                for (int querysetaliasindex = 0; querysetaliasindex < querySetAliases.length; querysetaliasindex++)
                 {
-                    String NodeName = querysetaliaschildren.item(j).getNodeName();
-                    if (NodeName.equals("Id"))
+                    QuerySetAliasMap querySetAliasMap = querySetAliases[querysetaliasindex];
+                    String aliasid = querySetAliasMap.getId();
+                    String aliasname = querySetAliasMap.getName();
+
+                    if (aliasid != null && aliasname != null)
                     {
-                        aliasid = querysetaliaschildren.item(j).getTextContent();
+                        if (eclqueries.containsQueryName(querySetName, aliasid))
+                            eclqueries.putAlias(querySetName, aliasname, aliasid);
+                        else
+                            HPCCJDBCUtils.traceoutln(Level.ALL, "Encountered ECLQUERY Alias but could not find target ECLQUERY");
                     }
-                    else if (NodeName.equals("Name"))
-                    {
-                        aliasname = querysetaliaschildren.item(j).getTextContent();
-                    }
-                }
-
-                if (aliasid != null && aliasname != null)
-                {
-                    if (eclqueries.containsQueryName(querysetname, aliasid))
-                        eclqueries.putAlias(querysetname, aliasname, aliasid);
                 }
             }
         }
         catch (Exception e)
         {
-
+            HPCCJDBCUtils.traceoutln(Level.ALL, "Error parsing HPCC query information");
         }
 
         return hpccQueryParsedCount;
     }
 
-    private boolean fetchHPCCQueryInfo(String queryset, String eclqueryname)
+    private boolean fetchHPCCQueriesInfo()
     {
         boolean isSuccess = false;
 
-        if (basewseclwatchurl == null)
-            return false;
-
-        try
+        if (isQuerySetMetaDataCached())
         {
-            String urlString = basewseclwatchurl
-                    + "/WsWorkunits/WUQuerysetDetails?QuerySetName=" + queryset + "&Filter=" + eclqueryname
-                    + "&FilterType=Name" + "&rawxml_";
-
-            URL querysetURL = new URL(urlString);
-            HttpURLConnection querysetconnection = createHPCCESPConnection(querysetURL);
-
-            InputStream xml = querysetconnection.getInputStream();
-
-            isSuccess = parseHPCCQuery(xml) > 0 ? true : false;
-
-        }
-        catch (IOException e)
-        {
-            e.printStackTrace();
+            HPCCJDBCUtils.traceoutln(Level.INFO, "HPCC query info already present (reconnect to force re-fetch)");
+            return isSuccess;
         }
 
+        if (connection == null)
+        {
+            HPCCJDBCUtils.traceoutln(Level.ALL, "Could not fetch HPCC Query Information");
+            return isSuccess;
+        }
+
+        int querySetsCount = querysets.size();
+        if (querySetsCount == 0)
+            isSuccess = fetchQuerysetsInfo();
+        else
+            isSuccess = true;
+
+        if (isSuccess)
+        {
+            try
+            {
+                HPCCQuerySet[] storedProcedures = connection.getStoredProcedures(null);
+                parseHPCCQuery(storedProcedures);
+            }
+            catch (IOException e)
+            {
+                isSuccess = false;
+                e.printStackTrace();
+            }
+            catch (Exception e)
+            {
+                e.printStackTrace();
+            }
+        }
+        else
+        {
+            HPCCJDBCUtils.traceoutln(Level.ALL, "Query set information not available, could not fetch HPCC Query Information");
+        }
         return isSuccess;
     }
 
-    private boolean fetchHPCCQueriesInfo()
+    private boolean fetchHPCCQuerySetInfo(String queryset/*, String eclqueryname*/)
     {
-        boolean isSuccess = true;
+        boolean isSuccess = false;
 
-        if (isQuerySetMetaDataCached())
-        {
-            HPCCJDBCUtils.traceoutln(Level.INFO, "HPCC query info already present (reconnect to force fetch)");
-            return true;
-        }
-
-        if (basewseclwatchurl == null)
+        if (connection == null)
             return false;
-
-        if (querysets.size() == 0)
-            isSuccess &= fetchQuerysetsInfo();
 
         try
         {
-            for (int z = 0; z < querysets.size(); z++)
-            {
-                HPCCJDBCUtils.traceoutln(Level.INFO, "Fetching up to " + pageSize
-                        + " Stored Procedures' Metadata from QuerySet " + querysets.get(z));
-
-                String urlString = basewseclwatchurl
-                        + "/WsWorkunits/WUQuerysetDetails?QuerySetName=" + querysets.get(z) + "&rawxml_";
-
-                URL querysetURL = HPCCJDBCUtils.makeURL(urlString);
-                HttpURLConnection querysetconnection = createHPCCESPConnection(querysetURL);
-
-                InputStream xml = querysetconnection.getInputStream();
-
-                parseHPCCQuery(xml);
-            }
+            HPCCQuerySet[] storedProcedures = connection.getStoredProcedures(queryset/* eclqueryname*/);
+            isSuccess = parseHPCCQuery(storedProcedures) > 0 ? true : false;
         }
         catch (IOException e)
         {
-            isSuccess = false;
             e.printStackTrace();
         }
+        catch (Exception e)
+        {
+            e.printStackTrace();
+        }
+
         return isSuccess;
     }
 
     private boolean fetchQuerysetsInfo()
     {
-        if (basewseclwatchurl == null)
+        if (connection == null)
             return false;
 
         if (querysets.size() > 0)
         {
-            HPCCJDBCUtils.traceoutln(Level.INFO, "QuerySet info already present (reconnect to force fetch)");
+            HPCCJDBCUtils.traceoutln(Level.INFO, "QuerySet info already present (reconnect to force re-fetch)");
             return true;
         }
 
         try
         {
-            String urlString = basewseclwatchurl + "/WsWorkunits/WUQuerysets?rawxml_";
-
-            URL clusterInfoURL = HPCCJDBCUtils.makeURL(urlString);
-            HttpURLConnection clusterInfoConnection = createHPCCESPConnection(clusterInfoURL);
-
-            InputStream xml = clusterInfoConnection.getInputStream();
-
-            DocumentBuilder db = dbf.newDocumentBuilder();
-            Document dom = db.parse(xml);
-
-            String querysetname;
-            NodeList querysetsList = dom.getElementsByTagName("QuerySetName");
-            for (int i = 0; i < querysetsList.getLength(); i++)
+            DataQuerySet[] dataQuerySets = connection.getDataQuerySets();
+            for (int i = 0; i < dataQuerySets.length; i++)
             {
-                querysetname = querysetsList.item(i).getTextContent();
-                if (querysetname.length() > 0)
-                    querysets.add(querysetname);
+                querysets.add(dataQuerySets[i].getName());
             }
         }
         catch (Exception e)
@@ -2559,41 +2124,22 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
 
     private boolean fetchClusterInfo()
     {
-        if (basewseclwatchurl == null)
+        if (connection == null)
             return false;
 
         if (targetclusters.size() > 0)
         {
-            HPCCJDBCUtils.traceoutln(Level.FINEST, "Cluster info already present (reconnect to force fetch)");
+            HPCCJDBCUtils.traceoutln(Level.FINEST, "Cluster info already present (reconnect to force re-fetch)");
             return true;
         }
 
         try
         {
-            String urlString = basewseclwatchurl
-                    + "/WsTopology/TpTargetClusterQuery?Type=ROOT&rawxml_&ShowDetails=0";
+            Cluster[] clusters = connection.getClusters();
 
-            URL clusterInfoURL = HPCCJDBCUtils.makeURL(urlString);
-            HttpURLConnection clusterInfoConnection = createHPCCESPConnection(clusterInfoURL);
-
-            InputStream xml = clusterInfoConnection.getInputStream();
-
-            DocumentBuilder db = dbf.newDocumentBuilder();
-            Document dom = db.parse(xml);
-
-            NodeList clusterList = dom.getElementsByTagName("TpTargetCluster");
-            for (int i = 0; i < clusterList.getLength(); i++)
+            for (int i = 0; i < clusters.length; i++)
             {
-                NodeList clusterElements = clusterList.item(i).getChildNodes();
-                for (int y = 0; y < clusterElements.getLength(); y++)
-                {
-                    Node currNode = clusterElements.item(y);
-                    if (currNode.getNodeName().equals("Name"))
-                    {
-                        targetclusters.add(currNode.getTextContent());
-                        break;
-                    }
-                }
+                targetclusters.add(clusters[i].getName());
             }
         }
         catch (Exception e)
@@ -2607,95 +2153,27 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
 
     private boolean fetchHPCCInfo()
     {
-        if (basewseclwatchurl == null)
+        if (connection == null)
             return false;
 
-        String urlString = "";
-        try
-        {
-            urlString = basewseclwatchurl + "/WsSMC/Activity?rawxml_";
-
-            HPCCJDBCUtils.traceoutln(Level.INFO, "HPCCDatabaseMetaData Fetching HPCC INFO: " + urlString);
-
-            URL querysetURL = new URL(urlString);
-            HttpURLConnection querysetconnection = createHPCCESPConnection(querysetURL);
-
-            InputStream xml = querysetconnection.getInputStream();
-
-            DocumentBuilder db = dbf.newDocumentBuilder();
-            Document dom = db.parse(xml);
-
-            NodeList activityList = dom.getElementsByTagName("ActivityResponse");
-            if (activityList.getLength() > 0)
-            {
-                NodeList queryList = activityList.item(0).getChildNodes();
-                for (int i = 0; i < queryList.getLength(); i++)
-                {
-                    Node currentNode = queryList.item(i);
-
-                    /* Get build block */
-                    if (currentNode.getNodeName().equals("Build"))
-                    {
-                        Node buildNode = currentNode.getFirstChild();
-
-                        if (buildNode != null && buildNode.getNodeType() == Node.TEXT_NODE)
-                            HPCCBuildVersionFull = buildNode.getTextContent();
-
-                        parseVersionString();
-
-                        break;
-                    }
-                    /*
-                     * Get whatever other element block
-                     *
-                     * else if
-                     * (currentNode.getNodeName().equals("RoxieClusters"))
-                     * REMOVE THE ABOVE BREAK!!!!!
-                     */
-                }
-            }
-        }
-        catch (Exception e)
-        {
-            HPCCJDBCUtils.traceoutln(Level.SEVERE,  "Could not fetch HPCC info from: " + urlString);
-            HPCCJDBCUtils.traceoutln(Level.ALL,  e.getMessage());
-            return false;
-        }
+        hpccVersion = connection.getVersion();
 
         return true;
     }
 
-    private void parseVersionString()
-    {
-        try
-        {
-            HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData Parsing HPCC version info: " + HPCCBuildVersionFull);
-            HPCCBuildType = HPCCBuildVersionFull.substring(0, HPCCBuildVersionFull.lastIndexOf('_'));
-
-            String numeric = HPCCBuildVersionFull.substring(HPCCBuildVersionFull.indexOf('_') + 1,
-                    HPCCBuildVersionFull.indexOf('-'));
-
-            HPCCBuildMajor = Short.parseShort(numeric.substring(0, numeric.indexOf('.')));
-            HPCCBuildMinor = Float.parseFloat(numeric.substring(numeric.indexOf('.') + 1));
-        }
-        catch (Exception e)
-        {
-            HPCCJDBCUtils.traceoutln(Level.SEVERE,  "Error parsing HPCC version: " + e.getMessage());
-        }
-    }
 
     @Override
     public int getJDBCMajorVersion() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getJDBCMajorVersion");
-        return JDBCVerMajor;
+        return hpccVersion.major;
     }
 
     @Override
     public int getJDBCMinorVersion() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getJDBCMinorVersion");
-        return JDBCVerMinor;
+        return hpccVersion.minor;
     }
 
     @Override
@@ -2760,8 +2238,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public ResultSet getFunctions(String catalog, String schemaPattern, String functionNamePattern) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getFunctions");
-        throw new UnsupportedOperationException(
-                "HPCCDBMetaData: getFunctions(String catalog, String schemaPattern, String functionNamePattern) Not  supported yet.");
+        throw new UnsupportedOperationException("HPCCDBMetaData: getFunctions(String catalog, String schemaPattern, String functionNamePattern) Not  supported yet.");
     }
 
     @Override
@@ -2769,8 +2246,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
             String columnNamePattern) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getFunctionColumns");
-        throw new UnsupportedOperationException(
-                "HPCCDBMetaData: getFunctionColumns(String catalog, String schemaPattern, String functionNamePattern, String columnNamePattern) Not  supported yet.");
+        throw new UnsupportedOperationException("HPCCDBMetaData: getFunctionColumns(String catalog, String schemaPattern, String functionNamePattern, String columnNamePattern) Not  supported yet.");
     }
 
     @Override
@@ -2787,17 +2263,12 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         throw new UnsupportedOperationException("HPCCDBMetaData: isWrapperFor(Class<?> iface) Not  supported yet.");
     }
 
-    public String getBasicAuth()
-    {
-        return basicAuth;
-    }
-
     public boolean tableExists(String clustername, String filename)
     {
         boolean found = dfufiles.containsFileName(filename);
 
         if (!found)
-            found = fetchHPCCFileInfo(filename);
+            found = fetchHPCCFilesInfo(filename);
 
         return found;
     }
@@ -2831,7 +2302,10 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         boolean found = eclqueries.containsQueryName(querysetname, hpccqueryname);
 
         if (!found)
-            found = fetchHPCCQueryInfo(querysetname, hpccqueryname);
+        {
+            if (fetchHPCCQuerySetInfo(querysetname))
+                found = eclqueries.containsQueryName(querysetname, hpccqueryname);
+        }
 
         return found;
     }
@@ -2878,76 +2352,142 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
             }
             if (file.isKeyFile() && !file.hasKeyedFieldInfoBeenSet())
             {
-                getKeyedFieldInfo(file);
+                setKeyedFieldInfo(file);
             }
         }
 
         return file;
     }
 
-    private void getKeyedFieldInfo(DFUFile file)
+    private static void appendIndexKeys(DFUFile file, DFUDataColumn[] columns, boolean keyed)
     {
-        String openfiledetailUrl;
+        if (file == null || columns == null )
+            return;
+
+        for(int i = 0; i < columns.length; i++)
+        {
+            if (keyed)
+                file.addKeyedColumnInOrder(columns[i].getColumnLabel());
+            else
+                file.addNonKeyedColumnInOrder(columns[i].getColumnLabel());
+        }
+    }
+
+    private void setKeyedFieldInfo(DFUFile file)
+    {
+        if (connection == null)
+            return;
+
         try
         {
-            openfiledetailUrl = basewseclwatchurl
-                    + "/WsDfu/DFUSearchData?OpenLogicalName="
-                    + URLEncoder.encode(file.getFullyQualifiedName(), "UTF-8") + "&Cluster="
-                    + file.getClusterName() + "&RoxieSelections=0" + "&rawxml_";
-            DocumentBuilder db = dbf.newDocumentBuilder();
-
-            URL queryfiledata = HPCCJDBCUtils.makeURL(openfiledetailUrl);
-            HttpURLConnection queryfiledataconnection = createHPCCESPConnection(queryfiledata);
-
-            InputStream filesearchinfo = queryfiledataconnection.getInputStream();
-            Document dom3 = db.parse(filesearchinfo);
-
-            Element docElement2 = dom3.getDocumentElement();
-
-            NodeList keyfiledetail = docElement2.getChildNodes();
-            if (keyfiledetail.getLength() > 0)
+            DFUSearchDataResponse dfuData = connection.getHPCCPlatform().getWsDfuClient().getDFUData(file.getFullyQualifiedName(), file.getClusterName(), false, -1, -1, true, -1);
+            if (dfuData != null)
             {
-                for (int k = 0; k < keyfiledetail.getLength(); k++)
+                DFUDataColumn[] dfuDataKeyedColumns = dfuData.getDFUDataKeyedColumns1();
+                if (dfuDataKeyedColumns != null)
                 {
-                    Node currentnode = keyfiledetail.item(k);
-                    if (currentnode.getNodeName().startsWith("DFUDataKeyedColumns"))
+                    appendIndexKeys(file, dfuDataKeyedColumns,true);
+                    dfuDataKeyedColumns = dfuData.getDFUDataKeyedColumns2();
+
+                    if (dfuDataKeyedColumns != null)
                     {
-                        NodeList keyedColumns = currentnode.getChildNodes();
-                        for (int fieldindex = 0; fieldindex < keyedColumns.getLength(); fieldindex++)
+                        appendIndexKeys(file, dfuDataKeyedColumns,true);
+                        dfuDataKeyedColumns = dfuData.getDFUDataKeyedColumns3();
+
+                        if (dfuDataKeyedColumns != null)
                         {
-                            Node KeyedColumn = keyedColumns.item(fieldindex);
-                            NodeList KeyedColumnFields = KeyedColumn.getChildNodes();
-                            for (int q = 0; q < KeyedColumnFields.getLength(); q++)
+                            appendIndexKeys(file, dfuDataKeyedColumns,true);
+                            dfuDataKeyedColumns = dfuData.getDFUDataKeyedColumns4();
+
+                            if (dfuDataKeyedColumns != null)
                             {
-                                Node keyedcolumnfield = KeyedColumnFields.item(q);
-                                if (keyedcolumnfield.getNodeName().equals("ColumnLabel"))
+                                appendIndexKeys(file, dfuDataKeyedColumns,true);
+                                dfuDataKeyedColumns = dfuData.getDFUDataKeyedColumns5();
+
+                                if (dfuDataKeyedColumns != null)
                                 {
-                                    file.addKeyedColumnInOrder(keyedcolumnfield.getTextContent());
-                                    break;
+                                    appendIndexKeys(file, dfuDataKeyedColumns,true);
+                                    dfuDataKeyedColumns = dfuData.getDFUDataKeyedColumns6();
+
+                                    if (dfuDataKeyedColumns != null)
+                                    {
+                                        appendIndexKeys(file, dfuDataKeyedColumns,true);
+                                        dfuDataKeyedColumns = dfuData.getDFUDataKeyedColumns7();
+
+                                        if (dfuDataKeyedColumns != null)
+                                        {
+                                            appendIndexKeys(file, dfuDataKeyedColumns,true);
+                                            dfuDataKeyedColumns = dfuData.getDFUDataKeyedColumns8();
+
+                                            if (dfuDataKeyedColumns != null)
+                                            {
+                                                appendIndexKeys(file, dfuDataKeyedColumns,true);
+                                                dfuDataKeyedColumns = dfuData.getDFUDataKeyedColumns9();
+
+                                                if (dfuDataKeyedColumns != null)
+                                                {
+                                                    appendIndexKeys(file, dfuDataKeyedColumns,true);
+                                                    dfuDataKeyedColumns = dfuData.getDFUDataKeyedColumns10();
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
-                                // currently not interested in any other
-                                // field, if we need other field values, remove above break;
                             }
                         }
                     }
-                    else if (currentnode.getNodeName().startsWith("DFUDataNonKeyedColumns"))
-                    {
-                        NodeList nonKeyedColumns = currentnode.getChildNodes();
+                }
 
-                        for (int fieldindex = 0; fieldindex < nonKeyedColumns.getLength(); fieldindex++)
+                dfuDataKeyedColumns = dfuData.getDFUDataNonKeyedColumns1();
+                if (dfuDataKeyedColumns != null)
+                {
+                    appendIndexKeys(file, dfuDataKeyedColumns,false);
+                    dfuDataKeyedColumns = dfuData.getDFUDataNonKeyedColumns2();
+
+                    if (dfuDataKeyedColumns != null)
+                    {
+                        appendIndexKeys(file, dfuDataKeyedColumns,false);
+                        dfuDataKeyedColumns = dfuData.getDFUDataNonKeyedColumns3();
+
+                        if (dfuDataKeyedColumns != null)
                         {
-                            Node nonKeyedColumn = nonKeyedColumns.item(fieldindex);
-                            NodeList nonKeyedColumnFields = nonKeyedColumn.getChildNodes();
-                            for (int q = 0; q < nonKeyedColumnFields.getLength(); q++)
+                            appendIndexKeys(file, dfuDataKeyedColumns,false);
+                            dfuDataKeyedColumns = dfuData.getDFUDataNonKeyedColumns4();
+
+                            if (dfuDataKeyedColumns != null)
                             {
-                                Node nonkeyedcolumnfield = nonKeyedColumnFields.item(q);
-                                if (nonkeyedcolumnfield.getNodeName().equals("ColumnLabel"))
+                                appendIndexKeys(file, dfuDataKeyedColumns,false);
+                                dfuDataKeyedColumns = dfuData.getDFUDataNonKeyedColumns5();
+
+                                if (dfuDataKeyedColumns != null)
                                 {
-                                    file.addNonKeyedColumnInOrder(nonkeyedcolumnfield.getTextContent());
-                                    break;
+                                    appendIndexKeys(file, dfuDataKeyedColumns,false);
+                                    dfuDataKeyedColumns = dfuData.getDFUDataNonKeyedColumns6();
+
+                                    if (dfuDataKeyedColumns != null)
+                                    {
+                                        appendIndexKeys(file, dfuDataKeyedColumns,false);
+                                        dfuDataKeyedColumns = dfuData.getDFUDataNonKeyedColumns7();
+
+                                        if (dfuDataKeyedColumns != null)
+                                        {
+                                            appendIndexKeys(file, dfuDataKeyedColumns,false);
+                                            dfuDataKeyedColumns = dfuData.getDFUDataNonKeyedColumns8();
+
+                                            if (dfuDataKeyedColumns != null)
+                                            {
+                                                appendIndexKeys(file, dfuDataKeyedColumns,false);
+                                                dfuDataKeyedColumns = dfuData.getDFUDataNonKeyedColumns9();
+
+                                                if (dfuDataKeyedColumns != null)
+                                                {
+                                                    appendIndexKeys(file, dfuDataKeyedColumns,false);
+                                                    dfuDataKeyedColumns = dfuData.getDFUDataNonKeyedColumns10();
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
-                                // currently not interested in any other
-                                // field, if we need other field values, remove above break;
                             }
                         }
                     }
@@ -2958,73 +2498,5 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         {
             HPCCJDBCUtils.traceoutln(Level.SEVERE, "Error fetching Index file info: " + file.getFullyQualifiedName());
         }
-    }
-
-    protected HttpURLConnection createHPCCESPConnection(URL theurl) throws IOException
-    {
-        return createHPCCESPConnection(theurl, connectTimoutMillis, readTimoutMillis);
-    }
-
-    protected HttpURLConnection createHPCCESPConnection(URL theurl, int connecttimeout, int readtimeout) throws IOException
-    {
-        HttpURLConnection conn = (HttpURLConnection) theurl.openConnection();
-        conn.setInstanceFollowRedirects(false);
-        conn.setRequestProperty("Authorization", basicAuth);
-        conn.setRequestMethod("GET");
-        conn.setDoOutput(true);
-        conn.setDoInput(true);
-        conn.setConnectTimeout(connecttimeout);
-        conn.setReadTimeout(readtimeout);
-
-        return conn;
-    }
-
-    public boolean isTargetHPCCReachable()
-    {
-        return isTargetHPCCReachable(connectTimoutMillis);
-    }
-
-    public boolean isTargetHPCCReachable(int timeout)
-    {
-        if (basewseclwatchurl == null)
-            return false;
-
-        HttpURLConnection testconnection = null;
-
-        String urlString = basewseclwatchurl + "/WsSMC/Activity?rawxml_";
-        HPCCJDBCUtils.traceoutln(Level.INFO, "HPCCDatabaseMetaData Attempting to reach HPCC System: " + urlString);
-
-        try
-        {
-            URL querysetURL = new URL(urlString);
-            testconnection = createHPCCESPConnection(querysetURL, timeout, readTimoutMillis);
-            testconnection.connect();
-        }
-        catch (Exception e)
-        {
-            HPCCJDBCUtils.traceoutln(Level.SEVERE,  "Could not contact HPCC: " + urlString);
-            HPCCJDBCUtils.traceoutln(Level.ALL,  e.getMessage());
-            return false;
-        }
-        finally
-        {
-            try
-            {
-                if (testconnection != null)
-                    testconnection.disconnect();
-            }
-            catch (Exception e)
-            {
-                HPCCJDBCUtils.traceoutln(Level.WARNING,  "Could not close test connection:" + urlString);
-                HPCCJDBCUtils.traceoutln(Level.ALL,  e.getMessage());
-            }
-        }
-
-        return true;
-    }
-
-    public boolean hasHPCCTargetBeenReached()
-    {
-        return hasHPCCTargetBeenReached;
     }
 }
