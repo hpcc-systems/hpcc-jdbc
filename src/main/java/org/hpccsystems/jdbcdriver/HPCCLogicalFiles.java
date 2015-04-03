@@ -130,7 +130,8 @@ public class HPCCLogicalFiles
                 }
             }
         }
-        HPCCJDBCUtils.traceoutln(Level.INFO,  "Update superfiles' record definition ( " + superfilesupdated + " out of " + superfilescount + " )");
+        if (superfilesupdated > 0)
+            HPCCJDBCUtils.traceoutln(Level.INFO,  "Update superfiles' record definition ( " + superfilesupdated + " out of " + superfilescount + " )");
     }
 
     public long getReportedFileCount()

@@ -22,6 +22,11 @@ import java.sql.DatabaseMetaData;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.logging.Level;
+
+import org.hpccsystems.ws.client.gen.wsworkunits.v1_46.ECLResult;
+import org.hpccsystems.ws.client.gen.wsworkunits.v1_46.ECLSchemaItem;
+import org.hpccsystems.ws.client.gen.wsworkunits.v1_46.ECLWorkunit;
 
 public class HPCCQuery
 {

@@ -18,6 +18,10 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package org.hpccsystems.jdbcdriver;
 
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.sql.Array;
 import java.sql.Blob;
 import java.sql.CallableStatement;
@@ -33,9 +37,24 @@ import java.sql.SQLXML;
 import java.sql.Savepoint;
 import java.sql.Statement;
 import java.sql.Struct;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Level;
+
+import org.hpccsystems.ws.client.extended.HPCCWsSQLClient;
+import org.hpccsystems.ws.client.gen.extended.wssql.v1_0.ECLWorkunit;
+import org.hpccsystems.ws.client.gen.extended.wssql.v1_0.ExecutePreparedSQLResponse;
+import org.hpccsystems.ws.client.gen.extended.wssql.v1_0.ExecuteSQLResponse;
+import org.hpccsystems.ws.client.gen.extended.wssql.v1_0.GetResultsResponse;
+import org.hpccsystems.ws.client.gen.extended.wssql.v1_0.HPCCQuerySet;
+import org.hpccsystems.ws.client.gen.extended.wssql.v1_0.HPCCTable;
+import org.hpccsystems.ws.client.gen.extended.wssql.v1_0.NamedValue;
+import org.hpccsystems.ws.client.platform.Cluster;
+import org.hpccsystems.ws.client.platform.DataQuerySet;
+import org.hpccsystems.ws.client.platform.Platform;
+import org.hpccsystems.ws.client.platform.Version;
 
 /**
  *
@@ -44,29 +63,116 @@ import java.util.logging.Level;
 
 public class HPCCConnection implements Connection
 {
-    private boolean              closed;
+    protected final Object       closedLock = new Object();
+    private boolean              closed = true;
     private HPCCDatabaseMetaData metadata;
     private Properties           connectionProps;
     private Properties           clientInfo;
     private SQLWarning           warnings = null;
     private String               catalog = HPCCJDBCUtils.HPCCCATALOGNAME;
 
+    private Platform                    hpccPlatform              = null;
+    private HPCCWsSQLClient             wsSQLClient               = null;
+    private String                      serverAddress;
+    private int                         wsEclPort;
+    private String                      targetcluster;
+    private String                      queryset;
+    private String                      userName;
+    private int                         pageSize;
+    private int                         pageOffset;
+    private int                         connectTimoutMillis;
+    private int                         readTimoutMillis;
+    private boolean                     hasTargetWsSQLBeenReached = false;
+    private int                         elcResultLimit;
+
     public HPCCConnection(Properties props)
     {
         this.connectionProps = props;
 
-        metadata = new HPCCDatabaseMetaData(props);
+        this.serverAddress = props.getProperty("ServerAddress", HPCCDriver.SERVERADDRESSDEFAULT);
+        this.targetcluster = props.getProperty("TargetCluster", HPCCDriver.CLUSTERDEFAULT);
+        this.queryset = props.getProperty("QuerySet", HPCCDriver.QUERYSETDEFAULT);
 
-        // TODO not doing anything w/ this yet, just exposing it to comply w/ API definition...
-        clientInfo = new Properties();
+        this.userName = props.getProperty("username", "");
+        this.pageSize = HPCCJDBCUtils.stringToInt(props.getProperty("PageSize"), Integer.valueOf(HPCCDriver.FETCHPAGESIZEDEFAULT));
+        this.pageOffset = HPCCJDBCUtils.stringToInt(props.getProperty("PageOffset"), Integer.valueOf(HPCCDriver.FETCHPAGEOFFSETDEFAULT));
+        this.connectTimoutMillis = HPCCJDBCUtils.stringToInt(props.getProperty("ConnectTimeoutMilli"), Integer.valueOf(HPCCDriver.CONNECTTIMEOUTMILDEFAULT));
+        this.readTimoutMillis = HPCCJDBCUtils.stringToInt(props.getProperty("ReadTimeoutMilli"), Integer.valueOf(HPCCDriver.READTIMEOUTMILDEFAULT));
+        this.elcResultLimit = HPCCJDBCUtils.stringToInt(props.getProperty("EclResultLimit"),HPCCDriver.ECLRESULTLIMDEFAULTINT);
+        HPCCJDBCUtils.traceoutln(Level.INFO, "HPCCDatabaseMetaData ServerAddress: " + serverAddress + " TargetCluster: " + targetcluster);
 
-        if (metadata != null && metadata.hasHPCCTargetBeenReached())
+        synchronized (closedLock)
         {
-            closed = false;
-            HPCCJDBCUtils.traceoutln(Level.INFO,  "HPCCConnection initialized - server: " + this.connectionProps.getProperty("ServerAddress"));
+            try
+            {
+                URL eclWatchURL = null;
+                try
+                {
+                    eclWatchURL = new URL(serverAddress);
+                }
+                catch (MalformedURLException e)
+                {
+                    eclWatchURL = new URL(HPCCJDBCUtils.defaultprotocol+HPCCJDBCUtils.protocolsep+serverAddress);
+                }
+
+                if (eclWatchURL.getPort() == -1)
+                    this.wsEclPort =  HPCCJDBCUtils.stringToInt(props.getProperty("WsECLWatchPort"), Integer.valueOf(HPCCDriver.WSECLWATCHPORTDEFAULT));
+                else
+                    this.wsEclPort = eclWatchURL.getPort();
+
+                hpccPlatform = Platform.get(eclWatchURL.getProtocol(), eclWatchURL.getHost(), wsEclPort, userName, props.getProperty("password", ""));
+
+                wsSQLClient = hpccPlatform.getHPCCWSClient().getWsSQLClient(props.getProperty("WsSQLport"));
+                if (!wsSQLClient.isWsSQLReachable())
+                {
+                    HPCCJDBCUtils.traceoutln(Level.SEVERE, "The HPCC WsSQL service could not be reached on " + serverAddress + " on port " + props.getProperty("WsSQLport"));
+                    return;
+                }
+                else
+                    hasTargetWsSQLBeenReached = true;
+
+                HPCCJDBCUtils.traceoutln(Level.INFO, "HPCCDatabaseMetaData initialized");
+            }
+            catch (MalformedURLException e)
+            {
+                addWarning(new SQLWarning("Error initializing HPCCDatabaseMetaData:" + e.getLocalizedMessage()));
+                HPCCJDBCUtils.traceoutln(Level.SEVERE, "Error initializing HPCCDatabaseMetaData:" + e.getLocalizedMessage());
+                return;
+            }
+
+            // TODO not doing anything w/ this yet, just exposing it to comply w/ API definition...
+            clientInfo = new Properties();
+
+            if (hasTargetWsSQLBeenReached())
+            {
+                synchronized (closedLock)
+                {
+                    closed = false;
+                }
+
+                //considering that metadata keeps a copy of this connection, I wish metadata would not be exposed by the connection as well
+                metadata = new HPCCDatabaseMetaData(this);
+
+                HPCCJDBCUtils.traceoutln(Level.INFO,  "HPCCConnection initialized - server: " + this.connectionProps.getProperty("ServerAddress"));
+            }
+            else
+            {
+                addWarning(new SQLWarning("HPCCConnection not initialized - server: " + this.connectionProps.getProperty("ServerAddress")));
+                HPCCJDBCUtils.traceoutln(Level.INFO,  "HPCCConnection not initialized - server: " + this.connectionProps.getProperty("ServerAddress"));
+            }
         }
-        else
-            HPCCJDBCUtils.traceoutln(Level.INFO,  "HPCCConnection not initialized - server: " + this.connectionProps.getProperty("ServerAddress"));
+    }
+
+    private void addWarning(SQLWarning warning)
+    {
+        if (warnings == null)
+            warnings = new SQLWarning();
+        warnings.setNextException(warning);
+    }
+
+    public int getPageSize()
+    {
+        return pageSize;
     }
 
     public static String createBasicAuth(String username, String passwd)
@@ -161,12 +267,25 @@ public class HPCCConnection implements Connection
 
     public void close() throws SQLException
     {
-        closed = true;
+        synchronized (closedLock)
+        {
+            HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCConnection: close( )");
+            if (!closed)
+            {
+                closed = true;
+                metadata = null;
+                hpccPlatform = null;
+                wsSQLClient = null;
+            }
+        }
     }
 
-    public boolean isClosed() throws SQLException
+    public boolean isClosed()
     {
-        return closed;
+        synchronized (closedLock)
+        {
+            return closed;
+        }
     }
 
     public DatabaseMetaData getMetaData() throws SQLException
@@ -217,6 +336,7 @@ public class HPCCConnection implements Connection
     public void clearWarnings() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST,  "HPCCConnection: clearWarnings.");
+        warnings = null;
     }
 
     public Statement createStatement(int resultSetType, int resultSetConcurrency) throws SQLException
@@ -349,13 +469,10 @@ public class HPCCConnection implements Connection
     public boolean isValid(int timeout) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST,  "HPCCConnection: isValid");
-        boolean success = false;
-        if (!closed)
-        {
-            if (metadata != null)
-                success = metadata.isTargetHPCCReachable(timeout);
-        }
-        return success;
+        if (!isClosed())
+            return hasTargetWsSQLBeenReached();
+
+        return false;
     }
 
     public void setClientInfo(String name, String value) throws SQLClientInfoException
@@ -402,5 +519,96 @@ public class HPCCConnection implements Connection
     public boolean isWrapperFor(Class<?> iface) throws SQLException
     {
         throw new UnsupportedOperationException("HPCCConnection: isWrapperFor(Class<?> iface) sNot supported yet.");
+    }
+
+    public boolean hasTargetWsSQLBeenReached()
+    {
+        return hasTargetWsSQLBeenReached;
+    }
+
+    public Platform getHPCCPlatform()
+    {
+        return hpccPlatform;
+    }
+
+    public ExecuteSQLResponse executeSQL(String sqlquery) throws Exception
+    {
+        if (isClosed())
+            throw new SQLException("ERROR: HPCCConnection is closed");
+
+        if (wsSQLClient == null)
+            throw new SQLException("ERROR: WsSQLClient not available");
+
+        return wsSQLClient.executeSQLFullResponse(sqlquery, targetcluster, queryset, elcResultLimit, pageSize,pageOffset, false, false, userName, readTimoutMillis);
+    }
+
+    public HPCCTable[] getHPCCTables(String filenamefilter) throws Exception
+    {
+        if (isClosed())
+            throw new SQLException("ERROR: HPCCConnection is closed");
+
+        return wsSQLClient.getTables(filenamefilter);
+    }
+
+    public HPCCQuerySet[] getStoredProcedures(String querysetname) throws Exception
+    {
+        if (isClosed())
+            throw new SQLException("ERROR: HPCCConnection is closed");
+
+        return wsSQLClient.getStoredProcedures(querysetname);
+    }
+
+    public DataQuerySet[] getDataQuerySets() throws SQLException
+    {
+        if (isClosed())
+            throw new SQLException("ERROR: HPCCConnection is closed");
+
+        return hpccPlatform.getDataQuerySets();
+    }
+
+    public Cluster[] getClusters() throws SQLException
+    {
+        if (isClosed())
+            throw new SQLException("ERROR: HPCCConnection is closed");
+
+        return hpccPlatform.getClusters();
+    }
+
+    public Version getVersion() throws SQLException
+    {
+        if (isClosed())
+            throw new SQLException("ERROR: HPCCConnection is closed");
+
+        return wsSQLClient.getVersion();
+    }
+
+    public ECLWorkunit prepareSQL(String sqlQuery) throws Exception
+    {
+        if (isClosed())
+            throw new SQLException("ERROR: HPCCConnection is closed");
+
+        return wsSQLClient.prepareSQL(sqlQuery, targetcluster, queryset, elcResultLimit);
+    }
+
+    public ExecutePreparedSQLResponse executePreparedSQL(String wuid, NamedValue[] variables) throws Exception
+    {
+        if (isClosed())
+            throw new SQLException("ERROR: HPCCConnection is closed");
+
+        if (wsSQLClient == null)
+            throw new SQLException("ERROR: WsSQLClient not available");
+
+        return wsSQLClient.executePreparedSQL(wuid, targetcluster, variables, readTimoutMillis, elcResultLimit, pageOffset, pageSize, userName, false, false);
+    }
+
+    public GetResultsResponse fetchResults(String wuid, int resultWindowStart, int resultWindowCount) throws Exception
+    {
+        if (isClosed())
+            throw new SQLException("ERROR: HPCCConnection is closed");
+
+        if (wsSQLClient == null)
+            throw new SQLException("ERROR: WsSQLClient not available");
+
+        return wsSQLClient.getResultResponse(wuid, resultWindowStart, resultWindowCount, true);
     }
 }

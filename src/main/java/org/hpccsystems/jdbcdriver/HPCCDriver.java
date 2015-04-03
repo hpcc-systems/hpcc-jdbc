@@ -31,12 +31,12 @@ import java.util.logging.Level;
 public class HPCCDriver implements Driver
 {
     public static final String   ECLRESULTLIMDEFAULT      = "100";
+    public static final int      ECLRESULTLIMDEFAULTINT   = 100;
     public static final String   CLUSTERDEFAULT           = "hthor";
     public static final String   QUERYSETDEFAULT          = "hthor";
     public static final String   SERVERADDRESSDEFAULT     = HPCCJDBCUtils.defaultprotocol + HPCCJDBCUtils.protocolsep + "localhost";
     public static final String   WSECLWATCHPORTDEFAULT    = "8010";
-    public static final String   WSECLPORTDEFAULT         = "8002";
-    public static final String   WSECLDIRECTPORTDEFAULT   = "8010";
+    public static final String   WSSQLPORTDEFAULT         = "8510";
     public static final String   FETCHPAGESIZEDEFAULT     = "100";
     public static final String   FETCHPAGEOFFSETDEFAULT   = "0";
     public static final String   LAZYLOADDEFAULT          = "true";
@@ -112,7 +112,7 @@ public class HPCCDriver implements Driver
             if (!connprops.containsKey("ServerAddress"))
                 connprops.setProperty("ServerAddress", SERVERADDRESSDEFAULT);
 
-            String serverAddress = HPCCJDBCUtils.ensureURLProtocol(connprops.getProperty("ServerAddress"));           
+            String serverAddress = HPCCJDBCUtils.ensureURLProtocol(connprops.getProperty("ServerAddress"));
             try
             {
                 HPCCJDBCUtils.verifyURL(serverAddress);
@@ -121,7 +121,7 @@ public class HPCCDriver implements Driver
             {
                 throw new Exception("HPCCDriver found invalid ServerAddress: " + connprops.getProperty("ServerAddress") +": " + e.getLocalizedMessage());
             }
-            
+
             if (!connprops.containsKey("TraceLevel"))
                 connprops.setProperty("TraceLevel", TRACELEVELDEFAULT);
 
@@ -159,48 +159,6 @@ public class HPCCDriver implements Driver
             if (!connprops.containsKey("WsECLWatchPort"))
                 connprops.setProperty("WsECLWatchPort", WSECLWATCHPORTDEFAULT);
 
-            if (!connprops.containsKey("WsECLAddress"))
-            {
-                connprops.setProperty("WsECLAddress", serverAddress);
-            }
-            else
-            {
-                String wsecladd = HPCCJDBCUtils.ensureURLProtocol(connprops.getProperty("WsECLAddress"));
-                try
-                {
-                    HPCCJDBCUtils.verifyURL(wsecladd);
-                    connprops.setProperty("WsECLAddress",wsecladd);
-                }
-                catch (Exception e)
-                {
-                    throw new Exception("HPCCDriver found invalid WsECLAddress: " + connprops.getProperty("WsECLAddress") +": " + e.getLocalizedMessage());
-                }
-            }
-
-            if (!connprops.containsKey("WsECLPort"))
-                connprops.setProperty("WsECLPort", WSECLPORTDEFAULT);
-
-            if (!connprops.containsKey("WsECLDirectAddress"))
-            {
-                connprops.setProperty("WsECLDirectAddress", serverAddress);
-            }
-            else
-            {
-                String wsecldirectadd = HPCCJDBCUtils.ensureURLProtocol(connprops.getProperty("WsECLDirectAddress"));
-                try
-                {
-                    HPCCJDBCUtils.verifyURL(wsecldirectadd);
-                    connprops.setProperty("WsECLDirectAddress",wsecldirectadd);
-                }
-                catch (Exception e)
-                {
-                    throw new Exception("HPCCDriver found invalid WsECLDirectAddress: " + connprops.getProperty("WsECLDirectAddress") +": " + e.getLocalizedMessage());
-                }
-            }
-
-            if (!connprops.containsKey("WsECLDirectPort"))
-                connprops.setProperty("WsECLDirectPort", WSECLDIRECTPORTDEFAULT);
-
             if (connprops.containsKey("user"))
                 connprops.setProperty("username", connprops.getProperty("user"));
 
@@ -230,14 +188,13 @@ public class HPCCDriver implements Driver
                 String eclreslim = connprops.getProperty("EclResultLimit").trim();
                 try
                 {
-                    if (HPCCJDBCUtils.isNumeric(eclreslim))
-                    {
-                        if (Integer.valueOf(eclreslim).intValue() <= 0)
-                            setdefaultreslim = true;
-                    }
+                    if (!HPCCJDBCUtils.isNumeric(eclreslim))
+                        setdefaultreslim = true;
                     else
                     {
-                        if (!eclreslim.equalsIgnoreCase("ALL"))
+                        if(eclreslim.equalsIgnoreCase("ALL"))
+                            eclreslim = "0"; // No limit
+                        else
                             setdefaultreslim = true;
                     }
                 }
@@ -252,7 +209,7 @@ public class HPCCDriver implements Driver
             if (setdefaultreslim)
             {
                 connprops.setProperty("EclResultLimit", ECLRESULTLIMDEFAULT);
-                HPCCJDBCUtils.traceoutln(Level.WARNING,  "Invalid Numeric EclResultLimit value detected, using default value: "+ECLRESULTLIMDEFAULT);
+                HPCCJDBCUtils.traceoutln(Level.WARNING,  "Invalid Numeric EclResultLimit value detected, using default value: " + ECLRESULTLIMDEFAULT);
             }
 
             String basicAuth = HPCCConnection.createBasicAuth(connprops.getProperty("username"), connprops.getProperty("password"));
@@ -261,6 +218,9 @@ public class HPCCDriver implements Driver
 
             if (!connprops.containsKey("LazyLoad"))
                 connprops.setProperty("LazyLoad", LAZYLOADDEFAULT);
+
+            if (!connprops.containsKey("WsSQLport"))
+                connprops.setProperty("WsSQLport", WSSQLPORTDEFAULT);
 
         }
         catch (Exception e)
@@ -284,7 +244,7 @@ public class HPCCDriver implements Driver
     {
         String [] boolchoices = new String [] {"true", "false"};
 
-        int totalConfigProps = 19;
+        int totalConfigProps = 16;
         infoArray = new DriverPropertyInfo[totalConfigProps];
 
         infoArray[--totalConfigProps] = new DriverPropertyInfo("ConnectTimeoutMilli", CONNECTTIMEOUTMILDEFAULT);
@@ -338,22 +298,6 @@ public class HPCCDriver implements Driver
         infoArray[totalConfigProps].description = "HPCC username (*Use JDBC client secure interface if available*).";
         infoArray[totalConfigProps].required = false;
 
-        infoArray[--totalConfigProps] = new DriverPropertyInfo("WsECLDirectPort", WSECLDIRECTPORTDEFAULT);
-        infoArray[totalConfigProps].description = "WsECLDirect port (required if HPCC configuration does not use default port).";
-        infoArray[totalConfigProps].required = false;
-
-        infoArray[--totalConfigProps] = new DriverPropertyInfo("WsECLDirectAddress", "myWsECLDirectAddress");
-        infoArray[totalConfigProps].description = "WsECLDirect Address (required if different than ServerAddress).";
-        infoArray[totalConfigProps].required = false;
-
-        infoArray[--totalConfigProps] = new DriverPropertyInfo("WsECLPort", WSECLPORTDEFAULT);
-        infoArray[totalConfigProps].description = "WsECL port (required if HPCC configuration does not use default port).";
-        infoArray[totalConfigProps].required = false;
-
-        infoArray[--totalConfigProps] = new DriverPropertyInfo("WsECLAddress", "myWsECLAddress");
-        infoArray[totalConfigProps].description = "WsECLAddress Address (required if different than ServerAddress).";
-        infoArray[totalConfigProps].required = false;
-
         infoArray[--totalConfigProps] = new DriverPropertyInfo("WsECLWatchPort", WSECLWATCHPORTDEFAULT);
         infoArray[totalConfigProps].description = "WsECLWatch port (required if HPCC configuration does not use default port).";
         infoArray[totalConfigProps].required = false;
@@ -363,7 +307,11 @@ public class HPCCDriver implements Driver
         infoArray[totalConfigProps].required = false;
 
         infoArray[--totalConfigProps] = new DriverPropertyInfo("ServerAddress", "myHPCCAddress");
-        infoArray[totalConfigProps].description = "Target HPCC ESP Address (used to contact WsECLWatch, WsECLDirect, or WsECL if override not specified).";
+        infoArray[totalConfigProps].description = "Target HPCC ESP Address (used to contact  WsSQL if override not specified).";
+        infoArray[totalConfigProps].required = true;
+
+        infoArray[--totalConfigProps] = new DriverPropertyInfo("WsSQLPort", WSSQLPORTDEFAULT);
+        infoArray[totalConfigProps].description = "WsSQL port (WsSQL is a web service which has to be installed with the HPCC platfrom and typically runs on port 8015).";
         infoArray[totalConfigProps].required = true;
     }
 
