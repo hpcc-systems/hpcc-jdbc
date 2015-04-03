@@ -23,10 +23,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLWarning;
 import java.sql.Statement;
-import java.util.HashMap;
 import java.util.logging.Level;
 
-import org.w3c.dom.NodeList;
+import org.hpccsystems.ws.client.gen.extended.wssql.v1_0.ExecuteSQLResponse;
 
 /**
  *
@@ -35,16 +34,14 @@ import org.w3c.dom.NodeList;
 
 public class HPCCStatement implements Statement
 {
+    protected final Object closedLock = new Object();
     protected boolean                  closed        = false;
     protected String                   sqlQuery;
     protected HPCCConnection           hpccConnection;
     protected SQLWarning               warnings;
     protected HPCCResultSet            result        = null;
-    protected HPCCResultSetMetadata    resultMetadata = null;
 
     protected HPCCDatabaseMetaData     dbMetadata;
-    protected ECLEngine                eclQuery = null;
-    protected SQLParser                parser = new SQLParser();
     protected static final String      className = "HPCCStatement";
     public static final String         hpccResultSetName = "HPCC Result";
 
@@ -55,39 +52,7 @@ public class HPCCStatement implements Statement
         this.dbMetadata = hpccConnection.getDatabaseMetaData();
     }
 
-    protected void processQuery()
-    {
-        try
-        {
-            HPCCJDBCUtils.traceoutln(Level.INFO,  className + "Attempting to process sql query: " + sqlQuery);
-            if (!this.closed)
-            {
-                if (parser != null)
-                    parser.process(sqlQuery);
-                else
-                    throw new SQLException("Error parser is not ready, cannot execute query");
-
-                eclQuery = new ECLEngine(parser, dbMetadata, hpccConnection.getProperties());
-
-                eclQuery.generateECL();
-                resultMetadata = new HPCCResultSetMetadata(eclQuery.getExpectedRetCols(), hpccResultSetName);
-            }
-            else
-                throw new SQLException("HPCCPreparedStatement closed, cannot execute query");
-        }
-        catch (SQLException e)
-        {
-            HPCCJDBCUtils.traceoutln(Level.SEVERE,   e.getLocalizedMessage());
-            if (warnings == null)
-                warnings = new SQLWarning();
-            warnings.setNextException(e);
-
-            eclQuery = null;
-            parser = null;
-        }
-    }
-
-    protected ResultSet executeHPCCQuery(HashMap<Integer, Object> params) throws SQLException
+    protected ResultSet executeHPCCQuery() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.INFO,  className + ": executeQuery()");
         HPCCJDBCUtils.traceoutln(Level.INFO,  "\tAttempting to process sql query: " + sqlQuery);
@@ -95,9 +60,9 @@ public class HPCCStatement implements Statement
 
         try
         {
-            if (!this.closed)
+            if (!isClosed())
             {
-                if (eclQuery == null)
+                if (sqlQuery == null || sqlQuery.isEmpty())
                 {
                     String message = className + ":  Cannot execute SQL command";
 
@@ -110,10 +75,10 @@ public class HPCCStatement implements Statement
                     throw new SQLException(message);
                 }
 
-                NodeList rowList = eclQuery.execute(params);
+                ExecuteSQLResponse executeSQL = hpccConnection.executeSQL(sqlQuery);
 
-                if (rowList != null)
-                    result = new HPCCResultSet(this, rowList, resultMetadata);
+                result = new HPCCResultSet(hpccConnection, executeSQL.getWorkunit().getWuid(),hpccResultSetName);
+                result.parseDataset("<root>"+executeSQL.getResult()+"</root>");
             }
             else
                 throw new SQLException(className + "is closed, cannot execute query");
@@ -126,7 +91,7 @@ public class HPCCStatement implements Statement
         return result;
     }
 
-    private SQLException convertToSQLExceptionAndAddWarn(Exception e)
+    protected SQLException convertToSQLExceptionAndAddWarn(Exception e)
     {
         SQLException sqlexcept = new SQLException(e.getLocalizedMessage());
         sqlexcept.setStackTrace(e.getStackTrace());
@@ -141,13 +106,10 @@ public class HPCCStatement implements Statement
 
     public ResultSet executeQuery(String sql) throws SQLException
     {
+        HPCCJDBCUtils.traceoutln(Level.INFO,  className + ": executeQuery(" + sql + ")");
         sqlQuery = sql;
 
-        HPCCJDBCUtils.traceoutln(Level.INFO,  className + ": executeQuery(" + sql + ")");
-
-        processQuery();
-
-        return executeHPCCQuery(null);
+        return executeHPCCQuery();
     }
 
     public int executeUpdate(String sql) throws SQLException
@@ -155,18 +117,19 @@ public class HPCCStatement implements Statement
         throw new UnsupportedOperationException(className + ": executeUpdate(String sql) Not supported yet.");
     }
 
-    public void close() throws SQLException
+    public void close()
     {
-        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": close( )");
-        if (!closed)
+        synchronized (closedLock)
         {
-            closed = true;
-            hpccConnection = null;
-            result = null;
-            sqlQuery = null;
-            dbMetadata = null;
-            parser = null;
-            eclQuery = null;
+            HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": close( )");
+            if (!closed)
+            {
+                closed = true;
+                hpccConnection = null;
+                result = null;
+                sqlQuery = null;
+                dbMetadata = null;
+            }
         }
     }
 
@@ -238,9 +201,9 @@ public class HPCCStatement implements Statement
 
     public boolean execute(String sql) throws SQLException
     {
-        sqlQuery = sql;
+        HPCCJDBCUtils.traceoutln(Level.INFO,  className + ": execute(" + sql + ")");
 
-        processQuery();
+        sqlQuery = sql;
 
         return execute();
     }
@@ -252,7 +215,7 @@ public class HPCCStatement implements Statement
         HPCCJDBCUtils.traceoutln(Level.INFO,  "\tAttempting to process sql query: " + sqlQuery);
         try
         {
-            result = (HPCCResultSet) executeHPCCQuery(null);
+            result = (HPCCResultSet) executeHPCCQuery();
         }
         catch (Exception e)
         {
@@ -290,22 +253,22 @@ public class HPCCStatement implements Statement
 
     public void setFetchSize(int rows) throws SQLException
     {
-        HPCCJDBCUtils.traceoutln(Level.INFO, className + ": setFetchSize Not supported yet.");
+        result.setFetchSize(rows);
     }
 
     public int getFetchSize() throws SQLException
     {
-        return -1;
+        return result.getFetchSize();
     }
 
     public int getResultSetConcurrency() throws SQLException
     {
-        throw new UnsupportedOperationException(className + ": getResultSetConcurrency() Not supported yet.");
+        return result.getConcurrency();
     }
 
     public int getResultSetType() throws SQLException
     {
-        throw new UnsupportedOperationException(className + ":  getResultSetType() Not supported yet.");
+        return result.getType();
     }
 
     public void addBatch(String sql) throws SQLException
@@ -340,38 +303,32 @@ public class HPCCStatement implements Statement
 
     public int executeUpdate(String sql, int autoGeneratedKeys) throws SQLException
     {
-        throw new UnsupportedOperationException(
-                className + ": executeUpdate(String sql, int autoGeneratedKeys) Not supported yet.");
+        throw new UnsupportedOperationException(className + ": executeUpdate(String sql, int autoGeneratedKeys) Not supported yet.");
     }
 
     public int executeUpdate(String sql, int[] columnIndexes) throws SQLException
     {
-        throw new UnsupportedOperationException(
-                className + ":  executeUpdate(String sql, int[] columnIndexes) Not supported yet.");
+        throw new UnsupportedOperationException(className + ":  executeUpdate(String sql, int[] columnIndexes) Not supported yet.");
     }
 
     public int executeUpdate(String sql, String[] columnNames) throws SQLException
     {
-        throw new UnsupportedOperationException(
-                className + ": executeUpdate(String sql, String[] columnNames) Not supported yet.");
+        throw new UnsupportedOperationException(className + ": executeUpdate(String sql, String[] columnNames) Not supported yet.");
     }
 
     public boolean execute(String sql, int autoGeneratedKeys) throws SQLException
     {
-        throw new UnsupportedOperationException(
-                className + ": execute(String sql, int autoGeneratedKeys) Not supported yet.");
+        throw new UnsupportedOperationException(className + ": execute(String sql, int autoGeneratedKeys) Not supported yet.");
     }
 
     public boolean execute(String sql, int[] columnIndexes) throws SQLException
     {
-        throw new UnsupportedOperationException(
-                className + ":  execute(String sql, int[] columnIndexes) Not supported yet.");
+        throw new UnsupportedOperationException(className + ":  execute(String sql, int[] columnIndexes) Not supported yet.");
     }
 
     public boolean execute(String sql, String[] columnNames) throws SQLException
     {
-        throw new UnsupportedOperationException(
-                className + ": execute(String sql, String[] columnNames) Not supported yet.");
+        throw new UnsupportedOperationException(className + ": execute(String sql, String[] columnNames) Not supported yet.");
     }
 
     public int getResultSetHoldability() throws SQLException
@@ -381,7 +338,10 @@ public class HPCCStatement implements Statement
 
     public boolean isClosed() throws SQLException
     {
-        throw new UnsupportedOperationException(className + ": isClosed() Not supported yet.");
+        synchronized (closedLock)
+        {
+            return closed;
+        }
     }
 
     public void setPoolable(boolean poolable) throws SQLException
@@ -403,5 +363,4 @@ public class HPCCStatement implements Statement
     {
         throw new UnsupportedOperationException(className + ": Not supported yet.");
     }
-
 }

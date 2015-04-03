@@ -35,16 +35,19 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.RowId;
 import java.sql.SQLException;
+import java.sql.SQLWarning;
 import java.sql.SQLXML;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Calendar;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Set;
 import java.util.logging.Level;
 
-import org.hpccsystems.jdbcdriver.SQLParser.SQLType;
+import org.hpccsystems.ws.client.gen.extended.wssql.v1_0.ECLWorkunit;
+import org.hpccsystems.ws.client.gen.extended.wssql.v1_0.ExecutePreparedSQLResponse;
+import org.hpccsystems.ws.client.gen.extended.wssql.v1_0.NamedValue;
+import org.hpccsystems.ws.client.platform.Workunit;
 
 /**
  *
@@ -55,6 +58,7 @@ public class HPCCPreparedStatement extends HPCCStatement implements PreparedStat
 {
     private HashMap<Integer, Object> parameters    = new HashMap<Integer, Object>();
     protected static final String      className = "HPCCPreparedStatement";
+    private ECLWorkunit preparedSQL = null;
 
     public HPCCPreparedStatement(Connection connection, String query)
     {
@@ -64,13 +68,57 @@ public class HPCCPreparedStatement extends HPCCStatement implements PreparedStat
         this.sqlQuery = query;
 
         if (sqlQuery != null)
-            processQuery();
+            prepareQuery();
+        else
+        {
+            if (warnings == null)
+                warnings = new SQLWarning();
+            warnings.setNextException(new SQLWarning("SQL Query seems to be empty!"));
+        }
     }
 
     public ResultSet executeQuery() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.INFO, className + ":executeQuery()");
-        executeHPCCQuery(parameters);
+        HPCCJDBCUtils.traceoutln(Level.INFO,  "\tAttempting to execute Prepared sql query: " + sqlQuery);
+        result = null;
+
+        try
+        {
+            if (!isClosed())
+            {
+                if (preparedSQL == null || preparedSQL.getWuid().isEmpty() || Workunit.isFailedState(preparedSQL.getState()))
+                {
+                    String message = className + ":  Cannot execute prepared SQL command";
+
+                    if (warnings != null)
+                    {
+                        SQLException  we = warnings.getNextException();
+                        if(we != null)
+                            message += "\n\t" + we.getLocalizedMessage();
+                    }
+                    throw new SQLException(message);
+                }
+
+                NamedValue[] variables = new NamedValue[parameters.size()];
+
+                Set<Integer> keySet = parameters.keySet();
+                for (int i = 0; i < keySet.size(); i++)
+                {
+                    variables[i] = new NamedValue("variable-"+(i+1),(String) parameters.get(i+1));
+                }
+                ExecutePreparedSQLResponse executePreparedSQL = hpccConnection.executePreparedSQL(preparedSQL.getWuid(), variables);
+
+                result = new HPCCResultSet(hpccConnection, executePreparedSQL.getWorkunit().getWuid(), hpccResultSetName);
+                result.parseDataset("<root>"+executePreparedSQL.getResult()+"</root>");
+            }
+            else
+                throw new SQLException(className + "is closed, cannot execute query");
+        }
+        catch (Exception e)
+        {
+            throw convertToSQLExceptionAndAddWarn(e);
+        }
 
         return result;
     }
@@ -84,11 +132,7 @@ public class HPCCPreparedStatement extends HPCCStatement implements PreparedStat
     public void setNull(int parameterIndex, int sqlType) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setNull(" + parameterIndex + ", " + sqlType + " )");
-
-        if( this.eclQuery.getQueryType() == SQLType.CALL)
-            parameters.put(parameterIndex, "");
-        else
-            throw new SQLException("NULL cannot be represented in ECL.");
+        throw new SQLException("NULL cannot be represented in ECL.");
     }
 
     public void setBoolean(int parameterIndex, boolean x) throws SQLException
@@ -142,17 +186,7 @@ public class HPCCPreparedStatement extends HPCCStatement implements PreparedStat
     public void setString(int parameterIndex, String x) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": setString(" + parameterIndex + ", " + x + " )");
-        try
-        {
-            if( this.eclQuery.getQueryType() == SQLType.CALL)
-                parameters.put(parameterIndex, x);
-            else
-                parameters.put(parameterIndex, HPCCJDBCUtils.ensureECLString(x));
-        }
-        catch (Exception e)
-        {
-            throw new SQLException("Cannot setString: " + e.getLocalizedMessage());
-        }
+        parameters.put(parameterIndex, x);
     }
 
     public void setBytes(int parameterIndex, byte[] x) throws SQLException
@@ -780,13 +814,55 @@ public class HPCCPreparedStatement extends HPCCStatement implements PreparedStat
         throw new UnsupportedOperationException(className + ": setNClob Not supported yet.");
     }
 
-    public void close() throws SQLException
+    public void close()
     {
-        HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": close( )");
-        if (!closed)
+        synchronized (closedLock)
         {
-            super.close();
-            parameters = null;
+            HPCCJDBCUtils.traceoutln(Level.FINEST,  className + ": close( )");
+            if (!closed)
+            {
+                super.close();
+                parameters = null;
+            }
         }
+    }
+
+    protected boolean prepareQuery()
+    {
+        try
+        {
+            HPCCJDBCUtils.traceoutln(Level.INFO,  className + "Attempting to prepare sql query: " + sqlQuery);
+            if (!isClosed())
+            {
+                preparedSQL = hpccConnection.prepareSQL(sqlQuery);
+
+                if (preparedSQL == null || preparedSQL.getWuid().isEmpty())
+                    throw new SQLException("HPCCPreparedStatement could not be prepared.");
+
+                return true;
+            }
+            else
+                throw new SQLException("HPCCPreparedStatement closed, cannot prepare query");
+        }
+        catch (SQLException e)
+        {
+            HPCCJDBCUtils.traceoutln(Level.SEVERE,   e.getLocalizedMessage());
+            if (warnings == null)
+                warnings = new SQLWarning();
+            warnings.setNextException(e);
+
+            close();
+        }
+        catch (Exception e)
+        {
+            HPCCJDBCUtils.traceoutln(Level.SEVERE,   e.getLocalizedMessage());
+            if (warnings == null)
+                warnings = new SQLWarning();
+            warnings.setNextException(new SQLException(e.getLocalizedMessage()));
+
+            close();
+        }
+
+        return false;
     }
 }

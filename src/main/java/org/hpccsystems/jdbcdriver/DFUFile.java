@@ -28,6 +28,8 @@ import java.util.logging.Level;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.hpccsystems.ws.client.gen.extended.wssql.v1_0.HPCCColumn;
+
 public class DFUFile
 {
     private String              prefix = null;
@@ -881,4 +883,20 @@ public class DFUFile
         return hasKeyedFieldInfoBeenSet;
     }
 
+    public void setColumns(HPCCColumn[] columns)
+    {
+        ecl = "";
+        for (int index = 0; index < columns.length; index++)
+        {
+            String name = columns[index].getName();
+            String type = columns[index].getType();
+            HPCCColumnMetaData columnmeta = new HPCCColumnMetaData(name, index,java.sql.Types.OTHER);
+
+            columnmeta.setEclType(type);
+            columnmeta.setTableName(this.fullyQualifiedName);
+
+            ecl += type + " " + name + "; ";
+            fields.put(name.toUpperCase(), columnmeta);
+        }
+    }
 }

@@ -21,6 +21,7 @@ package org.hpccsystems.jdbcdriver;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.Reader;
+import java.io.StringReader;
 import java.math.BigDecimal;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -45,9 +46,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+
+import org.hpccsystems.ws.client.gen.extended.wssql.v1_0.GetResultsResponse;
+import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
+import org.xml.sax.InputSource;
 
 /**
  *
@@ -56,19 +64,28 @@ import org.w3c.dom.NodeList;
 
 public class HPCCResultSet implements ResultSet
 {
+    private final static String                 wsSQLResultSetName = "WsSQLResult";
+
+    private int                                 fetchSize = 100;
+    private Object                              rowsLock = new Object();
+    private Object                              indexLock = new Object();
     private boolean                             closed = false;
-    private List<List>                          rows;
+    private List<List>                          rows = null;
     private int                                 index = -1;
-    private HPCCResultSetMetadata               resultMetadata;
+    private int                                 currentWindowIndex = 0;
+    private HPCCResultSetMetadata               resultMetadata = null;
     private Statement                           statement = null;
-    private Object                              lastResult;
+    private Object                              lastResult = null;
     private SQLWarning                          warnings = null;
+    private String                              tablename = null;
+    private String                              resultWUID = null;
+    private HPCCConnection                      hpccConnection = null;
 
     public HPCCResultSet(List recrows, ArrayList<HPCCColumnMetaData> metadatacols, String tablename) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet: HPCCResultSet(recrows, metadatacols, " + tablename +")");
         resultMetadata = new HPCCResultSetMetadata(metadatacols, tablename);
-        rows = new ArrayList<List>(recrows);
+        setRows(new ArrayList<List>(recrows));
         lastResult = new Object();
     }
 
@@ -76,7 +93,7 @@ public class HPCCResultSet implements ResultSet
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet: HPCCResultSet(statement, rowList, resultMetadata)");
         this.resultMetadata = resultMetadata;
-        rows = new ArrayList();
+        setRows(new ArrayList());
         lastResult = new Object();
 
         this.statement = statement;
@@ -84,10 +101,29 @@ public class HPCCResultSet implements ResultSet
         encapsulateDataSet(rowList);
     }
 
-    public void encapsulateDataSet(NodeList rowList)
+    public HPCCResultSet(HPCCConnection hpccConn, String resultsWUID, String tablename)
+    {
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet: HPCCResultSet( connection, " + resultsWUID + ", " + tablename +")");
+        this.tablename = tablename;
+        this.fetchSize = hpccConn.getPageSize();
+        this.resultWUID = resultsWUID;
+        this.hpccConnection = hpccConn;
+    }
+
+    private void setRows(List<List> myrows)
+    {
+        synchronized (rowsLock)
+        {
+            rows = myrows;
+        }
+    }
+
+    public int encapsulateDataSet(NodeList rowList)
     {
         HPCCJDBCUtils.traceoutln(Level.INFO, "HPCCResultSet encapsulateDataSet");
         int rowCount = 0;
+
+        List<List> tempRows = new ArrayList(rowCount);
         if (rowList != null && (rowCount = rowList.getLength()) > 0)
         {
             HPCCJDBCUtils.traceoutln(Level.INFO,  "Results rows found: " + rowCount);
@@ -95,7 +131,7 @@ public class HPCCResultSet implements ResultSet
             for (int j = 0; j < rowCount; j++)
             {
                 ArrayList rowValues = resultMetadata.createDefaultResultRow();
-                rows.add(rowValues);
+                tempRows.add(rowValues);
 
                 Element row = (Element) rowList.item(j);
 
@@ -114,33 +150,124 @@ public class HPCCResultSet implements ResultSet
                 }
             }
         }
+        // Although it is tempting to create a default result set row, the driver should not
+        // Assume anything regarding the result. If the query responded with an empty resultset,
+        // the driver should respect the result and report it back to the caller as-is.
+        //else
+        //{
+        //    HPCCJDBCUtils.traceoutln(Level.ALL, "HPCCResultSet: Received empty result set");
+        //    tempRows.add(resultMetadata.createDefaultResultRow());
+        //}
+
+        if (tempRows.size() > 0)
+            setRows(tempRows);
+
+        return rowCount;
     }
 
     public int getRowCount()
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet getRowCount");
-        return rows.size();
+        synchronized (rowsLock)
+        {
+            return rows.size();
+        }
+    }
+
+    private int fetchNextWindow()
+    {
+        if (resultWUID != null && !resultWUID.isEmpty())
+        {
+            if (hpccConnection != null)
+            {
+                try
+                {
+                    GetResultsResponse fetchResults = hpccConnection.fetchResults(resultWUID,getCurrentIndex()+1 /*start with next record*/, fetchSize);
+
+                    int newrows = parseDataset("<root>"+fetchResults.getResult()+"</root>");
+                    if (newrows > 0)
+                    {
+                        currentWindowIndex++;
+                        return newrows;
+                    }
+                }
+                catch (Exception e)
+                {
+                    HPCCJDBCUtils.traceoutln(Level.ALL, "HPCCResultSet: Error attempting to fetch next result set window from server: " + e.getLocalizedMessage());
+                }
+            }
+        }
+        return 0;
+    }
+
+    private boolean isCurrentIndexValid()
+    {
+        synchronized (indexLock)
+        {
+            return isIndexValid(index);
+        }
+    }
+
+    private boolean isIndexValid(int myindex)
+    {
+        if (myindex < 0)
+            return false;
+
+        int adjustedIndex = myindex - (currentWindowIndex * fetchSize);
+
+        if (adjustedIndex >= 0 && adjustedIndex <= getRowCount())
+            return true;
+        else
+            return false;
+    }
+
+    private List fetchCurrentRow()
+    {
+        synchronized (indexLock)
+        {
+            return fetchRow(index);
+        }
+    }
+
+    private List fetchRow(int myindex)
+    {
+        synchronized (rowsLock)
+        {
+            if (isIndexValid(myindex))
+                return rows.get(myindex - (currentWindowIndex * fetchSize));
+        }
+        return null;
     }
 
     public boolean next() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet next");
-        index++;
-        if (index >= rows.size())
+        //is next index within the current window?);
+        if( (getCurrentIndex() + 1) - (currentWindowIndex * fetchSize) >= getRowCount())
         {
-            index--;
-            return false;
+            if(fetchNextWindow() <= 0)
+                return false;
         }
-        else
-        {
-            return true;
-        }
+
+        incrementIndex();
+        return true;
     }
 
     public void close() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet close");
         closed = true;
+        fetchSize = 100;
+        rows = null;
+        index = -1;
+        currentWindowIndex = 0;
+        resultMetadata = null;
+        statement = null;
+        lastResult = null;
+        warnings = null;
+        tablename = null;
+        resultWUID = null;
+        hpccConnection = null;
     }
 
     public boolean wasNull() throws SQLException
@@ -152,10 +279,10 @@ public class HPCCResultSet implements ResultSet
     public String getString(int columnIndex) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet:getString(" + columnIndex + ")");
-        if (index >= 0 && index <= rows.size())
-            if (columnIndex >= 1 && columnIndex <= rows.get(index).size())
+        if (isCurrentIndexValid())
+            if (columnIndex >= 1 && columnIndex <= resultMetadata.getColumnCount())
             {
-                lastResult = rows.get(index).get(columnIndex - 1);
+                lastResult = fetchCurrentRow().get(columnIndex - 1);
                 if (lastResult == null)
                 {
                     HPCCJDBCUtils.traceoutln(Level.FINEST, "....Returned: null");
@@ -165,7 +292,7 @@ public class HPCCResultSet implements ResultSet
                 return lastResult.toString();
             }
             else
-                throw new SQLException("Invalid Column Index");
+                throw new SQLException("Invalid Column Index: " + columnIndex);
         else
             throw new SQLException("Invalid Row Index");
     }
@@ -173,18 +300,18 @@ public class HPCCResultSet implements ResultSet
     public boolean getBoolean(int columnIndex) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet: getBoolean(" + columnIndex + ")");
-        if (index >= 0 && index <= rows.size())
-            if (columnIndex >= 1 && columnIndex <= rows.get(index).size())
+        if (isCurrentIndexValid())
+            if (columnIndex >= 1 && columnIndex <= resultMetadata.getColumnCount())
             {
                 // content of row field is Object string, need to get value of
                 // string and parse as boolean
-                lastResult = rows.get(index).get(columnIndex - 1);
+                lastResult = fetchCurrentRow().get(columnIndex - 1);
                 if (lastResult == null)
                     return false;
                 return Boolean.parseBoolean(String.valueOf(lastResult));
             }
             else
-                throw new SQLException("Invalid Column Index");
+                throw new SQLException("Invalid Column Index: " + columnIndex);
         else
             throw new SQLException("Invalid Row Index");
     }
@@ -192,16 +319,16 @@ public class HPCCResultSet implements ResultSet
     public byte getByte(int columnIndex) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet: getByte(" + columnIndex + ")");
-        if (index >= 0 && index <= rows.size())
-            if (columnIndex >= 1 && columnIndex <= rows.get(index).size())
+        if (isCurrentIndexValid())
+            if (columnIndex >= 1 && columnIndex <= resultMetadata.getColumnCount())
             {
-                lastResult = rows.get(index).get(columnIndex - 1);
+                lastResult = fetchCurrentRow().get(columnIndex - 1);
                 if (lastResult == null)
                     return 0;
                 return String.valueOf(lastResult).getBytes()[0];
             }
             else
-                throw new SQLException("Invalid Column Index");
+                throw new SQLException("Invalid Column Index: " + columnIndex);
         else
             throw new SQLException("Invalid Row Index");
     }
@@ -209,10 +336,10 @@ public class HPCCResultSet implements ResultSet
     public short getShort(int columnIndex) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet: getShort(" + columnIndex + ")");
-        if (index >= 0 && index <= rows.size())
-            if (columnIndex >= 1 && columnIndex <= rows.get(index).size())
+        if (isCurrentIndexValid())
+            if (columnIndex >= 1 && columnIndex <= resultMetadata.getColumnCount())
             {
-                lastResult = rows.get(index).get(columnIndex - 1);
+                lastResult = fetchCurrentRow().get(columnIndex - 1);
                 if (lastResult == null)
                     return 0;
                 // content of row field is Object string, need to get value of
@@ -220,7 +347,7 @@ public class HPCCResultSet implements ResultSet
                 return Short.parseShort(String.valueOf(lastResult));
             }
             else
-                throw new SQLException("Invalid Column Index");
+                throw new SQLException("Invalid Column Index: " + columnIndex);
         else
             throw new SQLException("Invalid Row Index");
     }
@@ -228,10 +355,10 @@ public class HPCCResultSet implements ResultSet
     public int getInt(int columnIndex) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet: getInt(" + columnIndex + ")");
-        if (index >= 0 && index <= rows.size())
-            if (columnIndex >= 1 && columnIndex <= rows.get(index).size())
+        if (isCurrentIndexValid())
+            if (columnIndex >= 1 && columnIndex <= resultMetadata.getColumnCount())
             {
-                lastResult = rows.get(index).get(columnIndex - 1);
+                lastResult = fetchCurrentRow().get(columnIndex - 1);
                 if (lastResult == null)
                     return 0;
                 // content of row field is Object string, need to get value of
@@ -239,7 +366,7 @@ public class HPCCResultSet implements ResultSet
                 return Integer.parseInt(String.valueOf(lastResult));
             }
             else
-                throw new SQLException("Invalid Column Index");
+                throw new SQLException("Invalid Column Index: " + columnIndex);
         else
             throw new SQLException("Invalid Row Index");
     }
@@ -247,10 +374,10 @@ public class HPCCResultSet implements ResultSet
     public long getLong(int columnIndex) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet: getLong(" + columnIndex + ")");
-        if (index >= 0 && index <= rows.size())
-            if (columnIndex >= 1 && columnIndex <= rows.get(index).size())
+        if (isCurrentIndexValid())
+            if (columnIndex >= 1 && columnIndex <= resultMetadata.getColumnCount())
             {
-                lastResult = rows.get(index).get(columnIndex - 1);
+                lastResult = fetchCurrentRow().get(columnIndex - 1);
                 if (lastResult == null)
                     return 0;
                 // content of row field is Object string, need to get value of
@@ -258,7 +385,7 @@ public class HPCCResultSet implements ResultSet
                 return Long.parseLong(String.valueOf(lastResult));
             }
             else
-                throw new SQLException("Invalid Column Index");
+                throw new SQLException("Invalid Column Index: " + columnIndex);
         else
             throw new SQLException("Invalid Row Index");
     }
@@ -266,10 +393,10 @@ public class HPCCResultSet implements ResultSet
     public float getFloat(int columnIndex) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet: getFloat(" + columnIndex + ")");
-        if (index >= 0 && index <= rows.size())
-            if (columnIndex >= 1 && columnIndex <= rows.get(index).size())
+        if (isCurrentIndexValid())
+            if (columnIndex >= 1 && columnIndex <= resultMetadata.getColumnCount())
             {
-                lastResult = rows.get(index).get(columnIndex - 1);
+                lastResult = fetchCurrentRow().get(columnIndex - 1);
                 if (lastResult == null)
                     return 0;
                 // content of row field is Object string, need to get value of
@@ -277,7 +404,7 @@ public class HPCCResultSet implements ResultSet
                 return Float.parseFloat(String.valueOf(lastResult));
             }
             else
-                throw new SQLException("Invalid Column Index");
+                throw new SQLException("Invalid Column Index: " + columnIndex);
         else
             throw new SQLException("Invalid Row Index");
     }
@@ -285,10 +412,10 @@ public class HPCCResultSet implements ResultSet
     public double getDouble(int columnIndex) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet: getDouble(" + columnIndex + ")");
-        if (index >= 0 && index <= rows.size())
-            if (columnIndex >= 1 && columnIndex <= rows.get(index).size())
+        if (isCurrentIndexValid())
+            if (columnIndex >= 1 && columnIndex <= resultMetadata.getColumnCount())
             {
-                lastResult = rows.get(index).get(columnIndex - 1);
+                lastResult = fetchCurrentRow().get(columnIndex - 1);
                 if (lastResult == null)
                     return 0;
                 // content of row field is Object string, need to get value of
@@ -296,7 +423,7 @@ public class HPCCResultSet implements ResultSet
                 return Double.parseDouble(String.valueOf(lastResult));
             }
             else
-                throw new SQLException("Invalid Column Index");
+                throw new SQLException("Invalid Column Index: " + columnIndex);
         else
             throw new SQLException("Invalid Row Index");
     }
@@ -304,10 +431,10 @@ public class HPCCResultSet implements ResultSet
     public BigDecimal getBigDecimal(int columnIndex, int scale) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet: getBigDecimal(" + columnIndex + ")");
-        if (index >= 0 && index <= rows.size())
-            if (columnIndex >= 1 && columnIndex <= rows.get(index).size())
+        if (isCurrentIndexValid())
+            if (columnIndex >= 1 && columnIndex <= resultMetadata.getColumnCount())
             {
-                lastResult = rows.get(index).get(columnIndex - 1);
+                lastResult = fetchCurrentRow().get(columnIndex - 1);
                 if (lastResult == null)
                     return null;
                 // content of row field is Object string, need to get value of
@@ -316,7 +443,7 @@ public class HPCCResultSet implements ResultSet
                 return bd.setScale(scale);
             }
             else
-                throw new SQLException("Invalid Column Index");
+                throw new SQLException("Invalid Column Index: " + columnIndex);
         else
             throw new SQLException("Invalid Row Index");
     }
@@ -324,16 +451,16 @@ public class HPCCResultSet implements ResultSet
     public byte[] getBytes(int columnIndex) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet: getBytes(" + columnIndex + ")");
-        if (index >= 0 && index <= rows.size())
-            if (columnIndex >= 1 && columnIndex <= rows.get(index).size())
+        if (isCurrentIndexValid())
+            if (columnIndex >= 1 && columnIndex <= resultMetadata.getColumnCount())
             {
-                lastResult = rows.get(index).get(columnIndex - 1);
+                lastResult = fetchCurrentRow().get(columnIndex - 1);
                 if (lastResult == null)
                     return null;
                 return String.valueOf(lastResult).getBytes();
             }
             else
-                throw new SQLException("Invalid Column Index");
+                throw new SQLException("Invalid Column Index: " + columnIndex);
         else
             throw new SQLException("Invalid Row Index");
     }
@@ -341,10 +468,10 @@ public class HPCCResultSet implements ResultSet
     public Date getDate(int columnIndex) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet: getDate(" + columnIndex + ")");
-        if (index >= 0 && index <= rows.size())
-            if (columnIndex >= 1 && columnIndex <= rows.get(index).size())
+        if (isCurrentIndexValid())
+            if (columnIndex >= 1 && columnIndex <= resultMetadata.getColumnCount())
             {
-                lastResult = rows.get(index).get(columnIndex - 1);
+                lastResult = fetchCurrentRow().get(columnIndex - 1);
                 if (lastResult == null)
                     return null;
                 // content of row field is Object string, need to get value of
@@ -352,7 +479,7 @@ public class HPCCResultSet implements ResultSet
                 return Date.valueOf(String.valueOf(lastResult));
             }
             else
-                throw new SQLException("Invalid Column Index");
+                throw new SQLException("Invalid Column Index: " + columnIndex);
         else
             throw new SQLException("Invalid Row Index");
     }
@@ -360,10 +487,10 @@ public class HPCCResultSet implements ResultSet
     public Time getTime(int columnIndex) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet: getTime(" + columnIndex + ")");
-        if (index >= 0 && index <= rows.size())
-            if (columnIndex >= 1 && columnIndex <= rows.get(index).size())
+        if (isCurrentIndexValid())
+            if (columnIndex >= 1 && columnIndex <= resultMetadata.getColumnCount())
             {
-                lastResult = rows.get(index).get(columnIndex - 1);
+                lastResult = fetchCurrentRow().get(columnIndex - 1);
                 if (lastResult == null)
                     return null;
                 // content of row field is Object string, need to get value of
@@ -371,7 +498,7 @@ public class HPCCResultSet implements ResultSet
                 return Time.valueOf(String.valueOf(lastResult));
             }
             else
-                throw new SQLException("Invalid Column Index");
+                throw new SQLException("Invalid Column Index: " + columnIndex);
         else
             throw new SQLException("Invalid Row Index");
     }
@@ -379,10 +506,10 @@ public class HPCCResultSet implements ResultSet
     public Timestamp getTimestamp(int columnIndex) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet: getTimestamp(" + columnIndex + ")");
-        if (index >= 0 && index <= rows.size())
-            if (columnIndex >= 1 && columnIndex <= rows.get(index).size())
+        if (isCurrentIndexValid())
+            if (columnIndex >= 1 && columnIndex <= resultMetadata.getColumnCount())
             {
-                lastResult = rows.get(index).get(columnIndex - 1);
+                lastResult = fetchCurrentRow().get(columnIndex - 1);
                 if (lastResult == null)
                     return null;
                 // content of row field is Object string, need to get value of
@@ -390,7 +517,7 @@ public class HPCCResultSet implements ResultSet
                 return Timestamp.valueOf(String.valueOf(lastResult));
             }
             else
-                throw new SQLException("Invalid Column Index");
+                throw new SQLException("Invalid Column Index: " + columnIndex);
         else
             throw new SQLException("Invalid Row Index");
     }
@@ -398,16 +525,16 @@ public class HPCCResultSet implements ResultSet
     public InputStream getAsciiStream(int columnIndex) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet: getAsciiStream(" + columnIndex + ")");
-        if (index >= 0 && index <= rows.size())
-            if (columnIndex >= 1 && columnIndex <= rows.get(index).size())
+        if (isCurrentIndexValid())
+            if (columnIndex >= 1 && columnIndex <= resultMetadata.getColumnCount())
             {
-                lastResult = rows.get(index).get(columnIndex - 1);
+                lastResult = fetchCurrentRow().get(columnIndex - 1);
                 if (lastResult == null)
                     return null;
                 return new ByteArrayInputStream(String.valueOf(lastResult).getBytes());
             }
             else
-                throw new SQLException("Invalid Column Index");
+                throw new SQLException("Invalid Column Index: " + columnIndex);
         else
             throw new SQLException("Invalid Row Index");
     }
@@ -415,16 +542,16 @@ public class HPCCResultSet implements ResultSet
     public InputStream getUnicodeStream(int columnIndex) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet: getUnicodeStream(" + columnIndex + ")");
-        if (index >= 0 && index <= rows.size())
-            if (columnIndex >= 1 && columnIndex <= rows.get(index).size())
+        if (isCurrentIndexValid())
+            if (columnIndex >= 1 && columnIndex <= resultMetadata.getColumnCount())
             {
-                lastResult = rows.get(index).get(columnIndex - 1);
+                lastResult = fetchCurrentRow().get(columnIndex - 1);
                 if (lastResult == null)
                     return null;
                 return new ByteArrayInputStream(String.valueOf(lastResult).getBytes());
             }
             else
-                throw new SQLException("Invalid Column Index");
+                throw new SQLException("Invalid Column Index: " + columnIndex);
         else
             throw new SQLException("Invalid Row Index");
     }
@@ -432,16 +559,16 @@ public class HPCCResultSet implements ResultSet
     public InputStream getBinaryStream(int columnIndex) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet: getBinaryStream(" + columnIndex + ")");
-        if (index >= 0 && index <= rows.size())
-            if (columnIndex >= 1 && columnIndex <= rows.get(index).size())
+        if (isCurrentIndexValid())
+            if (columnIndex >= 1 && columnIndex <= resultMetadata.getColumnCount())
             {
-                lastResult = rows.get(index).get(columnIndex - 1);
+                lastResult = fetchCurrentRow().get(columnIndex - 1);
                 if (lastResult == null)
                     return null;
                 return new ByteArrayInputStream(String.valueOf(lastResult).getBytes());
             }
             else
-                throw new SQLException("Invalid Column Index");
+                throw new SQLException("Invalid Column Index: " + columnIndex);
         else
             throw new SQLException("Invalid Row Index");
     }
@@ -449,12 +576,12 @@ public class HPCCResultSet implements ResultSet
     public String getString(String columnLabel) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet:getString(" + columnLabel + ")");
-        if (index >= 0 && index <= rows.size())
+        if (isCurrentIndexValid())
         {
             int column = resultMetadata.getColumnIndex(columnLabel);
             if (column < 0)
                 throw new SQLException("Invalid Column Label found: " + columnLabel);
-            List<?> row = rows.get(index);
+            List<?> row = fetchCurrentRow();
             if (row != null)
             {
                 lastResult = row.get(column - 1);
@@ -473,12 +600,12 @@ public class HPCCResultSet implements ResultSet
     public boolean getBoolean(String columnLabel) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet: getBoolean(" + columnLabel + ")");
-        if (index >= 0 && index <= rows.size())
+        if (isCurrentIndexValid())
         {
             int column = resultMetadata.getColumnIndex(columnLabel);
             if (column < 0)
                 throw new SQLException("Invalid Column Label found");
-            List<?> row = rows.get(index);
+            List<?> row = fetchCurrentRow();
             if (row != null)
             {
                 lastResult = row.get(column - 1);
@@ -496,12 +623,12 @@ public class HPCCResultSet implements ResultSet
     public byte getByte(String columnLabel) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet: getByte(" + columnLabel + ")");
-        if (index >= 0 && index <= rows.size())
+        if (isCurrentIndexValid())
         {
             int column = resultMetadata.getColumnIndex(columnLabel);
             if (column < 0)
                 throw new SQLException("Invalid Column Label found");
-            List<?> row = rows.get(index);
+            List<?> row = fetchCurrentRow();
             if (row != null)
             {
                 lastResult = row.get(column - 1);
@@ -519,12 +646,12 @@ public class HPCCResultSet implements ResultSet
     public short getShort(String columnLabel) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet:getShort(" + columnLabel + ")");
-        if (index >= 0 && index <= rows.size())
+        if (isCurrentIndexValid())
         {
             int column = resultMetadata.getColumnIndex(columnLabel);
             if (column < 0)
                 throw new SQLException("Invalid Column Label found");
-            List<?> row = rows.get(index);
+            List<?> row = fetchCurrentRow();
             if (row != null)
             {
                 lastResult = row.get(column - 1);
@@ -544,12 +671,12 @@ public class HPCCResultSet implements ResultSet
     public int getInt(String columnLabel) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet: getInt(" + columnLabel + ")");
-        if (index >= 0 && index <= rows.size())
+        if (isCurrentIndexValid())
         {
             int column = resultMetadata.getColumnIndex(columnLabel);
             if (column < 0)
                 throw new SQLException("Invalid Column Label found");
-            List<?> row = rows.get(index);
+            List<?> row = fetchCurrentRow();
             if (row != null)
             {
                 lastResult = row.get(column - 1);
@@ -569,12 +696,12 @@ public class HPCCResultSet implements ResultSet
     public long getLong(String columnLabel) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet: getLong(" + columnLabel + ")");
-        if (index >= 0 && index <= rows.size())
+        if (isCurrentIndexValid())
         {
             int column = resultMetadata.getColumnIndex(columnLabel);
             if (column < 0)
                 throw new SQLException("Invalid Column Label found");
-            List<?> row = rows.get(index);
+            List<?> row = fetchCurrentRow();
             if (row != null)
             {
                 lastResult = row.get(column - 1);
@@ -594,12 +721,12 @@ public class HPCCResultSet implements ResultSet
     public float getFloat(String columnLabel) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet: getFloat(" + columnLabel + ")");
-        if (index >= 0 && index <= rows.size())
+        if (isCurrentIndexValid())
         {
             int column = resultMetadata.getColumnIndex(columnLabel);
             if (column < 0)
                 throw new SQLException("Invalid Column Label found");
-            List<?> row = rows.get(index);
+            List<?> row = fetchCurrentRow();
             if (row != null)
             {
                 lastResult = row.get(column - 1);
@@ -619,12 +746,12 @@ public class HPCCResultSet implements ResultSet
     public double getDouble(String columnLabel) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet: getDouble(" + columnLabel + ")");
-        if (index >= 0 && index <= rows.size())
+        if (isCurrentIndexValid())
         {
             int column = resultMetadata.getColumnIndex(columnLabel);
             if (column < 0)
                 throw new SQLException("Invalid Column Label found");
-            List<?> row = rows.get(index);
+            List<?> row = fetchCurrentRow();
             if (row != null)
             {
                 lastResult = row.get(column - 1);
@@ -644,12 +771,12 @@ public class HPCCResultSet implements ResultSet
     public BigDecimal getBigDecimal(String columnLabel, int scale) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet: getBigDecimal(" + columnLabel + ")");
-        if (index >= 0 && index <= rows.size())
+        if (isCurrentIndexValid())
         {
             int columnIndex = resultMetadata.getColumnIndex(columnLabel);
             if (columnIndex < 0)
                 throw new SQLException("Invalid Column Label found");
-            List<?> row = rows.get(index);
+            List<?> row = fetchCurrentRow();
             if (row != null)
             {
                 lastResult = row.get(columnIndex - 1);
@@ -670,12 +797,12 @@ public class HPCCResultSet implements ResultSet
     public byte[] getBytes(String columnLabel) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet: getBytes(" + columnLabel + ")");
-        if (index >= 0 && index <= rows.size())
+        if (isCurrentIndexValid())
         {
             int columnIndex = resultMetadata.getColumnIndex(columnLabel);
             if (columnIndex < 0)
                 throw new SQLException("Invalid Column Label found");
-            List<?> row = rows.get(index);
+            List<?> row = fetchCurrentRow();
             if (row != null)
             {
                 lastResult = row.get(columnIndex - 1);
@@ -693,12 +820,12 @@ public class HPCCResultSet implements ResultSet
     public Date getDate(String columnLabel) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet: getDate(" + columnLabel + ")");
-        if (index >= 0 && index <= rows.size())
+        if (isCurrentIndexValid())
         {
             int columnIndex = resultMetadata.getColumnIndex(columnLabel);
             if (columnIndex < 0)
                 throw new SQLException("Invalid Column Label found");
-            List<?> row = rows.get(index);
+            List<?> row = fetchCurrentRow();
             if (row != null)
             {
                 lastResult = row.get(columnIndex - 1);
@@ -718,12 +845,12 @@ public class HPCCResultSet implements ResultSet
     public Time getTime(String columnLabel) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet: getTime(" + columnLabel + ")");
-        if (index >= 0 && index <= rows.size())
+        if (isCurrentIndexValid())
         {
             int columnIndex = resultMetadata.getColumnIndex(columnLabel);
             if (columnIndex < 0)
                 throw new SQLException("Invalid Column Label found");
-            List<?> row = rows.get(index);
+            List<?> row = fetchCurrentRow();
             if (row != null)
             {
                 lastResult = row.get(columnIndex - 1);
@@ -743,12 +870,12 @@ public class HPCCResultSet implements ResultSet
     public Timestamp getTimestamp(String columnLabel) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet: getTimestamp(" + columnLabel + ")");
-        if (index >= 0 && index <= rows.size())
+        if (isCurrentIndexValid())
         {
             int columnIndex = resultMetadata.getColumnIndex(columnLabel);
             if (columnIndex < 0)
                 throw new SQLException("Invalid Column Label found");
-            List<?> row = rows.get(index);
+            List<?> row = fetchCurrentRow();
             if (row != null)
             {
                 lastResult = row.get(columnIndex - 1);
@@ -768,12 +895,12 @@ public class HPCCResultSet implements ResultSet
     public InputStream getAsciiStream(String columnLabel) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet: getAsciiStream(" + columnLabel + ")");
-        if (index >= 0 && index <= rows.size())
+        if (isCurrentIndexValid())
         {
             int columnIndex = resultMetadata.getColumnIndex(columnLabel);
             if (columnIndex < 0)
                 throw new SQLException("Invalid Column Label found");
-            List<?> row = rows.get(index);
+            List<?> row = fetchCurrentRow();
             if (row != null)
             {
                 lastResult = row.get(columnIndex - 1);
@@ -791,12 +918,12 @@ public class HPCCResultSet implements ResultSet
     public InputStream getUnicodeStream(String columnLabel) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet: getUnicodeStream(" + columnLabel + ")");
-        if (index >= 0 && index <= rows.size())
+        if (isCurrentIndexValid())
         {
             int columnIndex = resultMetadata.getColumnIndex(columnLabel);
             if (columnIndex < 0)
                 throw new SQLException("Invalid Column Label found");
-            List<?> row = rows.get(index);
+            List<?> row = fetchCurrentRow();
             if (row != null)
             {
                 lastResult = row.get(columnIndex - 1);
@@ -814,12 +941,12 @@ public class HPCCResultSet implements ResultSet
     public InputStream getBinaryStream(String columnLabel) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet: getBinaryStream(" + columnLabel + ")");
-        if (index >= 0 && index <= rows.size())
+        if (isCurrentIndexValid())
         {
             int columnIndex = resultMetadata.getColumnIndex(columnLabel);
             if (columnIndex < 0)
                 throw new SQLException("Invalid Column Label found");
-            List<?> row = rows.get(index);
+            List<?> row = fetchCurrentRow();
             if (row != null)
             {
                 lastResult = row.get(columnIndex - 1);
@@ -849,7 +976,7 @@ public class HPCCResultSet implements ResultSet
     public String getCursorName() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet getCursorName");
-        throw new UnsupportedOperationException("HPCCResultSet: Not supported yet.");
+        return "hpcccursor";
     }
 
     public ResultSetMetaData getMetaData() throws SQLException
@@ -861,9 +988,9 @@ public class HPCCResultSet implements ResultSet
     public Object getObject(int columnIndex) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet getObject( " + columnIndex + " )" );
-        if (index >= 0 && index <= rows.size())
+        if (isCurrentIndexValid())
         {
-            lastResult = HPCCJDBCUtils.createSqlTypeObjFromStringObj(resultMetadata.getColumnType(columnIndex), rows.get(index).get(columnIndex - 1));
+            lastResult = HPCCJDBCUtils.createSqlTypeObjFromStringObj(resultMetadata.getColumnType(columnIndex), fetchCurrentRow().get(columnIndex - 1));
             return lastResult;
         }
         else
@@ -873,12 +1000,12 @@ public class HPCCResultSet implements ResultSet
     public Object getObject(String columnLabel) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet getObject( " + columnLabel + " )" );
-        if (index >= 0 && index <= rows.size())
+        if (isCurrentIndexValid())
         {
             int columnIndex = resultMetadata.getColumnIndex(columnLabel);
             if (columnIndex < 0)
                 throw new SQLException("Invalid Column Label found");
-            List<?> row = rows.get(index);
+            List<?> row = fetchCurrentRow();
             if (row != null)
             {
                 lastResult = HPCCJDBCUtils.createSqlTypeObjFromStringObj(
@@ -914,10 +1041,10 @@ public class HPCCResultSet implements ResultSet
     public BigDecimal getBigDecimal(int columnIndex) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet getBigDecimal( " + columnIndex + " )" );
-        if (index >= 0 && index <= rows.size())
-            if (columnIndex >= 1 && columnIndex <= rows.get(index).size())
+        if (isCurrentIndexValid())
+            if (columnIndex >= 1 && columnIndex <= resultMetadata.getColumnCount())
             {
-                lastResult = rows.get(index).get(columnIndex - 1);
+                lastResult = fetchCurrentRow().get(columnIndex - 1);
                 if (lastResult == null)
                     return null;
                 // content of row field is Object string, need to get value of
@@ -925,7 +1052,7 @@ public class HPCCResultSet implements ResultSet
                 return new BigDecimal(String.valueOf(lastResult));
             }
             else
-                throw new SQLException("Invalid Column Index");
+                throw new SQLException("Invalid Column Index: " + columnIndex);
         else
             throw new SQLException("Invalid Row Index");
     }
@@ -933,12 +1060,12 @@ public class HPCCResultSet implements ResultSet
     public BigDecimal getBigDecimal(String columnLabel) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet getBigDecimal( " + columnLabel + " )" );
-        if (index >= 0 && index <= rows.size())
+        if (isCurrentIndexValid())
         {
             int columnIndex = resultMetadata.getColumnIndex(columnLabel);
             if (columnIndex < 0)
                 throw new SQLException("Invalid Column Label found");
-            List<?> row = rows.get(index);
+            List<?> row = fetchCurrentRow();
             if (row != null)
             {
                 lastResult = row.get(columnIndex - 1);
@@ -958,25 +1085,25 @@ public class HPCCResultSet implements ResultSet
     public boolean isBeforeFirst() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet isBeforeFirst");
-        return (index < 0) ? true : false;
+        return (getCurrentIndex() < 0) ? true : false;
     }
 
     public boolean isAfterLast() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet isAfterLast");
-        return (index > rows.size() - 1) ? true : false;
+        return (getCurrentIndex() > getRowCount() - 1) ? true : false;
     }
 
     public boolean isFirst() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet isFirst");
-        return index == 0 ? true : false;
+        return getCurrentIndex() == 0 ? true : false;
     }
 
     public boolean isLast() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet isLast");
-        return (index == rows.size() - 1) ? true : false;
+        return (getCurrentIndex() == getRowCount() - 1) ? true : false;
     }
 
     public void beforeFirst() throws SQLException
@@ -994,9 +1121,9 @@ public class HPCCResultSet implements ResultSet
     public boolean first() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet first");
-        if (rows.size() > 0)
+        if(getRowCount() > 0)
         {
-            index = 0;
+            setIndex(0);
             return true;
         }
         else
@@ -1006,9 +1133,9 @@ public class HPCCResultSet implements ResultSet
     public boolean last() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet last");
-        if (rows.size() > 0)
+        if(getRowCount() > 0)
         {
-            index = rows.size() - 1;
+            setIndex(getRowCount() - 1);
             return true;
         }
         else
@@ -1018,15 +1145,48 @@ public class HPCCResultSet implements ResultSet
     public int getRow() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet getRow");
-        return index + 1;
+        return getCurrentIndex() + 1;
     }
+
+    private void setIndex(int newIndex)
+    {
+        synchronized (indexLock)
+        {
+            index = newIndex;
+        }
+    }
+
+    private void incrementIndex()
+    {
+        synchronized (indexLock)
+        {
+            index = index + 1;
+        }
+    }
+
+    private void decrementIndex()
+    {
+        synchronized (indexLock)
+        {
+            index = index - 1;
+        }
+    }
+
+    private int getCurrentIndex()
+    {
+        synchronized (indexLock)
+        {
+            return index;
+        }
+    }
+
 
     public boolean absolute(int row) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet absolute");
-        if (row > 0 && row <= rows.size())
+        if (row > 0 && row <= getRowCount())
         {
-            index = row - 1;
+            setIndex(row - 1);
             return true;
         }
         else
@@ -1038,10 +1198,10 @@ public class HPCCResultSet implements ResultSet
     public boolean relative(int rows) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet relative");
-        int tmpindex = index + rows;
-        if (tmpindex > 0 && tmpindex <= this.rows.size())
+        int tmpindex = getCurrentIndex() + rows;
+        if (tmpindex > 0 && tmpindex <= getRowCount())
         {
-            index = tmpindex;
+            setIndex(tmpindex);
             return true;
         }
         else
@@ -1053,9 +1213,9 @@ public class HPCCResultSet implements ResultSet
     public boolean previous() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet previous");
-        if (index > 1)
+        if(getCurrentIndex() > 1)
         {
-            index--;
+            decrementIndex();
             return true;
         }
         else
@@ -1067,7 +1227,7 @@ public class HPCCResultSet implements ResultSet
     public void setFetchDirection(int direction) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet setFetchDirection");
-        throw new UnsupportedOperationException("HPCCResultSet: Not supported yet.");
+        throw new SQLException("HPCCResultSet: fetch direction cannot be changed.");
     }
 
     public int getFetchDirection() throws SQLException
@@ -1078,32 +1238,35 @@ public class HPCCResultSet implements ResultSet
 
     public void setFetchSize(int rows) throws SQLException
     {
-        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet setFetchSize");
-        throw new UnsupportedOperationException("HPCCResultSet: Not supported yet.");
+        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet setFetchSize (" + rows + ")");
+        if (rows > 0 /*&& rows < XX*/ )
+            fetchSize = rows;
+        else
+            throw new SQLException("HPCCResultSet: Invalid fetch size submited: " + rows);
     }
 
     public int getFetchSize() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet getFetchSize");
-        throw new UnsupportedOperationException("HPCCResultSet: Not supported yet.");
+        return fetchSize;
     }
 
     public int getType() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet getType");
-        return ResultSet.TYPE_SCROLL_INSENSITIVE;
+        return ResultSet.TYPE_FORWARD_ONLY;
     }
 
     public int getConcurrency() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet getConcurrency");
-        throw new UnsupportedOperationException("HPCCResultSet: Not supported yet.");
+        return ResultSet.CONCUR_READ_ONLY;
     }
 
     public boolean rowUpdated() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet rowUpdated");
-        throw new UnsupportedOperationException("HPCCResultSet: Not supported yet.");
+        return false;
     }
 
     public boolean rowInserted() throws SQLException
@@ -1495,10 +1658,10 @@ public class HPCCResultSet implements ResultSet
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet getURL");
         try
         {
-            if (index >= 0 && index <= rows.size())
-                if (columnIndex >= 1 && columnIndex <= rows.get(index).size())
+            if (isCurrentIndexValid())
+                if (columnIndex >= 1 && columnIndex <= resultMetadata.getColumnCount())
                 {
-                    lastResult = rows.get(index).get(columnIndex - 1);
+                    lastResult = fetchCurrentRow().get(columnIndex - 1);
                     if (lastResult == null)
                         return null;
                     // content of row field is Object string, need to get value
@@ -1506,7 +1669,7 @@ public class HPCCResultSet implements ResultSet
                     return new URL(String.valueOf(lastResult));
                 }
                 else
-                    throw new SQLException("Invalid Column Index");
+                    throw new SQLException("Invalid Column Index: " + columnIndex);
             else
                 throw new SQLException("Invalid Row Index");
         }
@@ -1519,12 +1682,12 @@ public class HPCCResultSet implements ResultSet
     public URL getURL(String columnLabel) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet getURL");
-        if (index >= 0 && index <= rows.size())
+        if (isCurrentIndexValid())
         {
             int columnIndex = resultMetadata.getColumnIndex(columnLabel);
             if (columnIndex < 0)
                 throw new SQLException("Invalid Column Label found");
-            List<?> row = rows.get(index);
+            List<?> row = fetchCurrentRow();
             if (row != null)
             {
                 try
@@ -1925,5 +2088,162 @@ public class HPCCResultSet implements ResultSet
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet isWrapperFor");
         throw new UnsupportedOperationException("HPCCResultSet: isWrapperFor Not supported yet.");
+    }
+
+    public int parseDataset(String xml) throws Exception
+    {
+        //according to java docs, DocumentBuilderFactory.newInstance is not thread safe
+        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+        DocumentBuilder db = dbf.newDocumentBuilder();
+        Document dom = db.parse(new InputSource( new StringReader( xml ) ));
+        return parseDataset(dom);
+    }
+
+    public int parseDataset(Document dom) throws Exception
+    {
+
+        HPCCJDBCUtils.traceoutln(Level.INFO, "Received xml results, parsing results...");
+
+        long startTime = System.currentTimeMillis();
+
+        NodeList rowList = null;
+        ArrayList<HPCCColumnMetaData> metadatacols = null;
+
+        Element docElement = dom.getDocumentElement();
+        NodeList dsList = docElement.getElementsByTagName("Dataset");
+
+        int dsCount = 0;
+        if (dsList != null && (dsCount = dsList.getLength()) > 0)
+        {
+            HPCCJDBCUtils.traceoutln(Level.INFO, "Found " + dsList.getLength() + "result datsets");
+            // The dataset element is encapsulated within a Result element
+            // need to fetch appropriate resulst dataset
+            for (int datasetindex = 0; datasetindex < dsCount; datasetindex++)
+            {
+                Element ds = (Element) dsList.item(datasetindex);
+                String dsName = ds.getAttribute("name");
+                HPCCJDBCUtils.traceoutln(Level.INFO, "Found dataset: " + dsName);
+                if (dsName.equals(wsSQLResultSetName))
+                {
+                    rowList = ds.getElementsByTagName("Row");
+                    break;
+                }
+
+                if (datasetindex >= dsCount)
+                    HPCCJDBCUtils.traceoutln(Level.ALL, "Warning: Could not find WSSQL result dataset");
+            }
+        }
+        else if (docElement.getElementsByTagName("Exception").getLength() > 0)
+        {
+            NodeList exceptionlist = docElement.getElementsByTagName("Exception");
+
+            if (exceptionlist.getLength() > 0)
+            {
+                Exception resexception = null;
+                NodeList currexceptionelements = exceptionlist.item(0).getChildNodes();
+
+                for (int j = 0; j < currexceptionelements.getLength(); j++)
+                {
+                    Node exceptionelement = currexceptionelements.item(j);
+                    if (exceptionelement.getNodeName().equals("Message"))
+                    {
+                        resexception = new Exception("HPCCJDBC: Error in response: \'" + exceptionelement.getTextContent() + "\'");
+                    }
+                }
+                if (dsList == null || dsList.getLength() <= 0)
+                    throw resexception;
+            }
+        }
+        else
+        {
+            // The root element is itself the Dataset element
+            if (dsCount == 0)
+            {
+                rowList = docElement.getElementsByTagName("Row");
+            }
+        }
+
+        dsList = docElement.getElementsByTagName("XmlSchema");
+        if (dsList != null && dsList.getLength() > 0)
+        {
+            HPCCJDBCUtils.traceoutln(Level.INFO, "Found results schema");
+            Element ds = (Element) dsList.item(0);
+
+            /*
+             <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:hpcc="urn:hpccsystems:xsd:appinfo" elementFormDefault="qualified" attributeFormDefault="unqualified">
+                <xs:element name="Dataset">
+                    <xs:complexType>
+                        <xs:sequence minOccurs="0" maxOccurs="unbounded">
+                            <xs:element name="Row">
+                                <xs:complexType>
+                                    <xs:sequence>
+                                        <xs:element name="id" type="xs:nonNegativeInteger"/>
+                                        <xs:element name="addr" type="xs:string"/>
+                                        <xs:element name="postcode" type="string10"/>
+                                        <xs:element name="yearbuilt" type="xs:nonNegativeInteger"/>
+                                    </xs:sequence>
+                                </xs:complexType>
+                            </xs:element>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+                <xs:simpleType name="string10">
+                    <xs:restriction base="xs:string">
+                        <xs:maxLength value="10"/>
+                    </xs:restriction>
+                </xs:simpleType>
+                </xs:schema>
+             */
+
+            NodeList schemarow = ds.getElementsByTagName("xs:element");
+            for(int schemarowindex = 0; schemarowindex < schemarow.getLength(); schemarowindex++)
+            {
+                Node element = schemarow.item(schemarowindex);
+                Node namedItem = element.getAttributes().getNamedItem("name");
+                if (namedItem.getNodeValue().equals("Row"))
+                {
+                    NodeList rowchildren = element.getChildNodes();
+                    if (rowchildren != null && rowchildren.getLength()>0)
+                    {
+                        Node complextype = rowchildren.item(0); //should be xs:complexType
+                        if (complextype != null && complextype.hasChildNodes())
+                        {
+                            NodeList seqnodes = complextype.getChildNodes(); //should be xs:sequence
+                            if (seqnodes != null && seqnodes.getLength()>0)
+                            {
+                                NodeList datasetelements = seqnodes.item(0).getChildNodes();
+                                metadatacols = new ArrayList();
+                                for (int datasetelementindex = 0; datasetelementindex < datasetelements.getLength(); datasetelementindex++)
+                                {
+                                    Node datasetelement = datasetelements.item(datasetelementindex);
+                                    if (datasetelement.getNodeName().equals("xs:element"))
+                                    {
+                                        NamedNodeMap attributes = datasetelement.getAttributes();
+                                        metadatacols.add(new HPCCColumnMetaData(attributes.getNamedItem("name").getNodeValue(), datasetelementindex, HPCCJDBCUtils.mapECLtype2SQLtype(attributes.getNamedItem("type").getNodeValue())));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+
+        if (resultMetadata == null)
+        {
+            if (metadatacols != null)
+                resultMetadata = new HPCCResultSetMetadata(metadatacols, tablename);
+            else
+                throw new Exception("Could not find result schema");
+        }
+
+        int rowcount = encapsulateDataSet(rowList);
+
+        long elapsedTime = System.currentTimeMillis() - startTime;
+        HPCCJDBCUtils.traceoutln(Level.INFO,  "Finished Parsing results.");
+        HPCCJDBCUtils.traceoutln(Level.INFO, "Total elapsed http request/response time in milliseconds: " + elapsedTime);
+
+        return rowcount;
     }
 }
