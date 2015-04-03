@@ -53,7 +53,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     private List<String>                targetclusters;
     private List<String>                querysets;
 
-    public static final short           JDBCVerMajor             = 3;
+    public static final short           JDBCVerMajor             = 4;
     public static final short           JDBCVerMinor             = 0;
 
     private static Version              hpccVersion              = null;
@@ -141,7 +141,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     {
         boolean isSuccess = true;
 
-        if (connection == null || connection.isClosed() || !connection.isTargetHPCCReachable())
+        if (connection == null || connection.isClosed() || !connection.hasTargetWsSQLBeenReached())
             return false;
 
         if (connection.getHPCCPlatform() == null || targetcluster == null)
@@ -1139,7 +1139,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getProcedureColumns catalog: " + catalog
                 + ", schemaPattern: " + schemaPattern + ", procedureNamePattern: " + procedureNamePattern
-                + " columnanmepat: " + columnNamePattern);
+                + " columnNamePattern: " + columnNamePattern);
 
         List<List> procedurecols = new ArrayList<List>();
 
@@ -1872,15 +1872,6 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                     file.setOwner(dfuLogicalFile.getOwner());
                     file.setDescription(dfuLogicalFile.getDescription());
 
-                    //rodrigo, let's add record count
-                    //String recordCount = dfuLogicalFile.getRecordCount();
-                    //if (recordCount != null && recordCount.length() > 0)
-                    //    file.setRecordCount(HPCCJDBCUtils.NUMFORMATTER.get().parse(recordCount).longValue());
-
-                    //String longRecordCount = dfuLogicalFile.getLongRecordCount();
-                    //if (longRecordCount != null && longRecordCount.length() > 0)
-                    //    file.setLongRecordCount(Long.parseLong(longRecordCount));
-
                     Boolean thisbool = null;
                     thisbool = dfuLogicalFile.getIsSuper();
                     file.setSuperFile(thisbool == null ? false : thisbool);
@@ -1920,7 +1911,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
             return false;
         }
 
-        if ((filename == null || filename.isEmpty()) && isSuccess && dfuFileParsedCount > 0)
+        if (isSuccess && dfuFileParsedCount > 0)
             setDFUMetaDataCached(true);
 
         return isSuccess;
@@ -2085,10 +2076,12 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         }
         catch (IOException e)
         {
+            HPCCJDBCUtils.traceoutln(Level.ALL, "Could not fetch HPCC QuerySet info");
             e.printStackTrace();
         }
         catch (Exception e)
         {
+            HPCCJDBCUtils.traceoutln(Level.ALL, "Could not fetch HPCC QuerySet info");
             e.printStackTrace();
         }
 
@@ -2156,7 +2149,14 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         if (connection == null)
             return false;
 
-        hpccVersion = connection.getVersion();
+        try
+        {
+            hpccVersion = connection.getVersion();
+        }
+        catch (SQLException e)
+        {
+            return false;
+        }
 
         return true;
     }
@@ -2166,14 +2166,14 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public int getJDBCMajorVersion() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getJDBCMajorVersion");
-        return hpccVersion.major;
-    }
+        return JDBCVerMajor;
+     }
 
     @Override
     public int getJDBCMinorVersion() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getJDBCMinorVersion");
-        return hpccVersion.minor;
+        return JDBCVerMinor;
     }
 
     @Override
