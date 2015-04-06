@@ -56,6 +56,11 @@ public class HPCCJDBCUtils
     private static HPCCJDBCLogFormatter formatter = new HPCCJDBCLogFormatter();
     private final static Logger logger = Logger.getLogger("org.hpccsystems.jdbcdriver");
 
+    public static Logger getLogger()
+    {
+        return logger;
+    }
+
     static
     {
         try

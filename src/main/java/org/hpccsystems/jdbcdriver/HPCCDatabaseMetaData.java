@@ -2499,4 +2499,16 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
             HPCCJDBCUtils.traceoutln(Level.SEVERE, "Error fetching Index file info: " + file.getFullyQualifiedName());
         }
     }
+
+    //Introduced in java 1.7 @Override
+    public ResultSet getPseudoColumns(String catalog, String schemaPattern, String tableNamePattern, String columnNamePattern) throws SQLException
+    {
+        throw new UnsupportedOperationException("HPCCDatabaseMetadata: getPseudoColumns Not supported yet.");
+    }
+
+    //Introduced in java 1.7 @Override
+    public boolean generatedKeyAlwaysReturned() throws SQLException
+    {
+        return false;
+    }
 }

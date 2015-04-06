@@ -2246,4 +2246,16 @@ public class HPCCResultSet implements ResultSet
 
         return rowcount;
     }
+
+    //Introduced in java 1.7 @Override
+    public <T> T getObject(int columnIndex, Class<T> type) throws SQLException
+    {
+        throw new UnsupportedOperationException("HPCCResultSet: getPseudoColumns Not supported yet.");
+    }
+
+    //Introduced in java 1.7 @Override
+    public <T> T getObject(String columnLabel, Class<T> type) throws SQLException
+    {
+        throw new UnsupportedOperationException("HPCCResultSet: getPseudoColumns Not supported yet.");
+    }
 }
