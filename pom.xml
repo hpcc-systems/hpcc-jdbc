@@ -4,7 +4,7 @@
 	<groupId>org.hpccsystems</groupId>
 	<artifactId>jdbcdriver</artifactId>
 	<!-- When updating the version number please make the corresponding changes in version.cmake -->
-	<version>0.3.0-SNAPSHOT</version>
+	<version>0.3.0-Beta</version>
 	<packaging>jar</packaging>
 	<name>HPCC Systems Java JDBC Driver</name>
 	<description>JDBC Driver for HPCC Systems - access HPCC data via SQL in Java or other JVM language</description>
