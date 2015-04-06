@@ -24,9 +24,13 @@ import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.DriverPropertyInfo;
 import java.sql.SQLException;
+import java.sql.SQLFeatureNotSupportedException;
 import java.util.Properties;
 import java.util.StringTokenizer;
 import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import org.hpccsystems.ws.client.utils.Utils;
 
 public class HPCCDriver implements Driver
 {
@@ -333,6 +337,12 @@ public class HPCCDriver implements Driver
     public boolean jdbcCompliant()
     {
         return true;
+    }
+
+    //Introduced in java 1.7 @Override
+    public Logger getParentLogger() throws SQLFeatureNotSupportedException
+    {
+        return HPCCJDBCUtils.getLogger();
     }
 
 }

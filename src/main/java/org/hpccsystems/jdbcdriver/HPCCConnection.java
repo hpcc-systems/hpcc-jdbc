@@ -41,6 +41,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.Executor;
 import java.util.logging.Level;
 
 import org.hpccsystems.ws.client.extended.HPCCWsSQLClient;
@@ -610,5 +611,35 @@ public class HPCCConnection implements Connection
             throw new SQLException("ERROR: WsSQLClient not available");
 
         return wsSQLClient.getResultResponse(wuid, resultWindowStart, resultWindowCount, true);
+    }
+
+    //Introduced in java 1.7@Override
+    public void setSchema(String schema) throws SQLException
+    {
+        throw new UnsupportedOperationException("HPCCConnection: setSchema Not supported yet.");
+    }
+
+    //Introduced in java 1.7@Override
+    public String getSchema() throws SQLException
+    {
+        throw new UnsupportedOperationException("HPCCConnection: getSchema Not supported yet.");
+    }
+
+    //Introduced in java 1.7@Override
+    public void abort(Executor executor) throws SQLException
+    {
+        throw new UnsupportedOperationException("HPCCConnection: abort Not supported yet.");
+    }
+
+    //Introduced in java 1.7@Override
+    public void setNetworkTimeout(Executor executor, int milliseconds) throws SQLException
+    {
+        throw new UnsupportedOperationException("HPCCConnection: setNetworkTimeout Not supported yet.");
+    }
+
+    //Introduced in java 1.7@Override
+    public int getNetworkTimeout() throws SQLException
+    {
+        throw new UnsupportedOperationException("HPCCConnection: getNetworkTimeout Not supported yet.");
     }
 }
