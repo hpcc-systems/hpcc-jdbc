@@ -370,7 +370,7 @@ public class HPCCStatement implements Statement
         throw new UnsupportedOperationException(className + ": Not supported yet.");
     }
 
-  //Introduced in java 1.7 @Override
+    //Introduced in java 1.7 @Override
     public boolean isCloseOnCompletion() throws SQLException
     {
         throw new UnsupportedOperationException(className + ": Not supported yet.");

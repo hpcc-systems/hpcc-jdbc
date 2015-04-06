@@ -30,8 +30,6 @@ import java.util.StringTokenizer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.hpccsystems.ws.client.utils.Utils;
-
 public class HPCCDriver implements Driver
 {
     public static final String   ECLRESULTLIMDEFAULT      = "100";
