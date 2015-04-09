@@ -132,7 +132,20 @@
     <para><emphasis
     role="bold">org.hpccsystems.jdbcdriver.HPCCDriver</emphasis></para>
 
-    <para></para>
+    <variablelist>
+      <varlistentry>
+        <term>Note:</term>
+
+        <listitem>
+          <para>WsSQL must be installed on the target HPCC Platform to utilize
+          a JDBC connection. See <ulink
+          url="???">http://hpccsystems.com/permlink/wssql</ulink> for
+          details.</para>
+
+          <para></para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
   </chapter>
 
   <chapter>
@@ -167,9 +180,21 @@
             <row>
               <entry>ServerAddress</entry>
 
-              <entry>Target HPCC address</entry>
+              <entry>Target HPCC ESP Address (used to contact WsSQL).</entry>
 
               <entry>“localhost”</entry>
+
+              <entry>Yes</entry>
+            </row>
+
+            <row>
+              <entry>WsSQLPort:</entry>
+
+              <entry>WsSQL port (WsSQL is a web service which must be
+              installed with the HPCC platform. It typically runs on port
+              8015).</entry>
+
+              <entry>8015</entry>
 
               <entry>Yes</entry>
             </row>
@@ -188,46 +213,6 @@
               <entry>WsECLWatchPort </entry>
 
               <entry>Target HPCC WsECLWatch port</entry>
-
-              <entry>8010</entry>
-
-              <entry>No</entry>
-            </row>
-
-            <row>
-              <entry>WsECLAddress</entry>
-
-              <entry>Target HPCC WsECL Address</entry>
-
-              <entry>ServerAddress Value</entry>
-
-              <entry>No</entry>
-            </row>
-
-            <row>
-              <entry>WsECLPort</entry>
-
-              <entry>Target HPCC WsECL port</entry>
-
-              <entry>8002</entry>
-
-              <entry>No</entry>
-            </row>
-
-            <row>
-              <entry>WsECLDirectAddress</entry>
-
-              <entry>Target HPCC WsECLDirectAddress</entry>
-
-              <entry>ServerAddress Value</entry>
-
-              <entry>No</entry>
-            </row>
-
-            <row>
-              <entry>WsECLDirectPort</entry>
-
-              <entry>Target HPCC WsECLDirect port</entry>
 
               <entry>8010</entry>
 
