@@ -235,7 +235,7 @@
             </row>
 
             <row>
-              <entry>Username</entry>
+              <entry>username</entry>
 
               <entry>User name on Target HPCC, if needed</entry>
 
@@ -245,7 +245,7 @@
             </row>
 
             <row>
-              <entry>Password</entry>
+              <entry>password</entry>
 
               <entry>Password on Target HPCC, if needed</entry>
 
