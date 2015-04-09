@@ -84,7 +84,7 @@
         </listitem>
 
         <listitem>
-          <para>Provides HPCC system and data RDB metadata</para>
+          <para>Provides access to HPCC system data and RDB metadata</para>
         </listitem>
 
         <listitem>
@@ -92,11 +92,11 @@
         </listitem>
 
         <listitem>
-          <para>Read only operations supported</para>
+          <para>Read-only operations supported</para>
         </listitem>
 
         <listitem>
-          <para>Non transactional</para>
+          <para>Non-transactional</para>
         </listitem>
 
         <listitem>
