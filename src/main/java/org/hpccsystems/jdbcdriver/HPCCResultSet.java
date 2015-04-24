@@ -167,7 +167,7 @@ public class HPCCResultSet implements ResultSet
 
     public int getRowCount()
     {
-        HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet getRowCount");
+        HPCCJDBCUtils.traceoutln(Level.WARNING, "HPCCResultSet getRowCount - ONLY REPORTS THE CURRENT NUMBER OF ROWS RETREIVED");
         synchronized (rowsLock)
         {
             return rows.size();
