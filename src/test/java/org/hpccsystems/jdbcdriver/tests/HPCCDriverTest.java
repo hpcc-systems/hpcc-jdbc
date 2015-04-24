@@ -260,6 +260,7 @@ public class HPCCDriverTest
             try
             {
                 p = connectionByProperties.prepareStatement(sql);
+                Thread.sleep(500);
             }
             catch (Exception e)
             {
@@ -375,20 +376,13 @@ public class HPCCDriverTest
             statement.execute(SQL);
             HPCCResultSet resultSet = (HPCCResultSet) statement.getResultSet();
 
-            printTableInVerboseMode( resultSet.getMetaData(), resultSet);
+            ResultSetMetaData meta = resultSet.getMetaData();
 
-            PreparedStatement p = connectionByProperties.prepareStatement(SQL);
-            p.clearParameters();
+            printTableInVerboseMode(meta, resultSet);
 
-            HPCCResultSet qrs = (HPCCResultSet) ((HPCCPreparedStatement) p).executeQuery();
-
-            ResultSetMetaData meta = qrs.getMetaData();
-
-            resultcount= qrs.getRowCount();
-
-            if (resultcount > 0 && vmode)
+            if (resultSet.getRowCount() > 0 && vmode)
             {
-                printTableInVerboseMode( meta, qrs);
+                printTableInVerboseMode( meta, resultSet);
             }
         }
         catch (Exception e)
@@ -725,8 +719,8 @@ public class HPCCDriverTest
                                     executeFreeHandSQL(testcaseByGroup.get(1), testcaseExpectVal, expectedRows,csvpath, "" + key);
                                 }
                                 break;
-                                default:
-                                    break;
+                        default:
+                                break;
                     }
                 }
             }
