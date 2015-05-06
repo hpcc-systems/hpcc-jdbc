@@ -505,6 +505,73 @@ public class HPCCJDBCUtils
         mapECLTypeNameToSQLType.put("UNICODE", java.sql.Types.VARCHAR);
     }
 
+    public final static HashMap<String, Integer> mapXSDTypeNameToSQLType = new HashMap<String, Integer>();
+    static
+    {
+        mapXSDTypeNameToSQLType.put("ANYURI", java.sql.Types.VARCHAR);           //URI (Uniform Resource Identifier)
+        mapXSDTypeNameToSQLType.put("BASE64BINARY", java.sql.Types.BINARY);      //Binary content coded as "base64"
+        mapXSDTypeNameToSQLType.put("BOOLEAN", java.sql.Types.BOOLEAN);          //Boolean (true or false)
+        mapXSDTypeNameToSQLType.put("BYTE", java.sql.Types.TINYINT);             //Signed value of 8 bits
+        mapXSDTypeNameToSQLType.put("DATE", java.sql.Types.DATE);                //Gregorian calendar date
+        mapXSDTypeNameToSQLType.put("DATETIME", java.sql.Types.OTHER);           //Instant of time (Gregorian calendar)
+        mapXSDTypeNameToSQLType.put("DECIMAL", java.sql.Types.DECIMAL);          //Decimal numbers
+        mapXSDTypeNameToSQLType.put("DOUBLE", java.sql.Types.DOUBLE);            //IEEE 64-bit floating-point
+        mapXSDTypeNameToSQLType.put("DURATION", java.sql.Types.OTHER);           //Time durations
+        mapXSDTypeNameToSQLType.put("ENTITIES", java.sql.Types.OTHER);           //Whitespace-separated list of unparsed entity references
+        mapXSDTypeNameToSQLType.put("ENTITY", java.sql.Types.OTHER);             //Reference to an unparsed entity
+        mapXSDTypeNameToSQLType.put("FLOAT", java.sql.Types.FLOAT);              //IEEE 32-bit floating-point
+        mapXSDTypeNameToSQLType.put("GDAY", java.sql.Types.OTHER);               //Recurring period of time: monthly day
+        mapXSDTypeNameToSQLType.put("GMONTH", java.sql.Types.OTHER);             //Recurring period of time: yearly month
+        mapXSDTypeNameToSQLType.put("GMONTHDAY", java.sql.Types.OTHER);          //Recurring period of time: yearly day
+        mapXSDTypeNameToSQLType.put("GYEAR", java.sql.Types.OTHER);              //Period of one year
+        mapXSDTypeNameToSQLType.put("GYEARMONTH", java.sql.Types.OTHER);         //Period of one month
+        mapXSDTypeNameToSQLType.put("HEXBINARY", java.sql.Types.BINARY);         //Binary contents coded in hexadecimal
+        mapXSDTypeNameToSQLType.put("ID", java.sql.Types.VARCHAR);               //Definition of unique identifiers
+        mapXSDTypeNameToSQLType.put("IDREF", java.sql.Types.REF);                //Definition of references to unique identifiers
+        mapXSDTypeNameToSQLType.put("IDREFS", java.sql.Types.ARRAY);             //Definition of lists of references to unique identifiers
+        mapXSDTypeNameToSQLType.put("INT", java.sql.Types.INTEGER);              //32-bit signed integers
+        mapXSDTypeNameToSQLType.put("INTEGER", java.sql.Types.BIGINT);           //Signed integers of arbitrary length
+        mapXSDTypeNameToSQLType.put("LANGUAGE", java.sql.Types.OTHER);           //RFC 1766 language codes
+        mapXSDTypeNameToSQLType.put("LONG", java.sql.Types.BIGINT);              //64-bit signed integers
+        mapXSDTypeNameToSQLType.put("NAME", java.sql.Types.VARCHAR);             //XML 1.O name
+        mapXSDTypeNameToSQLType.put("NCNAME", java.sql.Types.VARCHAR);           //Unqualified names
+        mapXSDTypeNameToSQLType.put("NEGATIVEINTEGER", java.sql.Types.BIGINT);   //Strictly negative integers of arbitrary length
+        mapXSDTypeNameToSQLType.put("NMTOKEN", java.sql.Types.OTHER);            //XML 1.0 name token (NMTOKEN)
+        mapXSDTypeNameToSQLType.put("NMTOKENS", java.sql.Types.OTHER);           //List of XML 1.0 name tokens (NMTOKEN)
+        mapXSDTypeNameToSQLType.put("NONNEGATIVEINTEGER", java.sql.Types.BIGINT);//Integers of arbitrary length positive or equal to zero
+        mapXSDTypeNameToSQLType.put("NONPOSITIVEINTEGER", java.sql.Types.BIGINT);//Integers of arbitrary length negative or equal to zero
+        mapXSDTypeNameToSQLType.put("NORMALIZEDSTRING", java.sql.Types.VARCHAR); //Whitespace-replaced strings
+        mapXSDTypeNameToSQLType.put("NOTATION", java.sql.Types.OTHER);           //Emulation of the XML 1.0 feature
+        mapXSDTypeNameToSQLType.put("POSITIVEINTEGER", java.sql.Types.BIGINT);   //Strictly positive integers of arbitrary length
+        mapXSDTypeNameToSQLType.put("QNAME", java.sql.Types.VARCHAR);            //Namespaces in XML-qualified names
+        mapXSDTypeNameToSQLType.put("SHORT", java.sql.Types.INTEGER );           //32-bit signed integers
+        mapXSDTypeNameToSQLType.put("STRING", java.sql.Types.VARCHAR);           //Any string
+        mapXSDTypeNameToSQLType.put("TIME", java.sql.Types.TIME);                //Point in time recurring each day
+        mapXSDTypeNameToSQLType.put("TOKEN", java.sql.Types.OTHER);              //Whitespace-replaced and collapsed strings
+        mapXSDTypeNameToSQLType.put("UNSIGNEDBYTE", java.sql.Types.TINYINT);     //Unsigned value of 8 bits
+        mapXSDTypeNameToSQLType.put("UNSIGNEDINT", java.sql.Types.BIGINT);       //Unsigned integer of 32 bits
+        mapXSDTypeNameToSQLType.put("UNSIGNEDLONG", java.sql.Types.BIGINT);      //64-bit signed integers
+        mapXSDTypeNameToSQLType.put("UNSIGNEDLONG", java.sql.Types.BIGINT);      //Unsigned integer of 64 bits
+        mapXSDTypeNameToSQLType.put("UNSIGNEDSHORT", java.sql.Types.INTEGER);    //Unsigned integer of 16 bits
+    }
+
+    public static int mapXSDTypeName2SQLtype(String xsdtype)
+    {
+        xsdtype = xsdtype.toUpperCase();
+        //let's try to find the type as is
+        if (mapXSDTypeNameToSQLType.containsKey(xsdtype))
+            return mapXSDTypeNameToSQLType.get(xsdtype);
+        else
+        {
+            //let's try to find it without any namespace information
+            String postfixUpper = xsdtype.substring(xsdtype.lastIndexOf(':') + 1);
+            if (mapXSDTypeNameToSQLType.containsKey(postfixUpper))
+                return mapXSDTypeNameToSQLType.get(postfixUpper);
+            else
+                return java.sql.Types.OTHER;
+        }
+    }
+
     public final static Pattern TRAILINGNUMERICPATTERN = Pattern.compile(
             "(.*\\s+?)*([A-Z]+)(([0-9]+)(_([0-9]+))?)*",Pattern.DOTALL);
 

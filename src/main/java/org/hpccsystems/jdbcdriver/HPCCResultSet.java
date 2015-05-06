@@ -42,6 +42,7 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
@@ -2195,6 +2196,28 @@ public class HPCCResultSet implements ResultSet
                 </xs:schema>
              */
 
+            HashMap<String, String> customTypeMap = null;
+
+            NodeList types = ds.getElementsByTagName("xs:simpleType");
+            if (types.getLength() > 0)
+            {
+                customTypeMap = new HashMap<String, String>();
+                for(int typesindex = 0; typesindex < types.getLength(); typesindex++)
+                {
+                    Node type = types.item(typesindex);
+                    Node namedItem = type.getAttributes().getNamedItem("name");
+                    String name = namedItem.getNodeValue();
+                    NodeList rowchildren = type.getChildNodes();
+                    if (rowchildren != null && rowchildren.getLength()>0)
+                    {
+                        Node restriction = rowchildren.item(0);
+                        Node base = restriction.getAttributes().getNamedItem("base");
+                        if (base != null)
+                            customTypeMap.put(name, base.getNodeValue());
+                    }
+                }
+            }
+
             NodeList schemarow = ds.getElementsByTagName("xs:element");
             for(int schemarowindex = 0; schemarowindex < schemarow.getLength(); schemarowindex++)
             {
@@ -2219,7 +2242,17 @@ public class HPCCResultSet implements ResultSet
                                     if (datasetelement.getNodeName().equals("xs:element"))
                                     {
                                         NamedNodeMap attributes = datasetelement.getAttributes();
-                                        metadatacols.add(new HPCCColumnMetaData(attributes.getNamedItem("name").getNodeValue(), datasetelementindex, HPCCJDBCUtils.mapECLtype2SQLtype(attributes.getNamedItem("type").getNodeValue())));
+                                        if (attributes != null)
+                                        {
+                                            Node typeattribute = attributes.getNamedItem("type");
+                                            if (typeattribute != null)
+                                            {
+                                                String typename = typeattribute.getNodeValue();
+                                                if (customTypeMap != null && customTypeMap.containsKey(typename))
+                                                    typename = customTypeMap.get(typename);
+                                                metadatacols.add(new HPCCColumnMetaData(attributes.getNamedItem("name").getNodeValue(), datasetelementindex, HPCCJDBCUtils.mapXSDTypeName2SQLtype(typename)));
+                                            }
+                                        }
                                     }
                                 }
                             }
