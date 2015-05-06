@@ -2212,8 +2212,8 @@ public class HPCCResultSet implements ResultSet
                     {
                         Node restriction = rowchildren.item(0);
                         Node base = restriction.getAttributes().getNamedItem("base");
-                        String basename = base.getNodeValue();
-                        customTypeMap.put(name, basename);
+                        if (base != null)
+                            customTypeMap.put(name, base.getNodeValue());
                     }
                 }
             }
@@ -2242,10 +2242,17 @@ public class HPCCResultSet implements ResultSet
                                     if (datasetelement.getNodeName().equals("xs:element"))
                                     {
                                         NamedNodeMap attributes = datasetelement.getAttributes();
-                                        String typename = attributes.getNamedItem("type").getNodeValue();
-                                        if (customTypeMap != null && customTypeMap.containsKey(typename))
-                                            typename = customTypeMap.get(typename);
-                                        metadatacols.add(new HPCCColumnMetaData(attributes.getNamedItem("name").getNodeValue(), datasetelementindex, HPCCJDBCUtils.mapXSDTypeName2SQLtype(typename)));
+                                        if (attributes != null)
+                                        {
+                                            Node typeattribute = attributes.getNamedItem("type");
+                                            if (typeattribute != null)
+                                            {
+                                                String typename = typeattribute.getNodeValue();
+                                                if (customTypeMap != null && customTypeMap.containsKey(typename))
+                                                    typename = customTypeMap.get(typename);
+                                                metadatacols.add(new HPCCColumnMetaData(attributes.getNamedItem("name").getNodeValue(), datasetelementindex, HPCCJDBCUtils.mapXSDTypeName2SQLtype(typename)));
+                                            }
+                                        }
                                     }
                                 }
                             }
