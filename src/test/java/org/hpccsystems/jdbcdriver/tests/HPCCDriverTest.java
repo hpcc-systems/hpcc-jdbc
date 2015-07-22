@@ -15,6 +15,7 @@ import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.Properties;
 
@@ -649,15 +650,17 @@ public class HPCCDriverTest
         printHeader();
         File propertyFile = new File(scriptfilepath);
         FileInputStream loadparams = new FileInputStream(propertyFile);
-        Properties sqltestcases = new Properties();
+        Properties sqltestcases = new OrderedProperties();
         sqltestcases.load(loadparams);
         loadparams.close();
         System.out.println("SqlScript parameter found-Scripted Mode Started...\n");
 
         List<String> testcaseByGroup = new ArrayList<String>();
         System.out.println("Processing regular and/or prepared statements...");
-        for (String key : sqltestcases.stringPropertyNames())
+        Enumeration<?> propertyNames = sqltestcases.propertyNames();
+        while(propertyNames.hasMoreElements())
         {
+            String key = (String)propertyNames.nextElement();
             String value = sqltestcases.getProperty(key);
 
             if (!(value.isEmpty()))
