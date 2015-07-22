@@ -252,7 +252,7 @@
         <dependency>
             <groupId>org.hpccsystems.hpccjapi</groupId>
             <artifactId>wsclient</artifactId>
-            <version>0.4</version>
+            <version>0.6-SNAPSHOT</version>
         </dependency>
 	</dependencies>
 

@@ -385,7 +385,7 @@ public class HPCCDriverTest
 
             printTableInVerboseMode(meta, resultSet);
 
-            if (resultSet.getRowCount() > 0 && vmode)
+            if (resultSet.getTotalRowCount() > 0 && vmode)
             {
                 printTableInVerboseMode( meta, resultSet);
             }
@@ -540,7 +540,7 @@ public class HPCCDriverTest
                 }
             }
 
-            System.out.println("\nTotal Records found: " + resultset.getRowCount());
+            System.out.println("\nTotal Records found: " + resultset.getTotalRowCount());
         }
         catch (Exception e)
         {
