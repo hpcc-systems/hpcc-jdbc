@@ -66,6 +66,7 @@ import org.xml.sax.InputSource;
 public class HPCCResultSet implements ResultSet
 {
     private final static String                 wsSQLResultSetName = "WsSQLResult";
+    private final static String                 wsSQLResultCountName = "WsSQLCount";
 
     private int                                 fetchSize = 100;
     private Object                              rowsLock = new Object();
@@ -81,6 +82,12 @@ public class HPCCResultSet implements ResultSet
     private String                              tablename = null;
     private String                              resultWUID = null;
     private HPCCConnection                      hpccConnection = null;
+    private long                                totalRowCount = -1;
+
+    public String getResultWUID()
+    {
+        return resultWUID;
+    }
 
     public HPCCResultSet(List recrows, ArrayList<HPCCColumnMetaData> metadatacols, String tablename) throws SQLException
     {
@@ -166,6 +173,11 @@ public class HPCCResultSet implements ResultSet
         return rowCount;
     }
 
+    public long getTotalRowCount()
+    {
+        return totalRowCount;
+    }
+
     public int getRowCount()
     {
         HPCCJDBCUtils.traceoutln(Level.WARNING, "HPCCResultSet getRowCount - ONLY REPORTS THE CURRENT NUMBER OF ROWS RETRIEVED");
@@ -244,7 +256,7 @@ public class HPCCResultSet implements ResultSet
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet next");
         //is next index within the current window?);
-        if( (getCurrentIndex() + 1) - (currentWindowIndex * fetchSize) >= getRowCount())
+        if((getCurrentIndex() + 1) - (currentWindowIndex * fetchSize) >= getRowCount())
         {
             if(fetchNextWindow() <= 0)
                 return false;
@@ -2116,7 +2128,7 @@ public class HPCCResultSet implements ResultSet
         int dsCount = 0;
         if (dsList != null && (dsCount = dsList.getLength()) > 0)
         {
-            HPCCJDBCUtils.traceoutln(Level.INFO, "Found " + dsList.getLength() + "result datsets");
+            HPCCJDBCUtils.traceoutln(Level.INFO, "Found " + dsList.getLength() + " result datsets");
             // The dataset element is encapsulated within a Result element
             // need to fetch appropriate resulst dataset
             for (int datasetindex = 0; datasetindex < dsCount; datasetindex++)
@@ -2127,7 +2139,16 @@ public class HPCCResultSet implements ResultSet
                 if (dsName.equals(wsSQLResultSetName))
                 {
                     rowList = ds.getElementsByTagName("Row");
-                    break;
+                }
+                else if (dsName.equals(wsSQLResultCountName))
+                {
+                    NodeList rowNodes = ds.getElementsByTagName("WSSQLSelectQueryResultCount");
+                    if (rowNodes != null && rowNodes.getLength() > 0)
+                    {
+                        Node item = rowNodes.item(0);
+                        if (item != null)
+                            totalRowCount = Long.parseLong(item.getTextContent());
+                    }
                 }
 
                 if (datasetindex >= dsCount)
