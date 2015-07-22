@@ -206,12 +206,12 @@ public class HPCCDriverTest
         return success;
     }
 
-    private  void freeHandSQL_Report(String status,String caseName,String sqlStatement)
+    private  void freeHandSQL_Report(String status,String caseName,String sqlStatement, String wuid)
     {
         try
         {
                 testcasecount++;
-                reportBufferedWriter.write(testcasecount + "." + status + " || " + caseName + " || " +sqlStatement+ sline);
+                reportBufferedWriter.write(testcasecount + "." + status + " || " + caseName + " || " +sqlStatement + " || " + wuid + sline);
                 reportBufferedWriter.write(sline);
                 reportBufferedWriter.flush();
         }
@@ -254,6 +254,7 @@ public class HPCCDriverTest
         BufferedReader readDataFile = null;
         String line = null;
         String errormessage = null;
+        String resultWUID = "";
 
         try
         {
@@ -266,10 +267,11 @@ public class HPCCDriverTest
             catch (Exception e)
             {
                 errormessage = e.getLocalizedMessage();
-                freeHandSQL_Report("FAILED: " + errormessage, testName, sql);
+                freeHandSQL_Report("FAILED: " + errormessage, testName, sql, resultWUID);
                 return;
             }
             p.clearParameters();
+
             readDataFile = new BufferedReader(new FileReader(csvpath));
             String prepParamValue = null;
             while (!((line = readDataFile.readLine()).isEmpty()))
@@ -301,6 +303,7 @@ public class HPCCDriverTest
                 {
                     errormessage = "";
                     qrs = (HPCCResultSet) ((HPCCPreparedStatement) p).executeQuery();
+                    resultWUID = qrs.getResultWUID();
                 }
                 catch (Exception sqle)
                 {
@@ -313,25 +316,25 @@ public class HPCCDriverTest
                 if (success && expectPass)
                 {
                     if (resultcount < minResults)
-                        freeHandSQL_Report("Detected less rows than expected", testName, sql + "--Value:" + prepParamValue);
+                        freeHandSQL_Report("Detected less rows than expected", testName, sql + "--Value:" + prepParamValue, resultWUID);
                     else
-                        freeHandSQL_Report("EXECUTED AS EXPECTED", testName, sql + "--Value:" + prepParamValue);
+                        freeHandSQL_Report("EXECUTED AS EXPECTED", testName, sql + "--Value:" + prepParamValue, resultWUID);
                 }
                 else if (!success && !expectPass)
                 {
-                    freeHandSQL_Report("EXECUTED AS EXPECTED", testName, sql + "--Value:" + prepParamValue);
+                    freeHandSQL_Report("EXECUTED AS EXPECTED", testName, sql + "--Value:" + prepParamValue, resultWUID);
                 }
                 else if (!success && expectPass)
                 {
-                    freeHandSQL_Report("UNEXPECTED (failure): " + errormessage, testName, sql + "--Value:" + prepParamValue);
+                    freeHandSQL_Report("UNEXPECTED (failure): " + errormessage, testName, sql + "--Value:" + prepParamValue, resultWUID);
                 }
                 else if (success && !expectPass)
                 {
-                    freeHandSQL_Report("UNEXPECTED (success)", testName, sql + "--Value:" + prepParamValue);
+                    freeHandSQL_Report("UNEXPECTED (success)", testName, sql + "--Value:" + prepParamValue, resultWUID);
                 }
                 else
                 {
-                    freeHandSQL_Report("UNKNOWN Result state", testName, sql + "--Value:" + prepParamValue);
+                    freeHandSQL_Report("UNKNOWN Result state", testName, sql + "--Value:" + prepParamValue, resultWUID);
                 }
 
                 if (resultcount > 0 && vmode)
@@ -347,7 +350,7 @@ public class HPCCDriverTest
         }
         catch (Exception e)
         {
-            freeHandSQL_Report("Error:"+e.getLocalizedMessage(),testName,sql);
+            freeHandSQL_Report("Error:"+e.getLocalizedMessage(),testName,sql, resultWUID);
         }
         finally
         {
@@ -370,6 +373,7 @@ public class HPCCDriverTest
         boolean success = true;
         String errorMessage = null;
         int resultcount=0;
+        String resultWUID = "";
 
         try
         {
@@ -385,6 +389,7 @@ public class HPCCDriverTest
             {
                 printTableInVerboseMode( meta, resultSet);
             }
+            resultWUID = resultSet.getResultWUID();
         }
         catch (Exception e)
         {
@@ -394,27 +399,27 @@ public class HPCCDriverTest
 
         if (!success && expectPass)
         {
-            freeHandSQL_Report("UNEXPECTED (failure): " + errorMessage, testName,SQL);
+            freeHandSQL_Report("UNEXPECTED (failure): " + errorMessage, testName, SQL, resultWUID);
 
         }
         else if (success && !expectPass)
         {
-            freeHandSQL_Report( "UNEXPECTED (success)", testName,SQL);
+            freeHandSQL_Report( "UNEXPECTED (success)", testName, SQL, resultWUID);
         }
         else if (success && expectPass)
         {
             if(resultcount >= minResults)
             {
-                freeHandSQL_Report( "EXECUTED AS EXPECTED", testName,SQL);
+                freeHandSQL_Report( "EXECUTED AS EXPECTED", testName, SQL, resultWUID);
             }
             else if(resultcount<minResults)
             {
-                freeHandSQL_Report( "Detected less rows than expected", testName,SQL);
+                freeHandSQL_Report( "Detected less rows than expected", testName, SQL, resultWUID);
             }
         }
         else if(!success && !expectPass)
         {
-            freeHandSQL_Report( "EXECUTED AS EXPECTED", testName,SQL);
+            freeHandSQL_Report( "EXECUTED AS EXPECTED", testName, SQL, resultWUID);
         }
     }
 
@@ -597,13 +602,13 @@ public class HPCCDriverTest
             if (vmode)
             {
                 driver_info = driver.getPropertyInfo("", null);
-                reportBufferedWriter.write("-----------------Driver Properties----------------------------------"+ sline);
+                reportBufferedWriter.write("-----------------Driver Properties----------------------------------------------------------------------------------------------------------------"+ sline);
                 for (int i = 0; i < driver_info.length; i++)
                     reportBufferedWriter.write(driver_info[i].name + ": "+ driver_info[i].description + sline);
-                reportBufferedWriter.write("--------------------------------------------------------------------------------------------------------------"+ sline);
+                reportBufferedWriter.write("--------------------------------------------------------------------------------------------------------------------------------------------------"+ sline);
             }
-                reportBufferedWriter.write("                         Status                    ||         Test Case Name        ||             SQL Statement    "+ sline);
-                reportBufferedWriter.write("--------------------------------------------------------------------------------------------------------------"+sline);
+                reportBufferedWriter.write("                         Status                    ||         Test Case Name        ||             SQL Statement        ||      Result WorkUnid ID"+ sline);
+                reportBufferedWriter.write("--------------------------------------------------------------------------------------------------------------------------------------------------"+sline);
                 reportBufferedWriter.flush();
         }
         catch (SQLException e)
@@ -679,13 +684,13 @@ public class HPCCDriverTest
                     switch(error)
                     {
                         case -1: System.out.println("Warning: Unsupported syntax parameter for test case:"+key);
-                                freeHandSQL_Report("FAILED:Unsupported syntax parameter, refer to README.md",key,value);
+                                freeHandSQL_Report("FAILED:Unsupported syntax parameter, refer to README.md",key,value, "");
                                 break;
                         case -2: System.out.println("Warning: Please review the usage for supported paramters for test case:"+key);
-                                freeHandSQL_Report("FAILED:Please review the README.md for supported paramters",key,value);
+                                freeHandSQL_Report("FAILED:Please review the README.md for supported paramters",key,value, "");
                                 break;
                         case -3: System.out.println("Warning: Unsupported syntax parameter for test case:"+key);
-                                freeHandSQL_Report("FAILED:Unsupported syntax parameter, refer to README.md",key,value);
+                                freeHandSQL_Report("FAILED:Unsupported syntax parameter, refer to README.md",key,value, "");
                                 break;
                         case  0:
                                 boolean testcaseExpectVal = false;

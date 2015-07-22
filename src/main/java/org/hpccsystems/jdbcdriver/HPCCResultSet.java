@@ -82,6 +82,11 @@ public class HPCCResultSet implements ResultSet
     private String                              resultWUID = null;
     private HPCCConnection                      hpccConnection = null;
 
+    public String getResultWUID()
+    {
+        return resultWUID;
+    }
+
     public HPCCResultSet(List recrows, ArrayList<HPCCColumnMetaData> metadatacols, String tablename) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet: HPCCResultSet(recrows, metadatacols, " + tablename +")");
