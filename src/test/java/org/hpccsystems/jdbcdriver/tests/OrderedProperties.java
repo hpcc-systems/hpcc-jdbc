@@ -7,16 +7,16 @@ import java.util.Vector;
 public class OrderedProperties extends Properties
 {
     private static final long serialVersionUID = 1L;
-	private Vector<Object> keynames;
+    private Vector<Object> keynames;
 
     public OrderedProperties()
     {
         super();
 
         keynames = new Vector<Object>();
-	}
+    }
 
-	public Enumeration<Object> propertyNames()
+    public Enumeration<Object> propertyNames()
     {
         return keynames.elements();
     }
@@ -31,12 +31,12 @@ public class OrderedProperties extends Properties
         keynames.add(key);
 
         return super.put(key, value);
-	}
+    }
 
-	public Object remove(Object key)
+    public Object remove(Object key)
     {
         keynames.remove(key);
 
         return super.remove(key);
-	}
+    }
 }
