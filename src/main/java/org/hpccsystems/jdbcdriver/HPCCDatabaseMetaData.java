@@ -1866,6 +1866,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                     HPCCTable dfuLogicalFile = tables[dfufileindex];
                     DFUFile file = new DFUFile();
 
+                    file.setFormat(dfuLogicalFile.getFormat());
                     file.setFullyQualifiedName(dfuLogicalFile.getName());
                     file.setColumns(dfuLogicalFile.getColumns());
 

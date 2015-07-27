@@ -29,6 +29,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.hpccsystems.ws.client.gen.extended.wssql.v1_0.HPCCColumn;
+import org.hpccsystems.ws.client.utils.FileFormat;
 
 public class DFUFile
 {
@@ -75,16 +76,6 @@ public class DFUFile
     private final static String IDXFILEPOSFIELDTAG  = "XDBC:PosField";
     private final static Pattern IDXPOSPATTERN = Pattern.compile(
             "\\s*" + IDXFILEPOSFIELDTAG + "\\s*=\\s*\\[(.*?)\\s*\\].*",Pattern.DOTALL);
-
-    public enum FileFormat
-    {
-        FLAT,
-        THOR,
-        XML,
-        UTF8N,
-        KEY,
-        CSV;
-    }
 
     public DFUFile(String prefix, String clusterName, String filename)
     {
@@ -504,12 +495,12 @@ public class DFUFile
         return fieldsstr;
     }
 
-    public String getFormat()
+    public String getFormatName()
     {
-        return format != null ? format.name() : "";
+        return format != null ? format.toString() : "";
     }
 
-    public FileFormat getFormatValue()
+    public FileFormat getFormat()
     {
         return format;
     }
@@ -533,12 +524,7 @@ public class DFUFile
             try
             {
                 format = HPCCJDBCUtils.findEnumValFromString(FileFormat.class, formatstr.trim());
-                if (format == FileFormat.UTF8N)
-                {
-                    HPCCJDBCUtils.traceoutln(Level.SEVERE, "Found File with reported format UTF8N, treating as CSV format" + (fullyQualifiedName == null ? "!" : ": " + fullyQualifiedName));
-                    format = FileFormat.CSV;
-                }
-                else if (format == FileFormat.KEY)
+                if (format == FileFormat.KEYED)
                     setIsKeyFile(true);
             }
             catch (Exception e)
