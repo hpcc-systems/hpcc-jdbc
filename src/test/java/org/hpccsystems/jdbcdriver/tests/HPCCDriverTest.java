@@ -602,7 +602,7 @@ public class HPCCDriverTest
         for (int i = 1; i <= 11 && tmprepfile.exists(); i++)
         {
             if (i == 11)
-                throw new RuntimeException("Failed to create concurrent report file: " + filename + ".log after " + 1 + " attempts!" );
+                throw new RuntimeException("Failed to create concurrent report file: " + filename + ".log after " + i + " attempts!" );
             tmprepfile = new File(filename + "-" + i + ".log");
         }
 
