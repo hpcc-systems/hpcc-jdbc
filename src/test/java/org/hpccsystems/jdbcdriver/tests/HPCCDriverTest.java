@@ -598,10 +598,11 @@ public class HPCCDriverTest
         }
 
         tmprepfile = new File(filename+".log");
-        for (int i = 1; i <= 10 && !tmprepfile.exists(); i++)
+        //at this point tmprepfile doesn't exist, unless it was created by a independent run
+        for (int i = 1; i <= 11 && tmprepfile.exists(); i++)
         {
-            if (i == 10)
-                throw new RuntimeException("Failed to create Report file: " + filename + ".log after " + 1 + " attempts!" );
+            if (i == 11)
+                throw new RuntimeException("Failed to create concurrent report file: " + filename + ".log after " + 1 + " attempts!" );
             tmprepfile = new File(filename + "-" + i + ".log");
         }
 
@@ -728,23 +729,18 @@ public class HPCCDriverTest
                                             System.out.println("Unrecognized parameter inside of brackets:"+ testCaseName+ "=["+ splittedBracketParams[0]+ "]");
                                             System.exit(0);
                                         }
+
+                                        if (splittedBracketParams.length > 1)
+                                            expectedRows = Integer.parseInt(splittedBracketParams[1]);
+
+                                        if (splittedBracketParams.length == 3)
+                                            csvpath = (splittedBracketParams[2]);
                                     }
 
-                                    if (splittedBracketParams.length > 1)
-                                    {
-                                        expectedRows = Integer.parseInt(splittedBracketParams[1]);
-                                        executeFreeHandSQL( testcaseByGroup.get(1), testcaseExpectVal, expectedRows, testCaseName);
-                                    }
-
-                                    else if (splittedBracketParams.length == 3)
-                                    {
-                                        csvpath = (splittedBracketParams[2]);
-                                        executeFreeHandSQL(testcaseByGroup.get(1), testcaseExpectVal, expectedRows,csvpath, testCaseName);
-                                    }
+                                    if (csvpath.length() > 0)
+                                        executeFreeHandSQL( testcaseByGroup.get(1), testcaseExpectVal, expectedRows,csvpath, testCaseName);
                                     else
-                                    {
-                                        executeFreeHandSQL( testcaseByGroup.get(1), testcaseExpectVal, 0, testCaseName);
-                                    }
+                                        executeFreeHandSQL( testcaseByGroup.get(1), testcaseExpectVal, expectedRows, testCaseName);
                                 }
                                 catch (Exception e)
                                 {
