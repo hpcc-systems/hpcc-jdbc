@@ -598,11 +598,11 @@ public class HPCCDriverTest
         }
 
         tmprepfile = new File(filename+".log");
-        for (int i = 1; i <= 10 && (tmprepfile.exists()); i++)
+        for (int i = 1; i <= 10 && !tmprepfile.exists(); i++)
         {
-            tmprepfile = new File(filename + "-" + i + ".log");
             if (i == 10)
-                throw new RuntimeException(i+" Attempts to create Report file failed.");
+                throw new RuntimeException("Failed to create Report file: " + filename + ".log after " + 1 + " attempts!" );
+            tmprepfile = new File(filename + "-" + i + ".log");
         }
 
         reportBufferedWriter = new BufferedWriter(new FileWriter(tmprepfile, true));
@@ -679,32 +679,32 @@ public class HPCCDriverTest
         Enumeration<?> propertyNames = sqltestcases.propertyNames();
         while(propertyNames.hasMoreElements())
         {
-            String key = (String)propertyNames.nextElement();
-            String value = sqltestcases.getProperty(key);
+            String testCaseName = (String)propertyNames.nextElement();
+            String testCaseValue = sqltestcases.getProperty(testCaseName);
 
-            if (!(value.isEmpty()))
+            if (!(testCaseValue.isEmpty()))
             {
-                testcaseByGroup = HPCCJDBCUtils.returnTestCaseParams(value);
+                testcaseByGroup = HPCCJDBCUtils.returnTestCaseParams(testCaseValue);
                 if (testcaseByGroup.get(0) == null)
                 {
-                    executeFreeHandSQL( value,true, 0, "" + key);
+                    executeFreeHandSQL( testCaseValue,true, 0, testCaseName);
                 }
                 else if (testcaseByGroup.get(1) != null)
                 {
                     String bracketdoptions = testcaseByGroup.get(0);
                     String optionslist = bracketdoptions.substring(bracketdoptions.indexOf("[")+1,bracketdoptions.indexOf("]"));
                     String[] splittedBracketParams = optionslist.split(";");
-                    int error=verifyTestCaseParams(key,splittedBracketParams);
+                    int error=verifyTestCaseParams(testCaseName,splittedBracketParams);
                     switch(error)
                     {
-                        case -1: System.out.println("Warning: Unsupported syntax parameter for test case:"+key);
-                                freeHandSQL_Report("FAILED:Unsupported syntax parameter, refer to README.md",key,value, "", 0);
+                        case -1: System.out.println("Warning: Unsupported syntax parameter for test case:"+testCaseName);
+                                freeHandSQL_Report("FAILED:Unsupported syntax parameter, refer to README.md",testCaseName,testCaseValue, "", 0);
                                 break;
-                        case -2: System.out.println("Warning: Please review the usage for supported paramters for test case:"+key);
-                                freeHandSQL_Report("FAILED:Please review the README.md for supported paramters",key,value, "", 0);
+                        case -2: System.out.println("Warning: Please review the usage for supported paramters for test case:"+testCaseName);
+                                freeHandSQL_Report("FAILED:Please review the README.md for supported paramters",testCaseName,testCaseValue, "", 0);
                                 break;
-                        case -3: System.out.println("Warning: Unsupported syntax parameter for test case:"+key);
-                                freeHandSQL_Report("FAILED:Unsupported syntax parameter, refer to README.md",key,value, "", 0);
+                        case -3: System.out.println("Warning: Unsupported syntax parameter for test case:"+testCaseName);
+                                freeHandSQL_Report("FAILED:Unsupported syntax parameter, refer to README.md",testCaseName,testCaseValue, "", 0);
                                 break;
                         case  0:
                                 try
@@ -725,7 +725,7 @@ public class HPCCDriverTest
                                         }
                                         else
                                         {
-                                            System.out.println("Unrecognize parameter inside of brackets:"+ key+ "=["+ splittedBracketParams[0]+ "]");
+                                            System.out.println("Unrecognized parameter inside of brackets:"+ testCaseName+ "=["+ splittedBracketParams[0]+ "]");
                                             System.exit(0);
                                         }
                                     }
@@ -733,22 +733,22 @@ public class HPCCDriverTest
                                     if (splittedBracketParams.length > 1)
                                     {
                                         expectedRows = Integer.parseInt(splittedBracketParams[1]);
-                                        executeFreeHandSQL( testcaseByGroup.get(1), testcaseExpectVal, expectedRows,"" + key);
+                                        executeFreeHandSQL( testcaseByGroup.get(1), testcaseExpectVal, expectedRows, testCaseName);
                                     }
 
                                     else if (splittedBracketParams.length == 3)
                                     {
                                         csvpath = (splittedBracketParams[2]);
-                                        executeFreeHandSQL(testcaseByGroup.get(1), testcaseExpectVal, expectedRows,csvpath, "" + key);
+                                        executeFreeHandSQL(testcaseByGroup.get(1), testcaseExpectVal, expectedRows,csvpath, testCaseName);
                                     }
                                     else
                                     {
-                                        executeFreeHandSQL( testcaseByGroup.get(1), testcaseExpectVal, 0, "" + key);
+                                        executeFreeHandSQL( testcaseByGroup.get(1), testcaseExpectVal, 0, testCaseName);
                                     }
                                 }
                                 catch (Exception e)
                                 {
-                                    System.out.println("\nError attempting to parse test case parameters:" + key + "=[ "+ optionslist + " ]");
+                                    System.out.println("\nError attempting to parse test case parameters:" + testCaseName + "=[ "+ optionslist + " ]");
                                     System.exit(0);
                                 }
                                 break;
@@ -759,7 +759,7 @@ public class HPCCDriverTest
             }
             else
             {
-                System.out.println("Value could not be found for test case:"+key);
+                System.out.println("Value could not be found for test case:" + testCaseName);
             }
         }
     }
