@@ -205,13 +205,12 @@ public class HPCCDriverTest
         }
         return success;
     }
-
-    private  void freeHandSQL_Report(String status,String caseName,String sqlStatement, String wuid)
+    private  void freeHandSQL_Report(String status,String caseName,String sqlStatement, String wuid, long roundTripTimeMilli)
     {
         try
         {
                 testcasecount++;
-                reportBufferedWriter.write(testcasecount + "." + status + " || " + caseName + " || " +sqlStatement + " || " + wuid + sline);
+                reportBufferedWriter.write(testcasecount + "." + status + " || " + caseName + " || " + wuid + " || " + roundTripTimeMilli + "ms"  + " || " + sqlStatement +  sline);
                 reportBufferedWriter.write(sline);
                 reportBufferedWriter.flush();
         }
@@ -267,7 +266,7 @@ public class HPCCDriverTest
             catch (Exception e)
             {
                 errormessage = e.getLocalizedMessage();
-                freeHandSQL_Report("FAILED: " + errormessage, testName, sql, resultWUID);
+                freeHandSQL_Report("FAILED: " + errormessage, testName, sql, resultWUID, 0);
                 return;
             }
             p.clearParameters();
@@ -299,10 +298,13 @@ public class HPCCDriverTest
                 }
 
                 HPCCResultSet qrs = null;
+                long roundTripTimeMilli = 0;
                 try
                 {
                     errormessage = "";
+                    long startTime = System.currentTimeMillis();
                     qrs = (HPCCResultSet) ((HPCCPreparedStatement) p).executeQuery();
+                    roundTripTimeMilli = (System.currentTimeMillis() - startTime);
                     resultWUID = qrs.getResultWUID();
                 }
                 catch (Exception sqle)
@@ -316,25 +318,25 @@ public class HPCCDriverTest
                 if (success && expectPass)
                 {
                     if (resultcount < minResults)
-                        freeHandSQL_Report("Detected less rows than expected", testName, sql + "--Value:" + prepParamValue, resultWUID);
+                        freeHandSQL_Report("Detected less rows than expected", testName, sql + "--Value:" + prepParamValue, resultWUID, roundTripTimeMilli);
                     else
-                        freeHandSQL_Report("EXECUTED AS EXPECTED", testName, sql + "--Value:" + prepParamValue, resultWUID);
+                        freeHandSQL_Report("EXECUTED AS EXPECTED", testName, sql + "--Value:" + prepParamValue, resultWUID, roundTripTimeMilli);
                 }
                 else if (!success && !expectPass)
                 {
-                    freeHandSQL_Report("EXECUTED AS EXPECTED", testName, sql + "--Value:" + prepParamValue, resultWUID);
+                    freeHandSQL_Report("EXECUTED AS EXPECTED", testName, sql + "--Value:" + prepParamValue, resultWUID, roundTripTimeMilli);
                 }
                 else if (!success && expectPass)
                 {
-                    freeHandSQL_Report("UNEXPECTED (failure): " + errormessage, testName, sql + "--Value:" + prepParamValue, resultWUID);
+                    freeHandSQL_Report("UNEXPECTED (failure): " + errormessage, testName, sql + "--Value:" + prepParamValue, resultWUID, roundTripTimeMilli);
                 }
                 else if (success && !expectPass)
                 {
-                    freeHandSQL_Report("UNEXPECTED (success)", testName, sql + "--Value:" + prepParamValue, resultWUID);
+                    freeHandSQL_Report("UNEXPECTED (success)", testName, sql + "--Value:" + prepParamValue, resultWUID, roundTripTimeMilli);
                 }
                 else
                 {
-                    freeHandSQL_Report("UNKNOWN Result state", testName, sql + "--Value:" + prepParamValue, resultWUID);
+                    freeHandSQL_Report("UNKNOWN Result state", testName, sql + "--Value:" + prepParamValue, resultWUID, roundTripTimeMilli);
                 }
 
                 if (resultcount > 0 && vmode)
@@ -350,7 +352,7 @@ public class HPCCDriverTest
         }
         catch (Exception e)
         {
-            freeHandSQL_Report("Error:"+e.getLocalizedMessage(),testName,sql, resultWUID);
+            freeHandSQL_Report("Error:"+e.getLocalizedMessage(),testName,sql, resultWUID, 0);
         }
         finally
         {
@@ -372,20 +374,26 @@ public class HPCCDriverTest
     {
         boolean success = true;
         String errorMessage = null;
-        int resultcount=0;
+        long resultcount = 0;
         String resultWUID = "";
+        long roundTripTimeMilli = 0;
 
         try
         {
             HPCCStatement statement = (HPCCStatement)connectionByProperties.createStatement();
+            long startTime = System.currentTimeMillis();
             statement.execute(SQL);
+            roundTripTimeMilli = (System.currentTimeMillis() - startTime);
+
             HPCCResultSet resultSet = (HPCCResultSet) statement.getResultSet();
 
             ResultSetMetaData meta = resultSet.getMetaData();
 
             printTableInVerboseMode(meta, resultSet);
+            resultcount = resultSet.getTotalRowCount();
+            resultWUID = resultSet.getResultWUID();
 
-            if (resultSet.getTotalRowCount() > 0 && vmode)
+            if (resultcount > 0 && vmode)
             {
                 printTableInVerboseMode( meta, resultSet);
             }
@@ -399,27 +407,26 @@ public class HPCCDriverTest
 
         if (!success && expectPass)
         {
-            freeHandSQL_Report("UNEXPECTED (failure): " + errorMessage, testName, SQL, resultWUID);
-
+            freeHandSQL_Report("UNEXPECTED (failure): " + errorMessage, testName, SQL, resultWUID, roundTripTimeMilli);
         }
         else if (success && !expectPass)
         {
-            freeHandSQL_Report( "UNEXPECTED (success)", testName, SQL, resultWUID);
+            freeHandSQL_Report( "UNEXPECTED (success)", testName, SQL, resultWUID, roundTripTimeMilli);
         }
         else if (success && expectPass)
         {
             if(resultcount >= minResults)
             {
-                freeHandSQL_Report( "EXECUTED AS EXPECTED", testName, SQL, resultWUID);
+                freeHandSQL_Report( "EXECUTED AS EXPECTED", testName, SQL, resultWUID, roundTripTimeMilli);
             }
             else if(resultcount<minResults)
             {
-                freeHandSQL_Report( "Detected less rows than expected", testName, SQL, resultWUID);
+                freeHandSQL_Report( "Detected less rows than expected", testName, SQL, resultWUID, roundTripTimeMilli);
             }
         }
         else if(!success && !expectPass)
         {
-            freeHandSQL_Report( "EXECUTED AS EXPECTED", testName, SQL, resultWUID);
+            freeHandSQL_Report( "EXECUTED AS EXPECTED", testName, SQL, resultWUID, roundTripTimeMilli);
         }
     }
 
@@ -581,17 +588,25 @@ public class HPCCDriverTest
         SimpleDateFormat   sdf   = new SimpleDateFormat("yyyy_MM_dd-hh-mm-ss");
         String             date  = sdf.format(cdate);
         String             filename;
-        filename = reportFilePath+ "HPCCJDBCTEST_" + date;
-       File tmprepfile = new File(filename+".log");
-          int i;
-          for (i = 2; i <= 11 && (tmprepfile.exists()); i++)
-          {
-              tmprepfile = new File(filename + "-" +i + ".log");
-          }
-          if (i>=11)
-              throw new RuntimeException(i+" Attempts to create Report file failed.");
+        filename = reportFilePath + "HPCCJDBCTEST_" + date;
 
-          reportBufferedWriter = new BufferedWriter(new FileWriter(tmprepfile, true));
+        File tmprepfile = new File(reportFilePath);
+        if (!tmprepfile.isDirectory())
+        {
+            if(!tmprepfile.mkdir())
+                throw new RuntimeException("Could not create results folder: " + reportFilePath);
+        }
+
+        tmprepfile = new File(filename+".log");
+        //at this point tmprepfile doesn't exist, unless it was created by a independent run
+        for (int i = 1; i <= 11 && tmprepfile.exists(); i++)
+        {
+            if (i == 11)
+                throw new RuntimeException("Failed to create concurrent report file: " + filename + ".log after " + i + " attempts!" );
+            tmprepfile = new File(filename + "-" + i + ".log");
+        }
+
+        reportBufferedWriter = new BufferedWriter(new FileWriter(tmprepfile, true));
     }
 
     private void printHeader()
@@ -602,13 +617,13 @@ public class HPCCDriverTest
             if (vmode)
             {
                 driver_info = driver.getPropertyInfo("", null);
-                reportBufferedWriter.write("-----------------Driver Properties----------------------------------------------------------------------------------------------------------------"+ sline);
+                reportBufferedWriter.write("-----------------Driver Properties-----------------------------------------------------------------------------------------------------------------------------------"+ sline);
                 for (int i = 0; i < driver_info.length; i++)
                     reportBufferedWriter.write(driver_info[i].name + ": "+ driver_info[i].description + sline);
-                reportBufferedWriter.write("--------------------------------------------------------------------------------------------------------------------------------------------------"+ sline);
+                reportBufferedWriter.write("---------------------------------------------------------------------------------------------------------------------------------------------------------------------"+ sline);
             }
-                reportBufferedWriter.write("                         Status                    ||         Test Case Name        ||             SQL Statement        ||      Result WorkUnid ID"+ sline);
-                reportBufferedWriter.write("--------------------------------------------------------------------------------------------------------------------------------------------------"+sline);
+                reportBufferedWriter.write("      Status           ||         Test Case Name        ||      Result WorkUnid ID        ||      Round-trip time (milliseconds) ||             SQL Statement        "+ sline);
+                reportBufferedWriter.write("---------------------------------------------------------------------------------------------------------------------------------------------------------------------"+ sline);
                 reportBufferedWriter.flush();
         }
         catch (SQLException e)
@@ -665,66 +680,72 @@ public class HPCCDriverTest
         Enumeration<?> propertyNames = sqltestcases.propertyNames();
         while(propertyNames.hasMoreElements())
         {
-            String key = (String)propertyNames.nextElement();
-            String value = sqltestcases.getProperty(key);
+            String testCaseName = (String)propertyNames.nextElement();
+            String testCaseValue = sqltestcases.getProperty(testCaseName);
 
-            if (!(value.isEmpty()))
+            if (!(testCaseValue.isEmpty()))
             {
-                testcaseByGroup = HPCCJDBCUtils.returnTestCaseParams(value);
+                testcaseByGroup = HPCCJDBCUtils.returnTestCaseParams(testCaseValue);
                 if (testcaseByGroup.get(0) == null)
                 {
-                    executeFreeHandSQL( value,true, 0, "" + key);
+                    executeFreeHandSQL( testCaseValue,true, 0, testCaseName);
                 }
                 else if (testcaseByGroup.get(1) != null)
                 {
                     String bracketdoptions = testcaseByGroup.get(0);
                     String optionslist = bracketdoptions.substring(bracketdoptions.indexOf("[")+1,bracketdoptions.indexOf("]"));
                     String[] splittedBracketParams = optionslist.split(";");
-                    int error=verifyTestCaseParams(key,splittedBracketParams);
+                    int error=verifyTestCaseParams(testCaseName,splittedBracketParams);
                     switch(error)
                     {
-                        case -1: System.out.println("Warning: Unsupported syntax parameter for test case:"+key);
-                                freeHandSQL_Report("FAILED:Unsupported syntax parameter, refer to README.md",key,value, "");
+                        case -1: System.out.println("Warning: Unsupported syntax parameter for test case:"+testCaseName);
+                                freeHandSQL_Report("FAILED:Unsupported syntax parameter, refer to README.md",testCaseName,testCaseValue, "", 0);
                                 break;
-                        case -2: System.out.println("Warning: Please review the usage for supported paramters for test case:"+key);
-                                freeHandSQL_Report("FAILED:Please review the README.md for supported paramters",key,value, "");
+                        case -2: System.out.println("Warning: Please review the usage for supported paramters for test case:"+testCaseName);
+                                freeHandSQL_Report("FAILED:Please review the README.md for supported paramters",testCaseName,testCaseValue, "", 0);
                                 break;
-                        case -3: System.out.println("Warning: Unsupported syntax parameter for test case:"+key);
-                                freeHandSQL_Report("FAILED:Unsupported syntax parameter, refer to README.md",key,value, "");
+                        case -3: System.out.println("Warning: Unsupported syntax parameter for test case:"+testCaseName);
+                                freeHandSQL_Report("FAILED:Unsupported syntax parameter, refer to README.md",testCaseName,testCaseValue, "", 0);
                                 break;
                         case  0:
-                                boolean testcaseExpectVal = false;
-                                int expectedRows = Integer.parseInt(splittedBracketParams[1]);
-                                String csvpath = "";
-                                if (splittedBracketParams.length == 2)
+                                try
                                 {
-                                    if (splittedBracketParams[0].equals("true"))
+                                    boolean testcaseExpectVal = false;
+                                    int expectedRows = 0;
+                                    String csvpath = "";
+
+                                    if (splittedBracketParams.length > 0)
                                     {
-                                        testcaseExpectVal = true;
+                                        if (splittedBracketParams[0].equalsIgnoreCase("true"))
+                                        {
+                                            testcaseExpectVal = true;
+                                        }
+                                        else if (splittedBracketParams[0].equalsIgnoreCase("false"))
+                                        {
+                                            testcaseExpectVal = false;
+                                        }
+                                        else
+                                        {
+                                            System.out.println("Unrecognized parameter inside of brackets:"+ testCaseName+ "=["+ splittedBracketParams[0]+ "]");
+                                            System.exit(0);
+                                        }
+
+                                        if (splittedBracketParams.length > 1)
+                                            expectedRows = Integer.parseInt(splittedBracketParams[1]);
+
+                                        if (splittedBracketParams.length == 3)
+                                            csvpath = (splittedBracketParams[2]);
                                     }
-                                    else if (splittedBracketParams[0].equals("false"))
-                                    {
-                                        testcaseExpectVal = false;
-                                    }
+
+                                    if (csvpath.length() > 0)
+                                        executeFreeHandSQL( testcaseByGroup.get(1), testcaseExpectVal, expectedRows,csvpath, testCaseName);
                                     else
-                                    {
-                                        System.out.println("Unrecognize parameter inside of brackets:"+ key+ "=["+ splittedBracketParams[0]+ "]");
-                                        System.exit(0);
-                                    }
-                                    executeFreeHandSQL( testcaseByGroup.get(1), testcaseExpectVal, expectedRows,"" + key);
+                                        executeFreeHandSQL( testcaseByGroup.get(1), testcaseExpectVal, expectedRows, testCaseName);
                                 }
-                                else if (splittedBracketParams.length == 3)
+                                catch (Exception e)
                                 {
-                                    csvpath = (splittedBracketParams[2]);
-                                    if (splittedBracketParams[0].equals("true"))
-                                    {
-                                        testcaseExpectVal = true;
-                                    }
-                                    else if (splittedBracketParams[0].equals("false"))
-                                    {
-                                        testcaseExpectVal = false;
-                                    }
-                                    executeFreeHandSQL(testcaseByGroup.get(1), testcaseExpectVal, expectedRows,csvpath, "" + key);
+                                    System.out.println("\nError attempting to parse test case parameters:" + testCaseName + "=[ "+ optionslist + " ]");
+                                    System.exit(0);
                                 }
                                 break;
                         default:
@@ -732,11 +753,12 @@ public class HPCCDriverTest
                     }
                 }
             }
-            else{
-                System.out.println("Value could not be found for test case:"+key);
+            else
+            {
+                System.out.println("Value could not be found for test case:" + testCaseName);
             }
         }
-        }
+    }
 
     private void fetchMetaData()
     {
