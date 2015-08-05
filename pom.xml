@@ -15,7 +15,65 @@
 		<version>7</version>
 	</parent>
 
-	<url>http://hpccsystems.com</url>
+    <url>http://hpccsystems.com</url>
+
+    <distributionManagement>
+      <repository>
+        <id>deployment</id>
+        <name>libs-releases</name>
+        <url>http://mvnrisk.risk.regn.net/nexus/content/repositories/releases</url>
+      </repository>
+      <snapshotRepository>
+        <id>deployment</id>
+        <name>libs-snapshots</name>
+        <url>http://mvnrisk.risk.regn.net/nexus/content/repositories/snapshots</url>
+	  </snapshotRepository>
+    </distributionManagement>
+
+    <repositories>
+      <repository>
+        <id>central</id>
+        <name>Maven Repository Switchboard</name>
+        <layout>default</layout>
+        <url>http://repo1.maven.org/maven2</url>
+        <snapshots>
+          <enabled>false</enabled>
+        </snapshots>
+      </repository>
+      <repository>
+		<id>oss-sonatype</id>
+		<name>oss-sonatype</name>
+		<url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+		<snapshots>
+			<enabled>true</enabled>
+		</snapshots>
+	  </repository>
+	  <repository>
+		<id>mvnrisk</id>
+		<name>libs-releases</name>
+		<url>http://mvnrisk.risk.regn.net/nexus/content/repositories/releases/</url>
+	  </repository>
+	  <repository>
+		<id>snapshots</id>
+		<name>libs-snapshots</name>
+		<url>http://mvnrisk.risk.regn.net/nexus/content/repositories/snapshots/</url>
+		<snapshots>
+			<enabled>true</enabled>
+		</snapshots>
+	  </repository>
+		<repository>
+		<id>LocalLibs</id>
+		<name>LocalLibs</name>
+		<releases>
+			<enabled>true</enabled>
+			<checksumPolicy>ignore</checksumPolicy>
+		</releases>
+		<snapshots>
+			<enabled>true</enabled>
+		</snapshots>
+		<url>file://${project.basedir}/jdbcdriver/src/lib</url>
+	 </repository>
+    </repositories>
 
 	<licenses>
 		<license>
