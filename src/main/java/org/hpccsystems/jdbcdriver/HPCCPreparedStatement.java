@@ -44,9 +44,9 @@ import java.util.HashMap;
 import java.util.Set;
 import java.util.logging.Level;
 
-import org.hpccsystems.ws.client.gen.extended.wssql.v1_0.ECLWorkunit;
-import org.hpccsystems.ws.client.gen.extended.wssql.v1_0.ExecutePreparedSQLResponse;
-import org.hpccsystems.ws.client.gen.extended.wssql.v1_0.NamedValue;
+import org.hpccsystems.ws.client.gen.extended.wssql.v3_03.ECLWorkunit;
+import org.hpccsystems.ws.client.gen.extended.wssql.v3_03.ExecutePreparedSQLResponse;
+import org.hpccsystems.ws.client.gen.extended.wssql.v3_03.NamedValue;
 import org.hpccsystems.ws.client.platform.Workunit;
 
 /**
