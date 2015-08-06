@@ -50,7 +50,7 @@ import java.util.logging.Level;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
-import org.hpccsystems.ws.client.gen.extended.wssql.v1_0.GetResultsResponse;
+import org.hpccsystems.ws.client.gen.extended.wssql.v3_03.GetResultsResponse;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NamedNodeMap;
