@@ -1,5 +1,4 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>org.hpccsystems</groupId>
 	<artifactId>jdbcdriver</artifactId>
@@ -9,45 +8,23 @@
 	<name>HPCC Systems Java JDBC Driver</name>
 	<description>JDBC Driver for HPCC Systems - access HPCC data via SQL in Java or other JVM language</description>
 
-	<parent>
-		<groupId>org.sonatype.oss</groupId>
-		<artifactId>oss-parent</artifactId>
-		<version>7</version>
-	</parent>
-
     <url>http://hpccsystems.com</url>
 
     <distributionManagement>
-      <repository>
-        <id>deployment</id>
-        <name>libs-releases</name>
-        <url>http://mvnrisk.risk.regn.net/nexus/content/repositories/releases</url>
-      </repository>
-      <snapshotRepository>
-        <id>deployment</id>
-        <name>libs-snapshots</name>
-        <url>http://mvnrisk.risk.regn.net/nexus/content/repositories/snapshots</url>
-	  </snapshotRepository>
+        <repository>
+            <id>deployment</id>
+            <name>libs-releases</name>
+            <url>https://mvnrisk.lexisnexis.com/content/repositories/releases</url>
+        </repository>
+        <snapshotRepository>
+            <id>deployment</id>
+            <name>libs-snapshots</name>
+            <url>https://mvnrisk.lexisnexis.com/content/repositories/snapshots</url>
+        </snapshotRepository>
     </distributionManagement>
 
+
     <repositories>
-      <repository>
-        <id>central</id>
-        <name>Maven Repository Switchboard</name>
-        <layout>default</layout>
-        <url>http://repo1.maven.org/maven2</url>
-        <snapshots>
-          <enabled>false</enabled>
-        </snapshots>
-      </repository>
-      <repository>
-		<id>oss-sonatype</id>
-		<name>oss-sonatype</name>
-		<url>https://oss.sonatype.org/content/repositories/snapshots/</url>
-		<snapshots>
-			<enabled>true</enabled>
-		</snapshots>
-	  </repository>
 	  <repository>
 		<id>mvnrisk</id>
 		<name>libs-releases</name>
@@ -73,6 +50,23 @@
 		</snapshots>
 		<url>file://${project.basedir}/jdbcdriver/src/lib</url>
 	 </repository>
+	 <repository>
+        <id>central</id>
+        <name>Maven Repository Switchboard</name>
+        <layout>default</layout>
+        <url>http://repo1.maven.org/maven2</url>
+        <snapshots>
+          <enabled>false</enabled>
+        </snapshots>
+      </repository>
+      <repository>
+		<id>oss-sonatype</id>
+		<name>oss-sonatype</name>
+		<url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+		<snapshots>
+			<enabled>true</enabled>
+		</snapshots>
+	  </repository>
     </repositories>
 
 	<licenses>
@@ -84,10 +78,11 @@
 	</licenses>
 
 	<scm>
-		<url>git@github.com/hpcc-systems/hpcc-jdbc.git</url>
-		<connection>scm:git:git@github.com/hpcc-systems/hpcc-jdbc.git</connection>
-		<developerConnection>scm:git:git@github.com/hpcc-systems/hpcc-jdbc.git</developerConnection>
-	</scm>
+	    <connection>scm:git:git@github.com:hpcc-systems/hpcc-jdbc.git</connection>
+	    <developerConnection>scm:git:git@github.com:hpcc-systems/hpcc-jdbc.git</developerConnection>
+		<url>scm:git@github.com:hpcc-systems/hpcc-jdbc.git</url>
+        <!--tag>jdbcdriver-0.3.2</tag-->
+    </scm>
 
 	<developers>
 		<developer>
@@ -114,7 +109,19 @@
 	</properties>
 
 	<build>
+	 <!--testSourceDirectory>src/test/java</testSourceDirectory-->
 		<plugins>
+		    <plugin>
+                <artifactId>maven-release-plugin</artifactId>
+                <version>2.5.2</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.apache.maven.scm</groupId>
+                        <artifactId>maven-scm-provider-gitexe</artifactId>
+                        <version>1.8.1</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
 			<plugin>
 				<groupId>org.codehaus.groovy.maven</groupId>
 				<artifactId>gmaven-plugin</artifactId>
@@ -240,7 +247,7 @@
 										</goals>
 									</pluginExecutionFilter>
 									<action>
-										<execute></execute>
+										<execute />
 									</action>
 								</pluginExecution>
 								<pluginExecution>
@@ -257,7 +264,7 @@
 										</goals>
 									</pluginExecutionFilter>
 									<action>
-										<ignore></ignore>
+										<ignore />
 									</action>
 								</pluginExecution>
 								<pluginExecution>
@@ -276,7 +283,7 @@
 										</goals>
 									</pluginExecutionFilter>
 									<action>
-										<ignore></ignore>
+										<ignore />
 									</action>
 								</pluginExecution>
 								<pluginExecution>
@@ -295,7 +302,7 @@
 										</goals>
 									</pluginExecutionFilter>
 									<action>
-										<ignore></ignore>
+										<ignore />
 									</action>
 								</pluginExecution>
 							</pluginExecutions>
