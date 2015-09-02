@@ -18,6 +18,17 @@
                     <plugin>
                         <artifactId>maven-jar-plugin</artifactId>
                         <configuration>
+                            <archive>
+                                <manifest>
+                                    <addClasspath>true</addClasspath>
+                                    <mainClass>org.hpccsystems.jdbcdriver.tests.HPCCDriverTest</mainClass>
+                                </manifest>
+                            </archive>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <artifactId>maven-jar-plugin</artifactId>
+                        <configuration>
                             <classifier>testsuite</classifier>
                         </configuration>
                     </plugin>
@@ -141,6 +152,12 @@
                             <descriptorRefs>
                                 <descriptorRef>jar-with-dependencies</descriptorRef>
                             </descriptorRefs>
+                            <archive>
+                                <manifest>
+                                    <addClasspath>true</addClasspath>
+                                    <mainClass>org.hpccsystems.jdbcdriver.tests.HPCCDriverTest</mainClass>
+                                </manifest>
+                            </archive>
                         </configuration>
                         <executions>
                             <execution>
@@ -344,6 +361,23 @@
 
 	<build>
 		<plugins>
+		<plugin>
+                        <artifactId>maven-jar-plugin</artifactId>
+                        <configuration>
+                            <archive>
+                                <manifest>
+                                    <addClasspath>true</addClasspath>
+                                    <mainClass>org.hpccsystems.jdbcdriver.tests.HPCCDriverTest</mainClass>
+                                </manifest>
+                            </archive>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <artifactId>maven-jar-plugin</artifactId>
+                        <configuration>
+                            <classifier>testsuite</classifier>
+                        </configuration>
+                    </plugin>
 		    <plugin>
                 <artifactId>maven-release-plugin</artifactId>
                 <version>2.5.2</version>
@@ -409,6 +443,12 @@
 				<configuration>
 					<source>1.6</source>
 					<target>1.6</target>
+					<archive>
+            <manifest>
+              <mainClass>org.hpccsystems.jdbcdriver.tests.HPCCDriverTest</mainClass>
+              <addClasspath>true</addClasspath>
+            </manifest>
+          </archive>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -445,6 +485,12 @@
 					<descriptorRefs>
 						<descriptorRef>jar-with-dependencies</descriptorRef>
 					</descriptorRefs>
+					<archive>
+            <manifest>
+              <mainClass>org.hpccsystems.jdbcdriver.tests.HPCCDriverTest</mainClass>
+              <addClasspath>true</addClasspath>
+            </manifest>
+          </archive>
 				</configuration>
 				<executions>
 					<execution>
