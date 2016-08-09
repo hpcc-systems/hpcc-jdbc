@@ -172,7 +172,10 @@ public class HPCCPreparedStatement extends HPCCStatement implements PreparedStat
                 while ((length = ((InputStream)x).read(buffer)) != -1)
                 {
                     result.write(buffer, 0, length);
+                    if (length < buffer.length) //avoids one last input stream read
+                        break;
                 }
+
                 return result.toString("UTF-8");
 
                 //Requires java 7
