@@ -16,7 +16,6 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
 
@@ -31,21 +30,6 @@ import org.hpccsystems.jdbcdriver.HPCCStatement;
 
 public class HPCCDriverTest
 {
-    public final static HashMap<String, Class> builtInMap = new HashMap<String, Class>();
-    static
-    {
-        builtInMap.put("int", Integer.TYPE );
-        builtInMap.put("integer", Integer.TYPE );
-        builtInMap.put("long", Long.TYPE );
-        builtInMap.put("double", Double.TYPE );
-        builtInMap.put("float", Float.TYPE );
-        builtInMap.put("bool", Boolean.TYPE );
-        builtInMap.put("char", Character.TYPE );
-        builtInMap.put("byte", Byte.TYPE );
-        builtInMap.put("void", Void.TYPE );
-        builtInMap.put("short", Short.TYPE );
-    }
-
     static private HPCCDriver driver;
     static String             sline = System.getProperty("line.separator");
     int testcasecount = 0;
@@ -264,32 +248,6 @@ public class HPCCDriverTest
         }
     }
 
-    public static Object toObject( String typename, String value )
-    {
-        Class clazz = String.class;
-
-        String cleantypename = typename.trim().toLowerCase();
-        if (builtInMap.containsKey(cleantypename))
-            clazz = builtInMap.get(cleantypename);
-
-        if( Boolean.TYPE == clazz )
-            return Boolean.parseBoolean( value );
-        else if( Byte.TYPE == clazz )
-            return Byte.parseByte( value );
-        else if( Integer.TYPE == clazz )
-            return Integer.parseInt( value );
-        else if( Long.TYPE == clazz )
-            return Long.parseLong( value );
-        else if( Float.TYPE == clazz )
-            return Float.parseFloat( value );
-        else if( Double.TYPE == clazz )
-            return Double.parseDouble( value );
-        else if ( Short.TYPE == clazz)
-            return Short.parseShort(value);
-        else
-            return value;
-    }
-
     private void executeFreeHandSQL(String sql, boolean expectPass, int minResults, String csvpath, String testName)
     {
         BufferedReader readDataFile = null;
@@ -329,7 +287,7 @@ public class HPCCDriverTest
                     {
                         value = String.valueOf(valuesAndTheirTypes[0]);
                         if (valuesAndTheirTypes.length > 1)
-                            p.setObject(i + 1, toObject(valuesAndTheirTypes[1].toLowerCase(), value));
+                            p.setObject(i + 1, HPCCJDBCUtils.deserializeSQLTypesToJava(valuesAndTheirTypes[1].toLowerCase(), value));
                         else
                             p.setObject(i + 1, value);
 

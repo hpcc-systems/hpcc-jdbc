@@ -19,9 +19,14 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 package org.hpccsystems.jdbcdriver;
 
 import java.lang.reflect.Field;
+import java.math.BigDecimal;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.charset.Charset;
+import java.sql.Timestamp;
 import java.text.NumberFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -727,6 +732,77 @@ public class HPCCJDBCUtils
         mapSQLtypeCodeToJavaClass.put(java.sql.Types.TIME,          "java.sql.Time");
         mapSQLtypeCodeToJavaClass.put(java.sql.Types.TIMESTAMP,     "java.sql.Timestamp");
         mapSQLtypeCodeToJavaClass.put(java.sql.Types.BOOLEAN,       "java.lang.Boolean");
+    }
+
+    public final static HashMap<String, Class> mapSQLtypeNameToJavaClass = new HashMap<String, Class>();
+    static
+    {
+        //http://docs.oracle.com/javase/1.5.0/docs/guide/jdbc/getstart/mapping.html#1051555
+        //Adhering to type mapping table in oracle doc referenced above.
+        //one exception is the CHAR type, which is mapped to Character in order to
+        //appease some ODBC/JDBC bridges.
+        mapSQLtypeNameToJavaClass.put("CHAR", Character.TYPE);
+        mapSQLtypeNameToJavaClass.put("VARCHAR", String.class);
+        mapSQLtypeNameToJavaClass.put("LONGVARCHAR", String.class);
+        mapSQLtypeNameToJavaClass.put("NUMERIC", java.math.BigDecimal.class);
+        mapSQLtypeNameToJavaClass.put("DECIMAL", java.math.BigDecimal.class);
+        mapSQLtypeNameToJavaClass.put("BIT", Boolean.TYPE);
+        mapSQLtypeNameToJavaClass.put("TINYINT", Byte.TYPE);
+        mapSQLtypeNameToJavaClass.put("SMALLINT", Short.TYPE);
+        mapSQLtypeNameToJavaClass.put("INT", Integer.TYPE);
+        mapSQLtypeNameToJavaClass.put("INTEGER", Integer.TYPE);
+        mapSQLtypeNameToJavaClass.put("BIGINT", Long.TYPE);
+        mapSQLtypeNameToJavaClass.put("REAL", Float.TYPE);
+        mapSQLtypeNameToJavaClass.put("FLOAT", Float.TYPE);
+        mapSQLtypeNameToJavaClass.put("DOUBLE", Double.TYPE);
+        mapSQLtypeNameToJavaClass.put("BINARY", Byte[].class);
+        mapSQLtypeNameToJavaClass.put("VARBINARY", Byte[].class);
+        mapSQLtypeNameToJavaClass.put("LONGVARBINARY", Byte[].class);
+        mapSQLtypeNameToJavaClass.put("DATE", java.sql.Date.class);
+        mapSQLtypeNameToJavaClass.put("TIME", java.sql.Time.class);
+        mapSQLtypeNameToJavaClass.put("TIMESTAMP", java.sql.Timestamp.class);
+        mapSQLtypeNameToJavaClass.put("BOOLEAN", java.lang.Boolean.TYPE);
+        mapSQLtypeNameToJavaClass.put("BOOL", java.lang.Boolean.TYPE);
+    }
+
+    final public static SimpleDateFormat HoursMinutesSeconds12HourFormat = new SimpleDateFormat("HH:mm::ss"); // 12 hour format
+
+    public static Object deserializeSQLTypesToJava(String sqltypename, String value ) throws ParseException
+    {
+        Class clazz = String.class;
+
+        String cleantypename = sqltypename.trim().toUpperCase();
+        if (mapSQLtypeNameToJavaClass.containsKey(cleantypename))
+            clazz = mapSQLtypeNameToJavaClass.get(cleantypename);
+
+        if( Boolean.TYPE == clazz )
+            return Boolean.parseBoolean( value );
+        else if (Byte[].class == clazz)
+            return value.getBytes(Charset.forName("UTF-8"));
+        else if( Byte.TYPE == clazz )
+            return Byte.parseByte( value );
+        else if( Integer.TYPE == clazz )
+            return Integer.parseInt( value );
+        else if( Long.TYPE == clazz )
+            return Long.parseLong( value );
+        else if( Float.TYPE == clazz )
+            return Float.parseFloat( value );
+        else if( Double.TYPE == clazz )
+            return Double.parseDouble( value );
+        else if ( Short.TYPE == clazz)
+            return Short.parseShort(value);
+        else if (Character.TYPE == clazz)
+            return value.charAt(0);
+        else if (java.math.BigDecimal.class == clazz)
+            return new BigDecimal(value.replaceAll(",", ""));
+        else if (java.sql.Date.class == clazz) //ASSUMES yyyy-MM-dd!!!
+            return java.sql.Date.valueOf(value);
+        else if (java.sql.Time.class == clazz)//ASSUMES HH:mm 12 hour format!!!
+            return new java.sql.Time(((java.util.Date)HoursMinutesSeconds12HourFormat.parse(value)).getTime());
+        else if (java.sql.Timestamp.class == clazz)
+            return Timestamp.valueOf(value); //ASSUMES "2011-10-02 18:48:05.123456";
+        else
+            return value;
     }
 
     private final static String JAVA_OBJECT_TYPE_NAME = "java.lang.Object";
