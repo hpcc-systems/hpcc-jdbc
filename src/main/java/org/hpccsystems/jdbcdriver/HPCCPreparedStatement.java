@@ -18,10 +18,14 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 package org.hpccsystems.jdbcdriver;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
 import java.math.BigDecimal;
 import java.net.URL;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.sql.Array;
 import java.sql.Blob;
 import java.sql.Clob;
@@ -105,7 +109,14 @@ public class HPCCPreparedStatement extends HPCCStatement implements PreparedStat
                 Set<Integer> keySet = parameters.keySet();
                 for (int i = 0; i < keySet.size(); i++)
                 {
-                    variables[i] = new NamedValue("variable-"+(i+1),(String) parameters.get(i+1));
+                    try
+                    {
+                        variables[i] = new NamedValue("variable-"+(i+1),primitiveToString(parameters.get(i+1)));
+                    }
+                    catch (IOException e)
+                    {
+                        throw new SQLException("Could not bind "+ i +"th parameter during query execution: " + e.getLocalizedMessage());
+                    }
                 }
                 ExecutePreparedSQLResponse executePreparedSQL = hpccConnection.executePreparedSQL(preparedSQL.getWuid(), variables);
 
@@ -121,6 +132,63 @@ public class HPCCPreparedStatement extends HPCCStatement implements PreparedStat
         }
 
         return result;
+    }
+
+    public static String primitiveToString(Object x) throws IOException
+    {
+        if (x != null)
+        {
+            if (x instanceof String)
+                return (String)x;
+            else if (x instanceof Boolean)
+                return String.valueOf(x);
+            else if (x instanceof Integer)
+                return String.valueOf(x);
+            else if (x instanceof Long)
+                return String.valueOf(x);
+            else if (x instanceof Float)
+                return String.valueOf(x);
+            else if (x instanceof Byte)
+                return Byte.toString((Byte)x);
+            else if (x instanceof Short)
+                return Short.toString((Short)x);
+            else if (x instanceof Double)
+                return String.valueOf(x);
+            else if (x instanceof BigDecimal)
+                return ((BigDecimal)x).toString();
+            else if (x instanceof byte[])
+                return new String((byte[])x, StandardCharsets.UTF_8);
+            else if (x instanceof Time)
+                return ((Time)x).toString();
+            else if (x instanceof java.sql.Date)
+                return ((java.sql.Date)x).toString();
+            else if (x instanceof Timestamp)
+                return ((Timestamp)x).toString();
+            else if (x instanceof InputStream)
+            {
+                ByteArrayOutputStream result = new ByteArrayOutputStream();
+                byte[] buffer = new byte[1024];
+                int length;
+                while ((length = ((InputStream)x).read(buffer)) != -1)
+                {
+                    result.write(buffer, 0, length);
+                    if (length < buffer.length) //avoids one last input stream read
+                        break;
+                }
+
+                return result.toString("UTF-8");
+
+                //Requires java 7
+                //try(java.util.Scanner s = new java.util.Scanner((InputStream)x, "UTF-8"))
+                //{
+                //    return s.useDelimiter("\\A").hasNext() ? s.next() : "";
+                //}
+            }
+            else
+                return (String)x;
+        }
+        else
+            return null;
     }
 
     public int executeUpdate() throws SQLException
