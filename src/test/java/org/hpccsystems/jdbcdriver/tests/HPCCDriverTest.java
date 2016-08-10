@@ -287,7 +287,7 @@ public class HPCCDriverTest
                     {
                         value = String.valueOf(valuesAndTheirTypes[0]);
                         if (valuesAndTheirTypes.length > 1)
-                            p.setObject(i + 1, HPCCJDBCUtils.deserializeSQLTypesToJava(valuesAndTheirTypes[1].toLowerCase(), value));
+                            p.setObject(i + 1, HPCCJDBCUtils.deserializeSQLTypesToJava(valuesAndTheirTypes[1], value));
                         else
                             p.setObject(i + 1, value);
 
