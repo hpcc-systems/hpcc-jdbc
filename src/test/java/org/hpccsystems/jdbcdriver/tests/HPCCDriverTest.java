@@ -280,8 +280,19 @@ public class HPCCDriverTest
                 prepParamValue = "";
                 for (int i = 0; i < csvlines.length; i++)
                 {
-                    p.setObject(i + 1, csvlines[i]);
-                    prepParamValue = csvlines[i];
+                    String value = null;
+                    String currline = csvlines[i];
+                    String [] valuesAndTheirTypes = currline.split(",");
+                    if (valuesAndTheirTypes.length > 0)
+                    {
+                        value = String.valueOf(valuesAndTheirTypes[0]);
+                        if (valuesAndTheirTypes.length > 1)
+                            p.setObject(i + 1, HPCCJDBCUtils.deserializeSQLTypesToJava(valuesAndTheirTypes[1], value));
+                        else
+                            p.setObject(i + 1, value);
+
+                        prepParamValue = csvlines[i];
+                    }
                 }
 
                 if (vmode)
