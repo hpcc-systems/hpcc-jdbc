@@ -83,6 +83,7 @@ public class HPCCResultSet implements ResultSet
     private String                              resultWUID = null;
     private HPCCConnection                      hpccConnection = null;
     private long                                totalRowCount = -1;
+    private boolean                             wasrowspopulated = false;
 
     public String getResultWUID()
     {
@@ -120,9 +121,16 @@ public class HPCCResultSet implements ResultSet
 
     private void setRows(List<List> myrows)
     {
+        if (myrows == null)
+        {
+            HPCCJDBCUtils.traceoutln(Level.INFO, "HPCCResultSet populated with null resultset");
+            return;
+        }
+
         synchronized (rowsLock)
         {
             rows = myrows;
+            wasrowspopulated = true;
         }
     }
 
@@ -183,7 +191,11 @@ public class HPCCResultSet implements ResultSet
         HPCCJDBCUtils.traceoutln(Level.WARNING, "HPCCResultSet getRowCount - ONLY REPORTS THE CURRENT NUMBER OF ROWS RETRIEVED");
         synchronized (rowsLock)
         {
-            return rows.size();
+            HPCCJDBCUtils.traceoutln(Level.WARNING, "HPCCResultSet getRowCount before");
+            if (wasrowspopulated)
+                return rows.size();
+            else
+                return -1;
         }
     }
 
@@ -246,8 +258,11 @@ public class HPCCResultSet implements ResultSet
     {
         synchronized (rowsLock)
         {
-            if (isIndexValid(myindex))
-                return rows.get(myindex - (currentWindowIndex * fetchSize));
+            if (wasrowspopulated)
+            {
+                if (isIndexValid(myindex))
+                    return rows.get(myindex - (currentWindowIndex * fetchSize));
+            }
         }
         return null;
     }
@@ -2114,7 +2129,6 @@ public class HPCCResultSet implements ResultSet
 
     public int parseDataset(Document dom) throws Exception
     {
-
         HPCCJDBCUtils.traceoutln(Level.INFO, "Received xml results, parsing results...");
 
         long startTime = System.currentTimeMillis();
@@ -2295,7 +2309,7 @@ public class HPCCResultSet implements ResultSet
         int rowcount = encapsulateDataSet(rowList);
 
         long elapsedTime = System.currentTimeMillis() - startTime;
-        HPCCJDBCUtils.traceoutln(Level.INFO,  "Finished Parsing results.");
+        HPCCJDBCUtils.traceoutln(Level.INFO, "Finished Parsing results.");
         HPCCJDBCUtils.traceoutln(Level.INFO, "Total elapsed http request/response time in milliseconds: " + elapsedTime);
 
         return rowcount;
