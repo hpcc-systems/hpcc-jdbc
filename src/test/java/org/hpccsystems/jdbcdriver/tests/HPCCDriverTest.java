@@ -279,49 +279,57 @@ public class HPCCDriverTest
                 boolean success = true;
                 String[] csvlines = line.split(";");
                 prepParamValue = "";
-                for (int i = 0; i < csvlines.length; i++)
-                {
-                    String value = null;
-                    String currline = csvlines[i];
-                    String [] valuesAndTheirTypes = currline.split(",");
-                    if (valuesAndTheirTypes.length > 0)
-                    {
-                        value = String.valueOf(valuesAndTheirTypes[0]);
-                        if (valuesAndTheirTypes.length > 1)
-                            p.setObject(i + 1, HPCCJDBCUtils.deserializeSQLTypesToJava(valuesAndTheirTypes[1], value));
-                        else
-                            p.setObject(i + 1, value);
-
-                        prepParamValue = csvlines[i];
-                    }
-                }
-
-                if (vmode)
-                {
-                    System.out.print(sql + " values: ");
-                    for (int i = 0; i < csvlines.length; i++)
-                    {
-                        if (i > 0)
-                            System.out.print(", ");
-                        System.out.print(csvlines[i]);
-                    }
-                    System.out.println();
-                }
-
                 HPCCResultSet qrs = null;
                 long roundTripTimeMilli = 0;
                 try
                 {
-                    errormessage = "";
-                    long startTime = System.currentTimeMillis();
-                    qrs = (HPCCResultSet) ((HPCCPreparedStatement) p).executeQuery();
+                    for (int i = 0; i < csvlines.length; i++)
+                    {
+                        String value = null;
+                        String currline = csvlines[i];
+                        String [] valuesAndTheirTypes = currline.split("[ ]*,[ ]*");
+                        if (valuesAndTheirTypes.length > 0)
+                        {
+                            value = String.valueOf(valuesAndTheirTypes[0]);
+                            if (valuesAndTheirTypes.length > 1)
+                                p.setObject(i + 1, HPCCJDBCUtils.deserializeSQLTypesToJava(valuesAndTheirTypes[1], value));
+                            else
+                                p.setObject(i + 1, value);
 
-                    roundTripTimeMilli = (System.currentTimeMillis() - startTime);
-                    resultWUID = qrs.getResultWUID();
+                            prepParamValue = csvlines[i];
+                        }
+                    }
+                    if (vmode)
+                    {
+                        System.out.print(sql + " values: ");
+                        for (int i = 0; i < csvlines.length; i++)
+                        {
+                            if (i > 0)
+                                System.out.print(", ");
+                            System.out.print(csvlines[i]);
+                        }
+                        System.out.println();
+                    }
+
+                    try
+                    {
+                        errormessage = "";
+                        long startTime = System.currentTimeMillis();
+                        qrs = (HPCCResultSet) ((HPCCPreparedStatement) p).executeQuery();
+
+                        roundTripTimeMilli = (System.currentTimeMillis() - startTime);
+                        resultWUID = qrs.getResultWUID();
+                    }
+                    catch (Exception sqle)
+                    {
+                        errormessage = sqle.getMessage();
+                        success = false;
+                    }
                 }
-                catch (Exception sqle)
+                catch (Exception e)
                 {
-                    errormessage = sqle.getMessage();
+                    qrs = null;
+                    errormessage = e.getLocalizedMessage();
                     success = false;
                 }
 

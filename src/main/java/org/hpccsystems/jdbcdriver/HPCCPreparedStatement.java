@@ -167,6 +167,8 @@ public class HPCCPreparedStatement extends HPCCStatement implements PreparedStat
                 return ((java.sql.Date)x).toString();
             else if (x instanceof Timestamp)
                 return ((Timestamp)x).toString();
+            else if (x instanceof Character)
+                return String.valueOf((Character)x);
             else if (x instanceof InputStream)
             {
                 ByteArrayOutputStream result = new ByteArrayOutputStream();
