@@ -67,6 +67,7 @@ public class HPCCResultSet implements ResultSet
 {
     private final static String                 wsSQLResultSetName = "WsSQLResult";
     private final static String                 wsSQLResultCountName = "WsSQLCount";
+    private final static int                    InvalidRowCount = -1;
 
     private int                                 fetchSize = 100;
     private Object                              rowsLock = new Object();
@@ -82,8 +83,8 @@ public class HPCCResultSet implements ResultSet
     private String                              tablename = null;
     private String                              resultWUID = null;
     private HPCCConnection                      hpccConnection = null;
-    private long                                totalRowCount = -1;
-    private boolean                             wasrowspopulated = false;
+    private long                                totalRowCount = InvalidRowCount;
+    private boolean                             wasRowsObjPopulated = false;
 
     public String getResultWUID()
     {
@@ -130,7 +131,7 @@ public class HPCCResultSet implements ResultSet
         synchronized (rowsLock)
         {
             rows = myrows;
-            wasrowspopulated = true;
+            wasRowsObjPopulated = true;
         }
     }
 
@@ -192,10 +193,10 @@ public class HPCCResultSet implements ResultSet
         synchronized (rowsLock)
         {
             HPCCJDBCUtils.traceoutln(Level.WARNING, "HPCCResultSet getRowCount before");
-            if (wasrowspopulated)
+            if (wasRowsObjPopulated)
                 return rows.size();
             else
-                return -1;
+                return InvalidRowCount;
         }
     }
 
@@ -240,7 +241,7 @@ public class HPCCResultSet implements ResultSet
 
         int adjustedIndex = myindex - (currentWindowIndex * fetchSize);
 
-        if (adjustedIndex >= 0 && adjustedIndex <= getRowCount())
+        if (getRowCount() != InvalidRowCount && adjustedIndex >= 0 && adjustedIndex <= getRowCount())
             return true;
         else
             return false;
@@ -258,7 +259,7 @@ public class HPCCResultSet implements ResultSet
     {
         synchronized (rowsLock)
         {
-            if (wasrowspopulated)
+            if (wasRowsObjPopulated)
             {
                 if (isIndexValid(myindex))
                     return rows.get(myindex - (currentWindowIndex * fetchSize));
@@ -271,7 +272,7 @@ public class HPCCResultSet implements ResultSet
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet next");
         //is next index within the current window?);
-        if((getCurrentIndex() + 1) - (currentWindowIndex * fetchSize) >= getRowCount())
+        if(getRowCount() != InvalidRowCount && (getCurrentIndex() + 1) - (currentWindowIndex * fetchSize) >= getRowCount())
         {
             if(fetchNextWindow() <= 0)
                 return false;
@@ -1119,7 +1120,7 @@ public class HPCCResultSet implements ResultSet
     public boolean isAfterLast() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet isAfterLast");
-        return (getCurrentIndex() > getRowCount() - 1) ? true : false;
+        return (getRowCount() != InvalidRowCount && getCurrentIndex() > getRowCount() - 1) ? true : false;
     }
 
     public boolean isFirst() throws SQLException
@@ -1131,7 +1132,7 @@ public class HPCCResultSet implements ResultSet
     public boolean isLast() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet isLast");
-        return (getCurrentIndex() == getRowCount() - 1) ? true : false;
+        return (getRowCount() != InvalidRowCount && getCurrentIndex() == getRowCount() - 1) ? true : false;
     }
 
     public void beforeFirst() throws SQLException
@@ -1212,7 +1213,7 @@ public class HPCCResultSet implements ResultSet
     public boolean absolute(int row) throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet absolute");
-        if (row > 0 && row <= getRowCount())
+        if (getRowCount() != InvalidRowCount && row > 0 && row <= getRowCount())
         {
             setIndex(row - 1);
             return true;
@@ -1227,7 +1228,7 @@ public class HPCCResultSet implements ResultSet
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCResultSet relative");
         int tmpindex = getCurrentIndex() + rows;
-        if (tmpindex > 0 && tmpindex <= getRowCount())
+        if (getRowCount() != InvalidRowCount && tmpindex > 0 && tmpindex <= getRowCount())
         {
             setIndex(tmpindex);
             return true;
