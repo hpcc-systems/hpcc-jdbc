@@ -281,6 +281,7 @@ public class HPCCDriverTest
                 prepParamValue = "";
                 HPCCResultSet qrs = null;
                 long roundTripTimeMilli = 0;
+                int resultcount = -1;
                 try
                 {
                     for (int i = 0; i < csvlines.length; i++)
@@ -288,16 +289,15 @@ public class HPCCDriverTest
                         String value = null;
                         String currline = csvlines[i];
                         String [] valuesAndTheirTypes = currline.split("[ ]*,[ ]*");
-                        if (valuesAndTheirTypes.length > 0)
-                        {
-                            value = String.valueOf(valuesAndTheirTypes[0]);
-                            if (valuesAndTheirTypes.length > 1)
-                                p.setObject(i + 1, HPCCJDBCUtils.deserializeSQLTypesToJava(valuesAndTheirTypes[1], value));
-                            else
-                                p.setObject(i + 1, value);
 
-                            prepParamValue = csvlines[i];
-                        }
+                        value = String.valueOf(valuesAndTheirTypes[0]);
+                        if (valuesAndTheirTypes.length > 1)
+                            p.setObject(i + 1, HPCCJDBCUtils.deserializeSQLTypesToJava(valuesAndTheirTypes[1], value));
+                        else
+                            p.setObject(i + 1, value);
+
+                        prepParamValue = csvlines[i];
+
                     }
                     if (vmode)
                     {
@@ -318,7 +318,11 @@ public class HPCCDriverTest
                         qrs = (HPCCResultSet) ((HPCCPreparedStatement) p).executeQuery();
 
                         roundTripTimeMilli = (System.currentTimeMillis() - startTime);
-                        resultWUID = qrs.getResultWUID();
+                        if (qrs != null)
+                        {
+                            resultWUID = qrs.getResultWUID();
+                            resultcount = qrs.getRowCount();
+                        }
                     }
                     catch (Exception sqle)
                     {
@@ -332,10 +336,6 @@ public class HPCCDriverTest
                     errormessage = e.getLocalizedMessage();
                     success = false;
                 }
-
-                int resultcount = -1;
-                if (qrs != null)
-                    resultcount = qrs.getRowCount();
 
                 if (success && expectPass)
                 {
