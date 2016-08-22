@@ -118,6 +118,9 @@ public class HPCCPreparedStatement extends HPCCStatement implements PreparedStat
                         throw new SQLException("Could not bind "+ i +"th parameter during query execution: " + e.getLocalizedMessage());
                     }
                 }
+
+                //if (Workunit.translateWUState(preparedSQL.getState()) != WUState.COMPILED) for some reason, we can get a:
+                //"Attempting to execute a workunit that hasn't been compiled" even if we get a "compiled" state!
                 ExecutePreparedSQLResponse executePreparedSQL = hpccConnection.executePreparedSQL(preparedSQL.getWuid(), variables);
 
                 result = new HPCCResultSet(hpccConnection, executePreparedSQL.getWorkunit().getWuid(), hpccResultSetName);

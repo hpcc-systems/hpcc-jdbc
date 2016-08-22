@@ -12,12 +12,14 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.SQLWarning;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Properties;
+import java.util.logging.Level;
 
 import org.hpccsystems.jdbcdriver.HPCCConnection;
 import org.hpccsystems.jdbcdriver.HPCCDatabaseMetaData;
@@ -210,8 +212,7 @@ public class HPCCDriverTest
         try
         {
                 testcasecount++;
-                reportBufferedWriter.write(testcasecount + "." + status + " || " + caseName + " || " + wuid + " || " + roundTripTimeMilli + "ms"  + " || " + sqlStatement +  sline);
-                reportBufferedWriter.write(sline);
+                reportBufferedWriter.write(testcasecount + "." + status + " || " + caseName + " || " + wuid + " || " + roundTripTimeMilli + "ms"  + " || " + sqlStatement +  sline + sline);
                 reportBufferedWriter.flush();
         }
         catch (IOException e)
@@ -261,7 +262,7 @@ public class HPCCDriverTest
             try
             {
                 p = connectionByProperties.prepareStatement(sql);
-                Thread.sleep(500);
+                Thread.sleep(5000); //give it a chance to compile
             }
             catch (Exception e)
             {
@@ -300,12 +301,11 @@ public class HPCCDriverTest
                     System.out.print(sql + " values: ");
                     for (int i = 0; i < csvlines.length; i++)
                     {
-                        System.out.print(csvlines[i]);
-                        if (i < csvlines.length)
+                        if (i > 0)
                             System.out.print(", ");
-                        else
-                            System.out.println();
+                        System.out.print(csvlines[i]);
                     }
+                    System.out.println();
                 }
 
                 HPCCResultSet qrs = null;
@@ -315,6 +315,7 @@ public class HPCCDriverTest
                     errormessage = "";
                     long startTime = System.currentTimeMillis();
                     qrs = (HPCCResultSet) ((HPCCPreparedStatement) p).executeQuery();
+
                     roundTripTimeMilli = (System.currentTimeMillis() - startTime);
                     resultWUID = qrs.getResultWUID();
                 }
@@ -323,9 +324,11 @@ public class HPCCDriverTest
                     errormessage = sqle.getMessage();
                     success = false;
                 }
-                ResultSetMetaData meta = qrs.getMetaData();
 
-                int resultcount = qrs.getRowCount();
+                int resultcount = -1;
+                if (qrs != null)
+                    resultcount = qrs.getRowCount();
+
                 if (success && expectPass)
                 {
                     if (resultcount < minResults)
@@ -352,7 +355,7 @@ public class HPCCDriverTest
 
                 if (resultcount > 0 && vmode)
                 {
-                    printTableInVerboseMode(meta, qrs);
+                    printTableInVerboseMode(qrs.getMetaData(), qrs);
                     System.out.println();
                 }
             }
