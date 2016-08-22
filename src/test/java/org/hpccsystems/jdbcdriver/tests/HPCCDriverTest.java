@@ -279,13 +279,17 @@ public class HPCCDriverTest
                 boolean success = true;
                 String[] csvlines = line.split(";");
                 prepParamValue = "";
-                for (int i = 0; i < csvlines.length; i++)
+                HPCCResultSet qrs = null;
+                long roundTripTimeMilli = 0;
+                int resultcount = -1;
+                try
                 {
-                    String value = null;
-                    String currline = csvlines[i];
-                    String [] valuesAndTheirTypes = currline.split(",");
-                    if (valuesAndTheirTypes.length > 0)
+                    for (int i = 0; i < csvlines.length; i++)
                     {
+                        String value = null;
+                        String currline = csvlines[i];
+                        String [] valuesAndTheirTypes = currline.split("[ ]*,[ ]*");
+
                         value = String.valueOf(valuesAndTheirTypes[0]);
                         if (valuesAndTheirTypes.length > 1)
                             p.setObject(i + 1, HPCCJDBCUtils.deserializeSQLTypesToJava(valuesAndTheirTypes[1], value));
@@ -293,41 +297,45 @@ public class HPCCDriverTest
                             p.setObject(i + 1, value);
 
                         prepParamValue = csvlines[i];
-                    }
-                }
 
-                if (vmode)
-                {
-                    System.out.print(sql + " values: ");
-                    for (int i = 0; i < csvlines.length; i++)
+                    }
+                    if (vmode)
                     {
-                        if (i > 0)
-                            System.out.print(", ");
-                        System.out.print(csvlines[i]);
+                        System.out.print(sql + " values: ");
+                        for (int i = 0; i < csvlines.length; i++)
+                        {
+                            if (i > 0)
+                                System.out.print(", ");
+                            System.out.print(csvlines[i]);
+                        }
+                        System.out.println();
                     }
-                    System.out.println();
-                }
 
-                HPCCResultSet qrs = null;
-                long roundTripTimeMilli = 0;
-                try
-                {
-                    errormessage = "";
-                    long startTime = System.currentTimeMillis();
-                    qrs = (HPCCResultSet) ((HPCCPreparedStatement) p).executeQuery();
+                    try
+                    {
+                        errormessage = "";
+                        long startTime = System.currentTimeMillis();
+                        qrs = (HPCCResultSet) ((HPCCPreparedStatement) p).executeQuery();
 
-                    roundTripTimeMilli = (System.currentTimeMillis() - startTime);
-                    resultWUID = qrs.getResultWUID();
+                        roundTripTimeMilli = (System.currentTimeMillis() - startTime);
+                        if (qrs != null)
+                        {
+                            resultWUID = qrs.getResultWUID();
+                            resultcount = qrs.getRowCount();
+                        }
+                    }
+                    catch (Exception sqle)
+                    {
+                        errormessage = sqle.getMessage();
+                        success = false;
+                    }
                 }
-                catch (Exception sqle)
+                catch (Exception e)
                 {
-                    errormessage = sqle.getMessage();
+                    qrs = null;
+                    errormessage = e.getLocalizedMessage();
                     success = false;
                 }
-
-                int resultcount = -1;
-                if (qrs != null)
-                    resultcount = qrs.getRowCount();
 
                 if (success && expectPass)
                 {
