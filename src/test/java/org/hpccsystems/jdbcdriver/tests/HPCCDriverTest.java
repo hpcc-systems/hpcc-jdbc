@@ -292,13 +292,21 @@ public class HPCCDriverTest
 
                         value = String.valueOf(valuesAndTheirTypes[0]);
                         if (valuesAndTheirTypes.length > 1)
-                            p.setObject(i + 1, HPCCJDBCUtils.deserializeSQLTypesToJava(valuesAndTheirTypes[1], value));
+                        {
+                            Object converted = HPCCJDBCUtils.deserializeSQLTypesToJava(valuesAndTheirTypes[1], value);
+                            p.setObject(i + 1, converted);
+                            if (converted != null)
+                                prepParamValue = converted.toString();
+                            else
+                                prepParamValue = "null";
+                        }
                         else
+                        {
                             p.setObject(i + 1, value);
-
-                        prepParamValue = csvlines[i];
-
+                            prepParamValue = value;
+                        }
                     }
+
                     if (vmode)
                     {
                         System.out.print(sql + " values: ");
@@ -340,25 +348,25 @@ public class HPCCDriverTest
                 if (success && expectPass)
                 {
                     if (resultcount < minResults)
-                        freeHandSQL_Report("Detected less rows than expected", testName, sql + "--Value:" + prepParamValue, resultWUID, roundTripTimeMilli);
+                        freeHandSQL_Report("Detected less rows than expected", testName, sql + "--Value: " + prepParamValue, resultWUID, roundTripTimeMilli);
                     else
-                        freeHandSQL_Report("EXECUTED AS EXPECTED", testName, sql + "--Value:" + prepParamValue, resultWUID, roundTripTimeMilli);
+                        freeHandSQL_Report("EXECUTED AS EXPECTED", testName, sql + "--Value: " + prepParamValue, resultWUID, roundTripTimeMilli);
                 }
                 else if (!success && !expectPass)
                 {
-                    freeHandSQL_Report("EXECUTED AS EXPECTED", testName, sql + "--Value:" + prepParamValue, resultWUID, roundTripTimeMilli);
+                    freeHandSQL_Report("EXECUTED AS EXPECTED", testName, sql + "--Value: " + prepParamValue, resultWUID, roundTripTimeMilli);
                 }
                 else if (!success && expectPass)
                 {
-                    freeHandSQL_Report("UNEXPECTED (failure): " + errormessage, testName, sql + "--Value:" + prepParamValue, resultWUID, roundTripTimeMilli);
+                    freeHandSQL_Report("UNEXPECTED (failure): " + errormessage, testName, sql + "--Value: " + prepParamValue, resultWUID, roundTripTimeMilli);
                 }
                 else if (success && !expectPass)
                 {
-                    freeHandSQL_Report("UNEXPECTED (success)", testName, sql + "--Value:" + prepParamValue, resultWUID, roundTripTimeMilli);
+                    freeHandSQL_Report("UNEXPECTED (success)", testName, sql + "--Value: " + prepParamValue, resultWUID, roundTripTimeMilli);
                 }
                 else
                 {
-                    freeHandSQL_Report("UNKNOWN Result state", testName, sql + "--Value:" + prepParamValue, resultWUID, roundTripTimeMilli);
+                    freeHandSQL_Report("UNKNOWN Result state", testName, sql + "--Value: " + prepParamValue, resultWUID, roundTripTimeMilli);
                 }
 
                 if (resultcount > 0 && vmode)

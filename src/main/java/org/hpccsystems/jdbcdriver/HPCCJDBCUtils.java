@@ -765,7 +765,7 @@ public class HPCCJDBCUtils
         mapSQLtypeNameToJavaClass.put("BOOL", java.lang.Boolean.TYPE);
     }
 
-    final public static SimpleDateFormat HoursMinutesSeconds12HourFormat = new SimpleDateFormat("HH:mm::ss"); // 12 hour format
+    final public static SimpleDateFormat HoursColonMinutesColonSeconds24HourFormat = new SimpleDateFormat("HH:mm:ss");
 
     public static Object deserializeSQLTypesToJava(String sqltypename, String value ) throws ParseException
     {
@@ -797,8 +797,15 @@ public class HPCCJDBCUtils
             return new BigDecimal(value.replaceAll(",", ""));
         else if (java.sql.Date.class == clazz) //ASSUMES yyyy-MM-dd!!!
             return java.sql.Date.valueOf(value);
-        else if (java.sql.Time.class == clazz)//ASSUMES HH:mm 12 hour format!!!
-            return new java.sql.Time(((java.util.Date)HoursMinutesSeconds12HourFormat.parse(value)).getTime());
+        else if (java.sql.Time.class == clazz)//ASSUMES HH:mm:ss!!!
+        try
+        {
+            return new java.sql.Time(((java.util.Date)HoursColonMinutesColonSeconds24HourFormat.parse(value)).getTime());
+        }
+        catch (ParseException e)
+        {
+            throw new ParseException("Could not deserialize " + value +" to time (HH:mm:ss) format: " + e.getLocalizedMessage(), e.getErrorOffset());
+        }
         else if (java.sql.Timestamp.class == clazz)
             return Timestamp.valueOf(value); //ASSUMES "2011-10-02 18:48:05.123456";
         else
