@@ -806,6 +806,10 @@ public class HPCCJDBCUtils
         {
             throw new ParseException("Could not deserialize " + value +" to time (HH:mm:ss) format: " + e.getLocalizedMessage(), e.getErrorOffset());
         }
+        catch (Exception e)
+        {
+            throw new ParseException("Could not deserialize " + value +" to time (HH:mm:ss) format: " + e.getLocalizedMessage(),-1);
+        }
         else if (java.sql.Timestamp.class == clazz)
             return Timestamp.valueOf(value); //ASSUMES "2011-10-02 18:48:05.123456";
         else
