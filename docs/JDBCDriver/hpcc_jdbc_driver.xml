@@ -127,10 +127,14 @@
     next section. The manner in which you define these settings is dependent
     on your SQL client.</para>
 
-    <para>The driver's full class path is:</para>
+    <para>The driver's full class name is:</para>
 
     <para><emphasis
     role="bold">org.hpccsystems.jdbcdriver.HPCCDriver</emphasis></para>
+
+    <para>The connection URL syntax is as follows:</para>
+
+    <programlisting>jdbc:hpcc[;urlencodedkey=urlencodedvalue]*</programlisting>
 
     <variablelist>
       <varlistentry>
@@ -138,9 +142,11 @@
 
         <listitem>
           <para>WsSQL must be installed on the target HPCC Platform to utilize
-          a JDBC connection. See <ulink
-          url="???">http://hpccsystems.com/permlink/wssql</ulink> for
-          details.</para>
+          a JDBC connection.</para>
+
+          <para>See <ulink
+          url="http://hpccsystems.com/permlink/wssql">http://hpccsystems.com/permlink/wssql</ulink>
+          for details.</para>
 
           <para></para>
         </listitem>
