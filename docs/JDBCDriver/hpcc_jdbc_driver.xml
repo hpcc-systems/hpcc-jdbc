@@ -142,11 +142,11 @@
 
         <listitem>
           <para>WsSQL must be installed on the target HPCC Platform to utilize
-          a JDBC connection. </para>
+          a JDBC connection.</para>
 
           <para>See <ulink
-          url="???">http://hpccsystems.com/permlink/wssql</ulink> for
-          details.</para>
+          url="http://hpccsystems.com/permlink/wssql">http://hpccsystems.com/permlink/wssql</ulink>
+          for details.</para>
 
           <para></para>
         </listitem>
