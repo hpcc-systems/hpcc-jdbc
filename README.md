@@ -1,52 +1,38 @@
-Copyright (C) <2012> <LexisNexis Risk Data Management Inc.>
+JDBC driver
+=======================
 
-All rights reserved. This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as
-published by the Free Software Foundation, either version 3 of the
-License, or (at your option) any later version.
+#### Description
+Java Database Connectivity (JDBC) is a standard Java API that enables Java applications or client tools that support JDBC to access data from a presumably SQL-compliant data source via the SQL language.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU Affero General Public License for more details.
+JDBC makes it possible to write a single database application that can run on different platforms and interact with different database management systems.
 
-You should have received a copy of the GNU Affero General Public License
-along with this program. If not, see <http://www.gnu.org/licenses/>.
+Currently there are JDBC drivers available for interaction with many popular data sources.  This project allows the end user to interact with the HPCC Platform as a data source.  This is achieved by exposing HPCC logical files as RDB tables.
 
-http://hpccsystems.com
+#### Maven dependency
+To utilize this library as a dependency in your own maven project, simply add the following definition to your pom.xml
 
-JDBC driver for HPCC platform
+```xml
+<dependency>
+	<groupId>org.hpccsystems</groupId>
+	<artifactId>jdbcdriver</artifactId>
+	<version>1.0.0</version>
+</dependency>
+```
 
-To build for Linux:
--------------------
+#### Build
 
-1. Check out sources (for example, to directory ~/hpcc-jdbc)
-2. Create a build directory
-3. cd to the build directory
-4. To create makefiles to build native release version for local machine, run cmake ~/hpcc-jdbc
-5. To build the makefiles just created above, run make
-6. Jar file will be created in <builddir>/src/com/hpccsystems/jdbcdriver/hpccsystems-jdbcdriver-MAJOR.MINOR.POINT.jar
-
-A Test version can be built by augmenting the cmake command with the "MAKE_TEST_PACKAGE" flag turned on.
-1. From build directory, run cmake -DMAKE_TEST_PACKAGE=ON ~/hpcc-jdbc
-2. Jar file will be created in <builddir>/src/com/hpccsystems/jdbcdriver/hpccsystems-jdbcdriver-MAJOR.MINOR.POINT-TEST.jar
-3. Run test: java -cp <jarfile> org.hpccsystems.jdbcdriver.tests.HPCCDriverTest <param==value>...
-   If no parameters are passed in, a "full test" will execute (values in code should be altered to match your environment).
-
-To build using Maven:
----------------------
-
-1. Check out sources (same as above)
+1. Check out sources (git clone https://github.com/hpcc-systems/hpcc-jdbc.git)
 2. cd to the project root directory
-3. Run _mvn install_ to execute the build using Maven (includes running "standalone" unit tests)
+3. Run `mvn install` to execute the build using Maven (`mvn install -P jdbc.testsuite` to build unit tests)
 4. Jar file will be created in <project_root>/target/jdbcdriver-MAJOR.MINOR.POINT[-SNAPSHOT].jar
-5. _TO DO_ - create a Maven profile to run tests requiring a running HPCC system.
 
-NOTE:  When updating the project version in either version.cmake (cmake) or pom.xml (Maven) please make sure to
-update the version in both locations.
+#### Testing
+First build using the test profile
+`mvn clean install -P jdbc.testsuite`
 
-To Run Test Package:
--------------------
+Execute the jar as a target with
+`java -jar <jdbcdriver-*-test-jar-with-dependencies.jar> <parameters>
+
 1. Two files are required:
 	a) configuration file- Target HPCC system connection information
 	b) Test script file- Contains SQL test cases
@@ -67,3 +53,15 @@ Test1=[true;1]< sqlstatements>
 	Config=/path/to/configfile.config
 	ReporthPath=path/to/reportfiles/
 	SqlScript=path/to/testcases.txt
+
+#### Change log
+- 1.0.0
+  - Updated dependency to org.hpccsystems.wsclient:1.0.0
+    - Refactoring for WsClient pooling
+  - Readme updates
+  - pom packaging and jdbc.testsuite changes
+
+#### Resources
+- https://hpccsystems.com
+- https://github.com/hpcc-systems/hpcc-jdbc.git
+
