@@ -119,7 +119,7 @@ public class HPCCConnection implements Connection
 
                 hpccPlatform = Platform.get(eclWatchURL.getProtocol(), eclWatchURL.getHost(), wsEclPort, userName, props.getProperty("password", ""));
 
-                wsSQLClient = hpccPlatform.getHPCCWSClient().getWsSQLClient(props.getProperty("WsSQLport"));
+                wsSQLClient = hpccPlatform.checkOutHPCCWsClient().getWsSQLClient(props.getProperty("WsSQLport"));
                 if (!wsSQLClient.isWsSQLReachable())
                 {
                     HPCCJDBCUtils.traceoutln(Level.SEVERE, "The HPCC WsSQL service could not be reached on " + serverAddress + " on port " + props.getProperty("WsSQLport"));
@@ -136,6 +136,11 @@ public class HPCCConnection implements Connection
                 HPCCJDBCUtils.traceoutln(Level.SEVERE, "Error initializing HPCCDatabaseMetaData:" + e.getLocalizedMessage());
                 return;
             }
+			catch (Exception e)
+			{
+				HPCCJDBCUtils.traceoutln(Level.SEVERE, "Error initializing WsClient in HPCCDatabaseMetaData:" + e.getLocalizedMessage());
+				return;
+			}
 
             // TODO not doing anything w/ this yet, just exposing it to comply w/ API definition...
             clientInfo = new Properties();

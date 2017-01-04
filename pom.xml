@@ -2,495 +2,76 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>org.hpccsystems</groupId>
 	<artifactId>jdbcdriver</artifactId>
-	<!-- When updating the version number please make the corresponding changes in version.cmake -->
-	<version>0.3.3-SNAPSHOT</version>
+	<version>1.0.0-SNAPSHOT</version>
 	<packaging>jar</packaging>
 	<name>HPCC Systems Java JDBC Driver</name>
 	<description>JDBC Driver for HPCC Systems - access HPCC data via SQL in Java or other JVM language</description>
-
-    <url>http://hpccsystems.com</url>
-
-    <profiles>
-        <profile>
-            <id>jdbc.testsuite</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <artifactId>maven-jar-plugin</artifactId>
-                        <configuration>
-                            <archive>
-                                <manifest>
-                                    <addClasspath>true</addClasspath>
-                                    <mainClass>org.hpccsystems.jdbcdriver.tests.HPCCDriverTest</mainClass>
-                                </manifest>
-                            </archive>
-                        </configuration>
-                    </plugin>
-                    <plugin>
-                        <artifactId>maven-jar-plugin</artifactId>
-                        <configuration>
-                            <classifier>testsuite</classifier>
-                        </configuration>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.codehaus.mojo</groupId>
-                        <artifactId>build-helper-maven-plugin</artifactId>
-                        <executions>
-                            <execution>
-                                <phase>generate-sources</phase>
-                                <goals>
-                                    <goal>add-source</goal>
-                                </goals>
-                                <configuration>
-                                    <sources>
-                                        <source>src/test/java</source>
-                                    </sources>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <artifactId>maven-release-plugin</artifactId>
-                        <version>2.5.2</version>
-                        <dependencies>
-                            <dependency>
-                                <groupId>org.apache.maven.scm</groupId>
-                                <artifactId>maven-scm-provider-gitexe</artifactId>
-                                <version>1.8.1</version>
-                            </dependency>
-                        </dependencies>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.codehaus.groovy.maven</groupId>
-                        <artifactId>gmaven-plugin</artifactId>
-                        <executions>
-                            <execution>
-                                <id>version-cmake</id>
-                                <phase>generate-sources</phase>
-                                <goals>
-                                    <goal>execute</goal>
-                                </goals>
-                                <configuration>
-                                    <source>${basedir}/version.cmake.groovy</source>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.codehaus.mojo</groupId>
-                        <artifactId>build-helper-maven-plugin</artifactId>
-                        <version>1.7</version>
-                        <executions>
-                            <execution>
-                                <id>add-source</id>
-                                <phase>generate-sources</phase>
-                                <goals>
-                                    <goal>add-source</goal>
-                                </goals>
-                                <configuration>
-                                    <sources>
-                                        <source>target/generated-sources/antlr3</source>
-                                    </sources>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.antlr</groupId>
-                        <artifactId>antlr3-maven-plugin</artifactId>
-                        <version>${antlr3.maven.plugin.version}</version>
-                        <executions>
-                            <execution>
-                                <goals>
-                                    <goal>antlr</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-compiler-plugin</artifactId>
-                        <version>${maven.compiler.plugin.version}</version>
-                        <configuration>
-                            <source>1.6</source>
-                            <target>1.6</target>
-                        </configuration>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-source-plugin</artifactId>
-                        <version>${maven.source.plugin.version}</version>
-                        <executions>
-                            <execution>
-                                <id>attach-sources</id>
-                                <goals>
-                                    <goal>jar</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-javadoc-plugin</artifactId>
-                        <version>${maven.javadoc.plugin.version}</version>
-                        <executions>
-                            <execution>
-                                <id>attach-javadocs</id>
-                                <goals>
-                                    <goal>jar</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-assembly-plugin</artifactId>
-                        <version>2.4.1</version>
-                        <configuration>
-                            <finalName>${project.artifactId}-${project.version}-testsuite</finalName>
-                            <appendAssemblyId>true</appendAssemblyId>
-                            <descriptorRefs>
-                                <descriptorRef>jar-with-dependencies</descriptorRef>
-                            </descriptorRefs>
-                            <archive>
-                                <manifest>
-                                    <addClasspath>true</addClasspath>
-                                    <mainClass>org.hpccsystems.jdbcdriver.tests.HPCCDriverTest</mainClass>
-                                </manifest>
-                            </archive>
-                        </configuration>
-                        <executions>
-                            <execution>
-                                <id>attach-deps</id>
-                                <phase>package</phase>
-                                <goals>
-                                    <goal>single</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-                <pluginManagement>
-                    <plugins>
-                        <!--This plugin's configuration is used to store Eclipse m2e settings
-                        only. It has no influence on the Maven build itself. -->
-                        <plugin>
-                            <groupId>org.eclipse.m2e</groupId>
-                            <artifactId>lifecycle-mapping</artifactId>
-                            <version>1.0.0</version>
-                            <configuration>
-                                <lifecycleMappingMetadata>
-                                    <pluginExecutions>
-                                        <pluginExecution>
-                                            <pluginExecutionFilter>
-                                                <groupId>org.codehaus.mojo</groupId>
-                                                <artifactId>build-helper-maven-plugin</artifactId>
-                                                <versionRange>
-                                                [1.7,)
-                                                </versionRange>
-                                                <goals>
-                                                    <goal>add-source</goal>
-                                                </goals>
-                                            </pluginExecutionFilter>
-                                            <action>
-                                                <execute />
-                                            </action>
-                                        </pluginExecution>
-                                        <pluginExecution>
-                                            <pluginExecutionFilter>
-                                                <groupId>org.antlr</groupId>
-                                                <artifactId>
-                                                antlr3-maven-plugin
-                                                </artifactId>
-                                                <versionRange>
-                                                [3.4,)
-                                                </versionRange>
-                                                <goals>
-                                                    <goal>antlr</goal>
-                                                </goals>
-                                            </pluginExecutionFilter>
-                                            <action>
-                                                <ignore />
-                                            </action>
-                                        </pluginExecution>
-                                        <pluginExecution>
-                                            <pluginExecutionFilter>
-                                                <groupId>
-                                                org.codehaus.groovy.maven
-                                                </groupId>
-                                                <artifactId>
-                                                gmaven-plugin
-                                                </artifactId>
-                                                <versionRange>
-                                                [1.0,)
-                                                </versionRange>
-                                                <goals>
-                                                    <goal>execute</goal>
-                                                </goals>
-                                            </pluginExecutionFilter>
-                                            <action>
-                                                <ignore />
-                                            </action>
-                                        </pluginExecution>
-                                        <pluginExecution>
-                                            <pluginExecutionFilter>
-                                                <groupId>
-                                                org.apache.maven.plugins
-                                                </groupId>
-                                                <artifactId>
-                                                maven-enforcer-plugin
-                                                </artifactId>
-                                                <versionRange>
-                                                [1.0,)
-                                                </versionRange>
-                                                <goals>
-                                                    <goal>enforce</goal>
-                                                </goals>
-                                            </pluginExecutionFilter>
-                                            <action>
-                                                <ignore />
-                                            </action>
-                                        </pluginExecution>
-                                    </pluginExecutions>
-                                </lifecycleMappingMetadata>
-                            </configuration>
-                        </plugin>
-                    </plugins>
-                </pluginManagement>
-            </build>
-        </profile>
-    </profiles>
-
-    <distributionManagement>
-        <repository>
-            <id>deployment</id>
-            <name>libs-releases</name>
-            <url>https://mvnrisk.lexisnexis.com/content/repositories/releases</url>
-        </repository>
-        <snapshotRepository>
-            <id>deployment</id>
-            <name>libs-snapshots</name>
-            <url>https://mvnrisk.lexisnexis.com/content/repositories/snapshots</url>
-        </snapshotRepository>
-    </distributionManagement>
-
-
-    <repositories>
-	  <repository>
-		<id>mvnrisk</id>
-		<name>libs-releases</name>
-		<url>http://mvnrisk.risk.regn.net/content/repositories/releases/</url>
-	  </repository>
-	  <repository>
-		<id>snapshots</id>
-		<name>libs-snapshots</name>
-		<url>http://mvnrisk.risk.regn.net/content/repositories/snapshots/</url>
-		<snapshots>
-			<enabled>true</enabled>
-		</snapshots>
-	  </repository>
-		<repository>
-		<id>LocalLibs</id>
-		<name>LocalLibs</name>
-		<releases>
-			<enabled>true</enabled>
-			<checksumPolicy>ignore</checksumPolicy>
-		</releases>
-		<snapshots>
-			<enabled>true</enabled>
-		</snapshots>
-		<url>file://${project.basedir}/jdbcdriver/src/lib</url>
-	 </repository>
-	 <repository>
-        <id>central</id>
-        <name>Maven Repository Switchboard</name>
-        <layout>default</layout>
-        <url>http://repo1.maven.org/maven2</url>
-        <snapshots>
-          <enabled>false</enabled>
-        </snapshots>
-      </repository>
-      <repository>
-		<id>oss-sonatype</id>
-		<name>oss-sonatype</name>
-		<url>https://oss.sonatype.org/content/repositories/snapshots/</url>
-		<snapshots>
-			<enabled>true</enabled>
-		</snapshots>
-	  </repository>
-    </repositories>
-
 	<licenses>
 		<license>
 			<name>Apache License, Version 2.0</name>
-			<url>http://www.apache.org/licenses/LICENSE-2.0</url>
+			<url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
 			<distribution>repo</distribution>
 		</license>
 	</licenses>
-
-	<scm>
-	    <connection>scm:git:git@github.com:hpcc-systems/hpcc-jdbc.git</connection>
-	    <developerConnection>scm:git:git@github.com:hpcc-systems/hpcc-jdbc.git</developerConnection>
-		<url>scm:git@github.com:hpcc-systems/hpcc-jdbc.git</url>
-        <!--tag>jdbcdriver-0.3.2</tag-->
-    </scm>
-
-	<developers>
-		<developer>
-			<id>rpastrana</id>
-			<name>Rodrigo Pastrana</name>
-			<email>rodrigo dot pastrana at lexisnexis dot com</email>
-		</developer>
-		<developer>
-			<id>mkrumlauf</id>
-			<name>Mike Krumlauf</name>
-			<email>mjkrumlauf at computer dot org</email>
-		</developer>
-	</developers>
-
 	<properties>
-		<maven.compiler.plugin.version>3.0</maven.compiler.plugin.version>
-		<maven.javadoc.plugin.version>2.9</maven.javadoc.plugin.version>
-		<maven.source.plugin.version>2.2.1</maven.source.plugin.version>
-		<antlr3.maven.plugin.version>3.4</antlr3.maven.plugin.version>
-		<antlr.runtime.version>3.4</antlr.runtime.version>
-		<surefire.version>2.11</surefire.version>
-		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
-
+	<scm>
+		<connection>scm:git:https://github.com/hpcc-systems/hpcc-jdbc.git</connection>
+		<developerConnection>scm:git:https://github.com/hpcc-systems/hpcc-jdbc.git</developerConnection>
+		<url>scm:git:https://github.com/hpcc-systems/hpcc-jdbc.git</url>
+		<tag>HEAD</tag>
+	</scm>
+	<distributionManagement>
+		<snapshotRepository>
+			<id>ossrh</id>
+			<url>https://oss.sonatype.org/content/repositories/snapshots</url>
+		</snapshotRepository>
+	</distributionManagement>
 	<build>
 		<plugins>
-		<plugin>
-                        <artifactId>maven-jar-plugin</artifactId>
-                        <configuration>
-                            <archive>
-                                <manifest>
-                                    <addClasspath>true</addClasspath>
-                                    <mainClass>org.hpccsystems.jdbcdriver.tests.HPCCDriverTest</mainClass>
-                                </manifest>
-                            </archive>
-                        </configuration>
-                    </plugin>
-                    <plugin>
-                        <artifactId>maven-jar-plugin</artifactId>
-                        <configuration>
-                            <classifier>testsuite</classifier>
-                        </configuration>
-                    </plugin>
-		    <plugin>
-                <artifactId>maven-release-plugin</artifactId>
-                <version>2.5.2</version>
-                <dependencies>
-                    <dependency>
-                        <groupId>org.apache.maven.scm</groupId>
-                        <artifactId>maven-scm-provider-gitexe</artifactId>
-                        <version>1.8.1</version>
-                    </dependency>
-                </dependencies>
-            </plugin>
-			<plugin>
-				<groupId>org.codehaus.groovy.maven</groupId>
-				<artifactId>gmaven-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>version-cmake</id>
-						<phase>generate-sources</phase>
-						<goals>
-							<goal>execute</goal>
-						</goals>
-						<configuration>
-							<source>${basedir}/version.cmake.groovy</source>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
 			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>build-helper-maven-plugin</artifactId>
-				<version>1.7</version>
+				<version>1.12</version>
 				<executions>
 					<execution>
-						<id>add-source</id>
-						<phase>generate-sources</phase>
+						<phase>initialize</phase>
+						<id>parse-version</id>
 						<goals>
-							<goal>add-source</goal>
-						</goals>
-						<configuration>
-							<sources>
-								<source>target/generated-sources/antlr3</source>
-							</sources>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<groupId>org.antlr</groupId>
-				<artifactId>antlr3-maven-plugin</artifactId>
-				<version>${antlr3.maven.plugin.version}</version>
-				<executions>
-					<execution>
-						<goals>
-							<goal>antlr</goal>
+							<goal>parse-version</goal>
 						</goals>
 					</execution>
 				</executions>
 			</plugin>
 			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<version>${maven.compiler.plugin.version}</version>
+				<groupId>org.sonatype.plugins</groupId>
+				<artifactId>nexus-staging-maven-plugin</artifactId>
+				<version>1.6.7</version>
+				<extensions>true</extensions>
 				<configuration>
-					<source>1.6</source>
-					<target>1.6</target>
-					<archive>
-            <manifest>
-              <mainClass>org.hpccsystems.jdbcdriver.tests.HPCCDriverTest</mainClass>
-              <addClasspath>true</addClasspath>
-            </manifest>
-          </archive>
+					<serverId>ossrh</serverId>
+					<nexusUrl>https://oss.sonatype.org/</nexusUrl>
+					<autoReleaseAfterClose>false</autoReleaseAfterClose>
 				</configuration>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-source-plugin</artifactId>
-				<version>${maven.source.plugin.version}</version>
-				<executions>
-					<execution>
-						<id>attach-sources</id>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-javadoc-plugin</artifactId>
-				<version>${maven.javadoc.plugin.version}</version>
-				<executions>
-					<execution>
-						<id>attach-javadocs</id>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-					</execution>
-				</executions>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.1</version>
+				<configuration>
+					<source>1.6</source>
+					<target>1.6</target>
+				</configuration>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-assembly-plugin</artifactId>
-				<version>2.4.1</version>
+				<version>3.0.0</version>
 				<configuration>
 					<descriptorRefs>
 						<descriptorRef>jar-with-dependencies</descriptorRef>
 					</descriptorRefs>
-					<archive>
-            <manifest>
-              <mainClass>org.hpccsystems.jdbcdriver.tests.HPCCDriverTest</mainClass>
-              <addClasspath>true</addClasspath>
-            </manifest>
-          </archive>
 				</configuration>
 				<executions>
 					<execution>
@@ -503,101 +84,148 @@
 				</executions>
 			</plugin>
 		</plugins>
-		<pluginManagement>
-			<plugins>
-				<!--This plugin's configuration is used to store Eclipse m2e settings
-					only. It has no influence on the Maven build itself. -->
-				<plugin>
-					<groupId>org.eclipse.m2e</groupId>
-					<artifactId>lifecycle-mapping</artifactId>
-					<version>1.0.0</version>
-					<configuration>
-						<lifecycleMappingMetadata>
-							<pluginExecutions>
-								<pluginExecution>
-									<pluginExecutionFilter>
-										<groupId>org.codehaus.mojo</groupId>
-										<artifactId>build-helper-maven-plugin</artifactId>
-										<versionRange>
-											[1.7,)
-										</versionRange>
-										<goals>
-											<goal>add-source</goal>
-										</goals>
-									</pluginExecutionFilter>
-									<action>
-										<execute />
-									</action>
-								</pluginExecution>
-								<pluginExecution>
-									<pluginExecutionFilter>
-										<groupId>org.antlr</groupId>
-										<artifactId>
-											antlr3-maven-plugin
-										</artifactId>
-										<versionRange>
-											[3.4,)
-										</versionRange>
-										<goals>
-											<goal>antlr</goal>
-										</goals>
-									</pluginExecutionFilter>
-									<action>
-										<ignore />
-									</action>
-								</pluginExecution>
-								<pluginExecution>
-									<pluginExecutionFilter>
-										<groupId>
-											org.codehaus.groovy.maven
-										</groupId>
-										<artifactId>
-											gmaven-plugin
-										</artifactId>
-										<versionRange>
-											[1.0,)
-										</versionRange>
-										<goals>
-											<goal>execute</goal>
-										</goals>
-									</pluginExecutionFilter>
-									<action>
-										<ignore />
-									</action>
-								</pluginExecution>
-								<pluginExecution>
-									<pluginExecutionFilter>
-										<groupId>
-											org.apache.maven.plugins
-										</groupId>
-										<artifactId>
-											maven-enforcer-plugin
-										</artifactId>
-										<versionRange>
-											[1.0,)
-										</versionRange>
-										<goals>
-											<goal>enforce</goal>
-										</goals>
-									</pluginExecutionFilter>
-									<action>
-										<ignore />
-									</action>
-								</pluginExecution>
-							</pluginExecutions>
-						</lifecycleMappingMetadata>
-					</configuration>
-				</plugin>
-			</plugins>
-		</pluginManagement>
+		<resources>
+			<resource>
+				<directory>src/main/resources</directory>
+				<filtering>true</filtering>
+			</resource>
+		</resources>
 	</build>
-
-    <dependencies>
-        <dependency>
-            <groupId>org.hpccsystems.hpccjapi</groupId>
-            <artifactId>wsclient</artifactId>
-            <version>0.6.0</version>
-        </dependency>
+	<dependencies>
+		<dependency>
+			<groupId>org.hpccsystems</groupId>
+			<artifactId>wsclient</artifactId>
+			<version>1.0.0</version>
+		</dependency>
 	</dependencies>
-
+	<profiles>
+		<profile>
+			<id>release</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-source-plugin</artifactId>
+						<version>2.2.1</version>
+						<executions>
+							<execution>
+								<id>attach-sources</id>
+								<goals>
+									<goal>jar-no-fork</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-javadoc-plugin</artifactId>
+						<version>2.9.1</version>
+						<executions>
+							<execution>
+								<id>attach-javadocs</id>
+								<goals>
+									<goal>jar</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-gpg-plugin</artifactId>
+						<version>1.5</version>
+						<executions>
+							<execution>
+								<id>sign-artifacts</id>
+								<phase>verify</phase>
+								<goals>
+									<goal>sign</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+		<profile>
+			<id>jdbc.testsuite</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-assembly-plugin</artifactId>
+						<version>3.0.0</version>
+						<configuration>
+							<finalName>${project.artifactId}-${project.version}-test</finalName>							
+							<descriptorRefs>
+								<descriptorRef>jar-with-dependencies</descriptorRef>
+							</descriptorRefs>
+							<archive>
+								<manifest>
+									<addClasspath>true</addClasspath>
+									<mainClass>org.hpccsystems.jdbcdriver.tests.HPCCDriverTest</mainClass>
+								</manifest>
+							</archive>
+						</configuration>
+						<executions>
+							<execution>
+								<id>attach-deps</id>
+								<phase>package</phase>
+								<goals>
+									<goal>single</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
+						<groupId>org.codehaus.mojo</groupId>
+						<artifactId>build-helper-maven-plugin</artifactId>
+						<version>1.12</version>
+						<executions>
+							<execution>
+								<phase>generate-sources</phase>
+								<goals>
+									<goal>add-source</goal>
+								</goals>
+								<configuration>
+									<sources>
+										<source>src/test/java</source>
+									</sources>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
+	<developers>
+		<developer>
+			<id>rpastrana</id>
+			<name>Rodrigo Pastrana</name>
+			<email>rodrigo.pastrana@lexisnexis.com</email>
+			<organization>LexisNexis Risk</organization>
+			<organizationUrl>https://hpccsystems.com</organizationUrl>
+			<roles>
+				<role>architect</role>
+				<role>developer</role>
+			</roles>
+			<timezone>America/New_York</timezone>
+		</developer>
+		<developer>
+			<id>mkrumlauf</id>
+			<name>Mike Krumlauf</name>
+			<email>mjkrumlauf at computer dot org</email>
+		</developer>
+		<developer>
+			<id>mgardner</id>
+			<name>Michael Gardner</name>
+			<email>michael.gardner@lexisnexis.com</email>
+			<organization>LexisNexis Risk</organization>
+			<organizationUrl>https://hpccsystems.com</organizationUrl>
+			<roles>
+				<role>maintainer</role>
+			</roles>
+			<timezone>America/New_York</timezone>
+		</developer>
+	</developers>
 </project>
