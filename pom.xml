@@ -155,7 +155,7 @@
 						<artifactId>maven-assembly-plugin</artifactId>
 						<version>3.0.0</version>
 						<configuration>
-							<finalName>${project.artifactId}-${project.version}-test</finalName>							
+							<finalName>${project.artifactId}-${project.version}-test</finalName>
 							<descriptorRefs>
 								<descriptorRef>jar-with-dependencies</descriptorRef>
 							</descriptorRefs>

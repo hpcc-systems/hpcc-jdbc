@@ -6,7 +6,7 @@ Java Database Connectivity (JDBC) is a standard Java API that enables Java appli
 
 JDBC makes it possible to write a single database application that can run on different platforms and interact with different database management systems.
 
-Currently there are JDBC drivers available for interaction with many popular data sources.  This project allows the end user to interact with the HPCC Platform as a data source.  This is achieved by exposing HPCC logical files as RDB tables.
+Currently there are JDBC drivers available for interaction with many popular data sources.  This project allows the end user to interact with the HPCC Platform as a data source.  This is achieved by exposing HPCC logical files as RDB tables, and HPCC published queries as RDB stored procedures.
 
 #### Maven dependency
 To utilize this library as a dependency in your own maven project, simply add the following definition to your pom.xml
