@@ -6,6 +6,7 @@
 	<packaging>jar</packaging>
 	<name>HPCC Systems Java JDBC Driver</name>
 	<description>JDBC Driver for HPCC Systems - access HPCC data via SQL in Java or other JVM language</description>
+	<url>https://hpccsystems.com</url>
 	<licenses>
 		<license>
 			<name>Apache License, Version 2.0</name>
