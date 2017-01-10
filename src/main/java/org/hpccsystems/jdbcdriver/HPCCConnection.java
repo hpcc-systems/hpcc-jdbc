@@ -77,10 +77,10 @@ public class HPCCConnection implements Connection
     private String                      userName;
     private int                         pageSize;
     private int                         pageOffset;
-    private int                         connectTimoutMillis;
+    private int                         connectTimeoutMillis;
     private int                         readTimoutMillis;
     private boolean                     hasTargetWsSQLBeenReached = false;
-    private int                         elcResultLimit;
+    private int                         eclResultLimit;
 
     public HPCCConnection(Properties props)
     {
@@ -93,9 +93,9 @@ public class HPCCConnection implements Connection
         this.userName = props.getProperty("username", "");
         this.pageSize = HPCCJDBCUtils.stringToInt(props.getProperty("PageSize"), Integer.valueOf(HPCCDriver.FETCHPAGESIZEDEFAULT));
         this.pageOffset = HPCCJDBCUtils.stringToInt(props.getProperty("PageOffset"), Integer.valueOf(HPCCDriver.FETCHPAGEOFFSETDEFAULT));
-        this.connectTimoutMillis = HPCCJDBCUtils.stringToInt(props.getProperty("ConnectTimeoutMilli"), Integer.valueOf(HPCCDriver.CONNECTTIMEOUTMILDEFAULT));
+        this.connectTimeoutMillis = HPCCJDBCUtils.stringToInt(props.getProperty("ConnectTimeoutMilli"), Integer.valueOf(HPCCDriver.CONNECTTIMEOUTMILDEFAULT));
         this.readTimoutMillis = HPCCJDBCUtils.stringToInt(props.getProperty("ReadTimeoutMilli"), Integer.valueOf(HPCCDriver.READTIMEOUTMILDEFAULT));
-        this.elcResultLimit = HPCCJDBCUtils.stringToInt(props.getProperty("EclResultLimit"),HPCCDriver.ECLRESULTLIMDEFAULTINT);
+        this.eclResultLimit = HPCCJDBCUtils.stringToInt(props.getProperty("EclResultLimit"),HPCCDriver.ECLRESULTLIMDEFAULTINT);
         HPCCJDBCUtils.traceoutln(Level.INFO, "HPCCDatabaseMetaData ServerAddress: " + serverAddress + " TargetCluster: " + targetcluster);
 
         synchronized (closedLock)
@@ -541,7 +541,7 @@ public class HPCCConnection implements Connection
         if (wsSQLClient == null)
             throw new SQLException("ERROR: WsSQLClient not available");
 
-        return wsSQLClient.executeSQLFullResponse(sqlquery, targetcluster, queryset, elcResultLimit, pageSize,pageOffset, false, false, userName, readTimoutMillis);
+        return wsSQLClient.executeSQLFullResponse(sqlquery, targetcluster, queryset, eclResultLimit, pageSize,pageOffset, false, false, userName, readTimoutMillis);
     }
 
     public HPCCTable[] getHPCCTables(String filenamefilter) throws Exception
@@ -589,7 +589,7 @@ public class HPCCConnection implements Connection
         if (isClosed())
             throw new SQLException("ERROR: HPCCConnection is closed");
 
-        return wsSQLClient.prepareSQL(sqlQuery, targetcluster, queryset, elcResultLimit);
+        return wsSQLClient.prepareSQL(sqlQuery, targetcluster, queryset, connectTimeoutMillis);
     }
 
     public ExecutePreparedSQLResponse executePreparedSQL(String wuid, NamedValue[] variables) throws Exception
@@ -600,7 +600,7 @@ public class HPCCConnection implements Connection
         if (wsSQLClient == null)
             throw new SQLException("ERROR: WsSQLClient not available");
 
-        return wsSQLClient.executePreparedSQL(wuid, targetcluster, variables, readTimoutMillis, elcResultLimit, pageOffset, pageSize, userName, false, false);
+        return wsSQLClient.executePreparedSQL(wuid, targetcluster, variables, readTimoutMillis, eclResultLimit, pageOffset, pageSize, userName, false, false);
     }
 
     public GetResultsResponse fetchResults(String wuid, int resultWindowStart, int resultWindowCount) throws Exception

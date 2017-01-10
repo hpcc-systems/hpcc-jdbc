@@ -262,7 +262,6 @@ public class HPCCDriverTest
             try
             {
                 p = connectionByProperties.prepareStatement(sql);
-                Thread.sleep(5000); //give it a chance to compile
             }
             catch (Exception e)
             {
