@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 2.8)
 project(jdbcdriver Java)
+include(version.cmake)
 
 SET ( HPCC_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 SET ( PRODUCT_PREFIX "hpccsystems" )
