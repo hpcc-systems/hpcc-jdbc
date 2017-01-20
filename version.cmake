@@ -11,7 +11,7 @@ execute_process(COMMAND /bin/bash -c "xmllint --xpath \"/*[local-name()='project
 string(REPLACE "." ";" VERSION ${version})
 string(REPLACE "-" ";" VERSION "${VERSION}")
 
-set(ver_var HPCC_MAJOR HPCC_MINOR HPCC_POINT HPCC_MATURITY HPCC_SEQUENCE)
+set(ver_var JDBC_MAJOR JDBC_MINOR JDBC_POINT JDBC_MATURITY JDBC_SEQUENCE)
 set(inc 0)
 foreach(var IN LISTS VERSION)
 	list(GET ver_var ${inc} var_name)
