@@ -28,7 +28,7 @@ import java.util.logging.Level;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.hpccsystems.ws.client.gen.extended.wssql.v3_03.HPCCColumn;
+import org.hpccsystems.ws.client.gen.extended.wssql.v3_05.HPCCColumn;
 import org.hpccsystems.ws.client.utils.FileFormat;
 
 public class DFUFile
