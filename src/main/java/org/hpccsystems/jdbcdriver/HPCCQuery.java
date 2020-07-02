@@ -22,11 +22,6 @@ import java.sql.DatabaseMetaData;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.logging.Level;
-
-import org.hpccsystems.ws.client.gen.wsworkunits.v1_46.ECLResult;
-import org.hpccsystems.ws.client.gen.wsworkunits.v1_46.ECLSchemaItem;
-import org.hpccsystems.ws.client.gen.wsworkunits.v1_46.ECLWorkunit;
 
 public class HPCCQuery
 {
@@ -193,7 +188,7 @@ public class HPCCQuery
 
     public ArrayList<HPCCColumnMetaData> getAllNonInFields()
     {
-        ArrayList<HPCCColumnMetaData> expectedretcolumns = new ArrayList();
+        ArrayList<HPCCColumnMetaData> expectedretcolumns = new ArrayList<HPCCColumnMetaData>();
 
         Iterator<HPCCColumnMetaData> it = defaultfields.iterator();
         while (it.hasNext())
@@ -208,7 +203,7 @@ public class HPCCQuery
 
     public ArrayList<HPCCColumnMetaData> getAllInFields()
     {
-        ArrayList<HPCCColumnMetaData> inparams = new ArrayList();
+        ArrayList<HPCCColumnMetaData> inparams = new ArrayList<HPCCColumnMetaData>();
 
         Iterator<HPCCColumnMetaData> it = defaultfields.iterator();
         while (it.hasNext())

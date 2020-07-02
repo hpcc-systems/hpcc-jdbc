@@ -25,7 +25,7 @@ import java.sql.SQLWarning;
 import java.sql.Statement;
 import java.util.logging.Level;
 
-import org.hpccsystems.ws.client.gen.extended.wssql.v3_03.ExecuteSQLResponse;
+import org.hpccsystems.ws.client.gen.extended.wssql.v3_05.ExecuteSQLResponse;
 
 /**
  *
