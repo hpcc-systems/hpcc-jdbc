@@ -30,6 +30,8 @@ import java.util.StringTokenizer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.hpccsystems.ws.client.platform.Platform;
+
 public class HPCCDriver implements Driver
 {
     public static final String   ECLRESULTLIMDEFAULT      = "100";
@@ -213,6 +215,9 @@ public class HPCCDriver implements Driver
                 connprops.setProperty("EclResultLimit", ECLRESULTLIMDEFAULT);
                 HPCCJDBCUtils.traceoutln(Level.WARNING,  "Invalid Numeric EclResultLimit value detected, using default value: " + ECLRESULTLIMDEFAULT);
             }
+            
+            // Clear platform to allow for re-connects to work
+            Platform.All.clear();
 
             String basicAuth = HPCCConnection.createBasicAuth(connprops.getProperty("username"), connprops.getProperty("password"));
 

@@ -48,10 +48,10 @@ import java.util.HashMap;
 import java.util.Set;
 import java.util.logging.Level;
 
-import org.hpccsystems.ws.client.gen.extended.wssql.v3_05.ECLWorkunit;
-import org.hpccsystems.ws.client.gen.extended.wssql.v3_05.ExecutePreparedSQLResponse;
-import org.hpccsystems.ws.client.gen.extended.wssql.v3_05.NamedValue;
 import org.hpccsystems.ws.client.platform.Workunit;
+import org.hpccsystems.ws.client.wrappers.gen.wssql.ECLWorkunitWrapper;
+import org.hpccsystems.ws.client.wrappers.gen.wssql.ExecutePreparedSQLResponseWrapper;
+import org.hpccsystems.ws.client.wrappers.gen.wssql.NamedValueWrapper;
 
 /**
  *
@@ -62,7 +62,7 @@ public class HPCCPreparedStatement extends HPCCStatement implements PreparedStat
 {
     private HashMap<Integer, Object> parameters    = new HashMap<Integer, Object>();
     protected static final String      className = "HPCCPreparedStatement";
-    private ECLWorkunit preparedSQL = null;
+    private ECLWorkunitWrapper preparedSQL = null;
 
     public HPCCPreparedStatement(Connection connection, String query)
     {
@@ -104,14 +104,14 @@ public class HPCCPreparedStatement extends HPCCStatement implements PreparedStat
                     throw new SQLException(message);
                 }
 
-                NamedValue[] variables = new NamedValue[parameters.size()];
+                NamedValueWrapper[] variables = new NamedValueWrapper[parameters.size()];
 
                 Set<Integer> keySet = parameters.keySet();
                 for (int i = 0; i < keySet.size(); i++)
                 {
                     try
                     {
-                        variables[i] = new NamedValue("variable-"+(i+1),primitiveToString(parameters.get(i+1)));
+                        variables[i] = new NamedValueWrapper("variable-"+(i+1),primitiveToString(parameters.get(i+1)));
                     }
                     catch (IOException e)
                     {
@@ -121,7 +121,7 @@ public class HPCCPreparedStatement extends HPCCStatement implements PreparedStat
 
                 //if (Workunit.translateWUState(preparedSQL.getState()) != WUState.COMPILED) for some reason, we can get a:
                 //"Attempting to execute a workunit that hasn't been compiled" even if we get a "compiled" state!
-                ExecutePreparedSQLResponse executePreparedSQL = hpccConnection.executePreparedSQL(preparedSQL.getWuid(), variables);
+                ExecutePreparedSQLResponseWrapper executePreparedSQL = hpccConnection.executePreparedSQL(preparedSQL.getWuid(), variables);
 
                 result = new HPCCResultSet(hpccConnection, executePreparedSQL.getWorkunit().getWuid(), hpccResultSetName);
                 result.parseDataset("<root>"+executePreparedSQL.getResult()+"</root>");
