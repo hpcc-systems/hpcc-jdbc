@@ -50,7 +50,7 @@ import java.util.logging.Level;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
-import org.hpccsystems.ws.client.gen.extended.wssql.v3_05.GetResultsResponse;
+import org.hpccsystems.ws.client.wrappers.gen.wssql.GetResultsResponseWrapper;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NamedNodeMap;
@@ -208,7 +208,7 @@ public class HPCCResultSet implements ResultSet
             {
                 try
                 {
-                    GetResultsResponse fetchResults = hpccConnection.fetchResults(resultWUID,getCurrentIndex()+1 /*start with next record*/, fetchSize);
+                    GetResultsResponseWrapper fetchResults = hpccConnection.fetchResults(resultWUID,getCurrentIndex()+1 /*start with next record*/, fetchSize);
 
                     int newrows = parseDataset("<root>"+fetchResults.getResult()+"</root>");
                     if (newrows > 0)
@@ -264,7 +264,8 @@ public class HPCCResultSet implements ResultSet
                 if (isIndexValid(myindex))
                     return rows.get(myindex - (currentWindowIndex * fetchSize));
             }
-        }
+        }
+
         return null;
     }
 

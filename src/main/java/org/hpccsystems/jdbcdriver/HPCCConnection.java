@@ -40,18 +40,21 @@ import java.util.Properties;
 import java.util.concurrent.Executor;
 import java.util.logging.Level;
 
-import org.hpccsystems.ws.client.extended.HPCCWsSQLClient;
-import org.hpccsystems.ws.client.gen.extended.wssql.v3_05.ECLWorkunit;
-import org.hpccsystems.ws.client.gen.extended.wssql.v3_05.ExecutePreparedSQLResponse;
-import org.hpccsystems.ws.client.gen.extended.wssql.v3_05.ExecuteSQLResponse;
-import org.hpccsystems.ws.client.gen.extended.wssql.v3_05.GetResultsResponse;
-import org.hpccsystems.ws.client.gen.extended.wssql.v3_05.HPCCQuerySet;
-import org.hpccsystems.ws.client.gen.extended.wssql.v3_05.HPCCTable;
-import org.hpccsystems.ws.client.gen.extended.wssql.v3_05.NamedValue;
+import org.hpccsystems.ws.client.HPCCWsClient;
+import org.hpccsystems.ws.client.HPCCWsSQLClient;
+import org.hpccsystems.ws.client.gen.axis2.wssql.v3_05.NamedValue;
 import org.hpccsystems.ws.client.platform.Cluster;
 import org.hpccsystems.ws.client.platform.DataQuerySet;
 import org.hpccsystems.ws.client.platform.Platform;
 import org.hpccsystems.ws.client.platform.Version;
+
+import org.hpccsystems.ws.client.wrappers.gen.wssql.HPCCQuerySetWrapper;
+import org.hpccsystems.ws.client.wrappers.gen.wssql.HPCCTableWrapper;
+import org.hpccsystems.ws.client.wrappers.gen.wssql.NamedValueWrapper;
+import org.hpccsystems.ws.client.wrappers.gen.wssql.ExecuteSQLResponseWrapper;
+import org.hpccsystems.ws.client.wrappers.gen.wssql.ExecutePreparedSQLResponseWrapper;
+import org.hpccsystems.ws.client.wrappers.gen.wssql.GetResultsResponseWrapper;
+import org.hpccsystems.ws.client.wrappers.gen.wssql.ECLWorkunitWrapper;
 
 /**
  *
@@ -69,6 +72,7 @@ public class HPCCConnection implements Connection
     private String               catalog = HPCCJDBCUtils.HPCCCATALOGNAME;
 
     private Platform                    hpccPlatform              = null;
+    private HPCCWsClient                wsClient                  = null;
     private HPCCWsSQLClient             wsSQLClient               = null;
     private String                      serverAddress;
     private int                         wsEclPort;
@@ -118,10 +122,18 @@ public class HPCCConnection implements Connection
                     this.wsEclPort = eclWatchURL.getPort();
 
                 hpccPlatform = Platform.get(eclWatchURL.getProtocol(), eclWatchURL.getHost(), wsEclPort, userName, props.getProperty("password", ""));
+                if (hpccPlatform.isDisabled())
+                {
+                    addWarning(new SQLWarning("The HPCC platform is disabled for host: " + eclWatchURL.getProtocol() + "://" + eclWatchURL.getHost() + ":" + wsEclPort));
+                    HPCCJDBCUtils.traceoutln(Level.SEVERE, "The HPCC platform is disabled for host: " + eclWatchURL.getProtocol() + "://" + eclWatchURL.getHost() + ":" + wsEclPort);
+                    return;
+                }
 
-                wsSQLClient = hpccPlatform.checkOutHPCCWsClient().getWsSQLClient(props.getProperty("WsSQLport"));
+                wsClient = hpccPlatform.checkOutHPCCWsClient();
+                wsSQLClient = wsClient.getWsSQLClient(props.getProperty("WsSQLport"));
                 if (!wsSQLClient.isWsSQLReachable())
                 {
+                    addWarning(new SQLWarning("The HPCC WsSQL service could not be reached on " + serverAddress + " on port " + props.getProperty("WsSQLport")));
                     HPCCJDBCUtils.traceoutln(Level.SEVERE, "The HPCC WsSQL service could not be reached on " + serverAddress + " on port " + props.getProperty("WsSQLport"));
                     return;
                 }
@@ -170,6 +182,11 @@ public class HPCCConnection implements Connection
         if (warnings == null)
             warnings = new SQLWarning();
         warnings.setNextException(warning);
+    }
+
+    public HPCCWsClient getWsClient()
+    {
+        return wsClient;
     }
 
     public int getPageSize()
@@ -533,7 +550,7 @@ public class HPCCConnection implements Connection
         return hpccPlatform;
     }
 
-    public ExecuteSQLResponse executeSQL(String sqlquery) throws Exception
+    public ExecuteSQLResponseWrapper executeSQL(String sqlquery) throws Exception
     {
         if (isClosed())
             throw new SQLException("ERROR: HPCCConnection is closed");
@@ -544,7 +561,7 @@ public class HPCCConnection implements Connection
         return wsSQLClient.executeSQLFullResponse(sqlquery, targetcluster, queryset, eclResultLimit, pageSize,pageOffset, false, false, userName, readTimoutMillis);
     }
 
-    public HPCCTable[] getHPCCTables(String filenamefilter) throws Exception
+    public HPCCTableWrapper[] getHPCCTables(String filenamefilter) throws Exception
     {
         if (isClosed())
             throw new SQLException("ERROR: HPCCConnection is closed");
@@ -552,7 +569,7 @@ public class HPCCConnection implements Connection
         return wsSQLClient.getTables(filenamefilter);
     }
 
-    public HPCCQuerySet[] getStoredProcedures(String querysetname) throws Exception
+    public HPCCQuerySetWrapper[] getStoredProcedures(String querysetname) throws Exception
     {
         if (isClosed())
             throw new SQLException("ERROR: HPCCConnection is closed");
@@ -584,7 +601,7 @@ public class HPCCConnection implements Connection
         return wsSQLClient.getVersion();
     }
 
-    public ECLWorkunit prepareSQL(String sqlQuery) throws Exception
+    public ECLWorkunitWrapper prepareSQL(String sqlQuery) throws Exception
     {
         if (isClosed())
             throw new SQLException("ERROR: HPCCConnection is closed");
@@ -592,7 +609,7 @@ public class HPCCConnection implements Connection
         return wsSQLClient.prepareSQL(sqlQuery, targetcluster, queryset, connectTimeoutMillis);
     }
 
-    public ExecutePreparedSQLResponse executePreparedSQL(String wuid, NamedValue[] variables) throws Exception
+    public ExecutePreparedSQLResponseWrapper executePreparedSQL(String wuid, NamedValueWrapper[] variables) throws Exception
     {
         if (isClosed())
             throw new SQLException("ERROR: HPCCConnection is closed");
@@ -600,10 +617,16 @@ public class HPCCConnection implements Connection
         if (wsSQLClient == null)
             throw new SQLException("ERROR: WsSQLClient not available");
 
-        return wsSQLClient.executePreparedSQL(wuid, targetcluster, variables, readTimoutMillis, eclResultLimit, pageOffset, pageSize, userName, false, false);
+        NamedValue[] namedValueVariables = new NamedValue[variables.length];
+        for (int i = 0; i < variables.length; i++)
+        {
+            namedValueVariables[i] = variables[i].getRaw();
+        }
+
+        return wsSQLClient.executePreparedSQL(wuid, targetcluster, namedValueVariables, readTimoutMillis, eclResultLimit, pageOffset, pageSize, userName, false, false);
     }
 
-    public GetResultsResponse fetchResults(String wuid, int resultWindowStart, int resultWindowCount) throws Exception
+    public GetResultsResponseWrapper fetchResults(String wuid, int resultWindowStart, int resultWindowCount) throws Exception
     {
         if (isClosed())
             throw new SQLException("ERROR: HPCCConnection is closed");

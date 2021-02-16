@@ -32,15 +32,16 @@ import java.util.Properties;
 import java.util.logging.Level;
 
 import org.hpccsystems.jdbcdriver.HPCCJDBCUtils.EclTypes;
-import org.hpccsystems.ws.client.gen.extended.wssql.v3_05.HPCCColumn;
-import org.hpccsystems.ws.client.gen.extended.wssql.v3_05.HPCCQuerySet;
-import org.hpccsystems.ws.client.gen.extended.wssql.v3_05.HPCCTable;
-import org.hpccsystems.ws.client.gen.extended.wssql.v3_05.OutputDataset;
-import org.hpccsystems.ws.client.gen.extended.wssql.v3_05.PublishedQuery;
-import org.hpccsystems.ws.client.gen.extended.wssql.v3_05.QuerySetAliasMap;
-import org.hpccsystems.ws.client.gen.extended.wssql.v3_05.QuerySignature;
-import org.hpccsystems.ws.client.gen.wsdfu.v1_51.DFUDataColumn;
-import org.hpccsystems.ws.client.gen.wsdfu.v1_51.DFUSearchDataResponse;
+import org.hpccsystems.ws.client.gen.axis2.wsdfu.v1_56.DFUDataColumn;
+import org.hpccsystems.ws.client.gen.axis2.wsdfu.v1_56.DFUSearchDataResponse;
+import org.hpccsystems.ws.client.gen.axis2.wsdfu.v1_56.ArrayOfDFUDataColumn;
+import org.hpccsystems.ws.client.wrappers.gen.wssql.OutputDatasetWrapper;
+import org.hpccsystems.ws.client.wrappers.gen.wssql.HPCCTableWrapper;
+import org.hpccsystems.ws.client.wrappers.gen.wssql.HPCCColumnWrapper;
+import org.hpccsystems.ws.client.wrappers.gen.wssql.HPCCQuerySetWrapper;
+import org.hpccsystems.ws.client.wrappers.gen.wssql.PublishedQueryWrapper;
+import org.hpccsystems.ws.client.wrappers.gen.wssql.QuerySetAliasMapWrapper;
+import org.hpccsystems.ws.client.wrappers.gen.wssql.QuerySignatureWrapper;
 import org.hpccsystems.ws.client.platform.Cluster;
 import org.hpccsystems.ws.client.platform.DataQuerySet;
 import org.hpccsystems.ws.client.platform.Platform;
@@ -271,7 +272,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getDatabaseProductVersion");
         // Some ODBC/JDBC bridges/clients do not like alpha chars.
-        return hpccVersion.major + "." + hpccVersion.minor;
+        return hpccVersion.getMajor() + "." + hpccVersion.getMinor();
     }
 
     @Override
@@ -1827,25 +1828,26 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public int getDatabaseMajorVersion() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getDatabaseMajorVersion");
-        return hpccVersion.major;
+        return hpccVersion.getMajor();
     }
 
     @Override
     public int getDatabaseMinorVersion() throws SQLException
     {
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData getDatabaseMinorVersion");
-        return hpccVersion.minor;
+        return hpccVersion.getMinor();
     }
 
     private boolean fetchHPCCFilesInfo(String filename)
     {
         boolean isSuccess = true;
 
-        if (isDFUMetaDataCached())
+        if (dfufiles.getFile(filename) != null)
         {
             HPCCJDBCUtils.traceoutln(Level.INFO, "HPCC dfufile info already present (reconnect to force re-fetch)");
             return true;
         }
+
         Platform hpccPlatform = connection.getHPCCPlatform();
         if (hpccPlatform == null)
         {
@@ -1857,19 +1859,18 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         HPCCJDBCUtils.traceoutln(Level.INFO, "Fetching HPCC tables...");
         try
         {
-            HPCCTable[] tables = connection.getHPCCTables(filename);
+            HPCCTableWrapper[] tables = connection.getHPCCTables(filename);
 
             if (tables != null)
             {
                 for (int dfufileindex = 0; dfufileindex < tables.length; dfufileindex++)
                 {
-                    HPCCTable dfuLogicalFile = tables[dfufileindex];
+                    HPCCTableWrapper dfuLogicalFile = tables[dfufileindex];
                     DFUFile file = new DFUFile();
 
                     file.setFormat(dfuLogicalFile.getFormat());
                     file.setFullyQualifiedName(dfuLogicalFile.getName());
-                    file.setColumns(dfuLogicalFile.getColumns());
-
+                    file.setColumns(dfuLogicalFile.getColumns().getColumn());
                     file.setOwner(dfuLogicalFile.getOwner());
                     file.setDescription(dfuLogicalFile.getDescription());
 
@@ -1896,7 +1897,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                 }
                 catch (Exception e)
                 {
-                    HPCCJDBCUtils.traceoutln(Level.INFO, "WARNING: updating superfiles failed.");
+                    HPCCJDBCUtils.traceoutln(Level.INFO, "WARNING: updating superfiles failed: " + e.getMessage());
                 }
             }
             else
@@ -1907,7 +1908,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         }
         catch (Exception e)
         {
-            HPCCJDBCUtils.traceoutln(Level.ALL, "WARNING: Fetching HPCC file information failed.");
+            HPCCJDBCUtils.traceoutln(Level.ALL, "WARNING: Fetching HPCC file information failed: " + e.getMessage());
             e.printStackTrace();
             return false;
         }
@@ -1918,7 +1919,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         return isSuccess;
     }
 
-    private int parseHPCCQuery(HPCCQuerySet[] querysets)
+    private int parseHPCCQuery(HPCCQuerySetWrapper[] querysets)
     {
         int hpccQueryParsedCount = 0;
 
@@ -1926,32 +1927,32 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         {
             for (int querysetindex = 0; querysetindex < querysets.length; querysetindex++)
             {
-                HPCCQuerySet hpccQuerySet = querysets[querysetindex];
+                HPCCQuerySetWrapper hpccQuerySet = querysets[querysetindex];
                 String querySetName = hpccQuerySet.getName();
-                PublishedQuery[] querySetQueries = hpccQuerySet.getQuerySetQueries();
-                for (int querysetqueriesindex = 0; querysetqueriesindex < querySetQueries.length; querysetqueriesindex++)
+                List<PublishedQueryWrapper> querySetQueryList = hpccQuerySet.getQuerySetQueries().getQuerySetQuery();
+                for (int querysetqueriesindex = 0; querysetqueriesindex < querySetQueryList.size(); querysetqueriesindex++)
                 {
                     HPCCQuery query = new HPCCQuery();
-                    PublishedQuery publishedQuery = querySetQueries[querysetqueriesindex];
+                    PublishedQueryWrapper publishedQuery = querySetQueryList.get(querysetqueriesindex);
                     query.setQueryset(querySetName);
                     query.setID(publishedQuery.getId());
                     query.setSuspended(publishedQuery.getSuspended());
                     query.setWUID(publishedQuery.getWuid());
                     query.setName(publishedQuery.getName());
 
-                    QuerySignature signature = publishedQuery.getSignature();
-                    OutputDataset[] resultSets = signature.getResultSets();
-                    for (int currentresset = 0; currentresset < resultSets.length; currentresset++)
+                    QuerySignatureWrapper signature = publishedQuery.getSignature();
+                    List<OutputDatasetWrapper> resultSetList = signature.getResultSets().getResultSet();
+                    for (int currentresset = 0; currentresset < resultSetList.size(); currentresset++)
                     {
-                        OutputDataset outputDataset = resultSets[currentresset];
+                        OutputDatasetWrapper outputDataset = resultSetList.get(currentresset);
                         String tablename = outputDataset.getName();
                         query.addResultDataset(tablename);
 
-                        HPCCColumn[] outParams = outputDataset.getOutParams();
+                        List<HPCCColumnWrapper> outParams = outputDataset.getOutParams().getOutParam();
 
-                        for (int currentoutparam = 0; currentoutparam < outParams.length; currentoutparam++)
+                        for (int currentoutparam = 0; currentoutparam < outParams.size(); currentoutparam++)
                         {
-                            HPCCColumn hpccColumn = outParams[currentoutparam];
+                            HPCCColumnWrapper hpccColumn = outParams.get(currentoutparam);
 
                             HPCCColumnMetaData elemmeta = new HPCCColumnMetaData(hpccColumn.getName().toUpperCase(), 0, java.sql.Types.OTHER);
                             elemmeta.setEclType(hpccColumn.getType());
@@ -1969,13 +1970,14 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                         }
                     }
 
-                    HPCCColumn[] inParams = signature.getInParams();
-                    if (inParams != null && inParams.length > 0)
+                    List<HPCCColumnWrapper> inParams = signature.getInParams().getInParam();
+                    if (inParams != null && inParams.size()> 0)
                     {
-                        for (int currentinparamindex = 0; currentinparamindex < inParams.length; currentinparamindex++)
+                        for (int currentinparamindex = 0; currentinparamindex < inParams.size(); currentinparamindex++)
                         {
-                            HPCCColumnMetaData elemmeta = new HPCCColumnMetaData(inParams[currentinparamindex].getName(), currentinparamindex + 1,java.sql.Types.OTHER);
-                            elemmeta.setEclType(inParams[currentinparamindex].getType());
+                            HPCCColumnWrapper column = inParams.get(currentinparamindex);
+                            HPCCColumnMetaData elemmeta = new HPCCColumnMetaData(column.getName(), currentinparamindex + 1,java.sql.Types.OTHER);
+                            elemmeta.setEclType(column.getType());
                             elemmeta.setTableName(publishedQuery.getName());
                             elemmeta.setParamType(java.sql.DatabaseMetaData.procedureColumnIn);
                             try
@@ -1992,10 +1994,10 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
                     hpccQueryParsedCount++;
                 }
 
-                QuerySetAliasMap[] querySetAliases = hpccQuerySet.getQuerySetAliases();
-                for (int querysetaliasindex = 0; querysetaliasindex < querySetAliases.length; querysetaliasindex++)
+                List<QuerySetAliasMapWrapper> querySetAliasList = hpccQuerySet.getQuerySetAliases().getQuerySetAlias();
+                for (int querysetaliasindex = 0; querysetaliasindex < querySetAliasList.size(); querysetaliasindex++)
                 {
-                    QuerySetAliasMap querySetAliasMap = querySetAliases[querysetaliasindex];
+                    QuerySetAliasMapWrapper querySetAliasMap = querySetAliasList.get(querysetaliasindex);
                     String aliasid = querySetAliasMap.getId();
                     String aliasname = querySetAliasMap.getName();
 
@@ -2043,7 +2045,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         {
             try
             {
-                HPCCQuerySet[] storedProcedures = connection.getStoredProcedures(null);
+                HPCCQuerySetWrapper[] storedProcedures = connection.getStoredProcedures(null);
                 parseHPCCQuery(storedProcedures);
             }
             catch (IOException e)
@@ -2072,7 +2074,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
 
         try
         {
-            HPCCQuerySet[] storedProcedures = connection.getStoredProcedures(queryset/* eclqueryname*/);
+            HPCCQuerySetWrapper[] storedProcedures = connection.getStoredProcedures(queryset/* eclqueryname*/);
             isSuccess = parseHPCCQuery(storedProcedures) > 0 ? true : false;
         }
         catch (IOException e)
@@ -2360,11 +2362,12 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         return file;
     }
 
-    private static void appendIndexKeys(DFUFile file, DFUDataColumn[] columns, boolean keyed)
+    private static void appendIndexKeys(DFUFile file, ArrayOfDFUDataColumn columnArray, boolean keyed)
     {
-        if (file == null || columns == null )
+        if (file == null || columnArray == null )
             return;
-
+        
+        DFUDataColumn[] columns = columnArray.getDFUDataColumn();
         for(int i = 0; i < columns.length; i++)
         {
             if (keyed)
@@ -2381,10 +2384,10 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
 
         try
         {
-            DFUSearchDataResponse dfuData = connection.getHPCCPlatform().getWsDfuClient().getDFUData(file.getFullyQualifiedName(), file.getClusterName(), false, -1, -1, true, -1);
+            DFUSearchDataResponse dfuData = connection.getWsClient().getWsDFUClient().getDFUData(file.getFullyQualifiedName(), file.getClusterName(), false, -1, -1, true, -1);
             if (dfuData != null)
             {
-                DFUDataColumn[] dfuDataKeyedColumns = dfuData.getDFUDataKeyedColumns1();
+                ArrayOfDFUDataColumn dfuDataKeyedColumns = dfuData.getDFUDataKeyedColumns1();
                 if (dfuDataKeyedColumns != null)
                 {
                     appendIndexKeys(file, dfuDataKeyedColumns,true);

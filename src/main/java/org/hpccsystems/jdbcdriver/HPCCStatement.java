@@ -25,7 +25,7 @@ import java.sql.SQLWarning;
 import java.sql.Statement;
 import java.util.logging.Level;
 
-import org.hpccsystems.ws.client.gen.extended.wssql.v3_05.ExecuteSQLResponse;
+import org.hpccsystems.ws.client.wrappers.gen.wssql.ExecuteSQLResponseWrapper;
 
 /**
  *
@@ -75,7 +75,7 @@ public class HPCCStatement implements Statement
                     throw new SQLException(message);
                 }
 
-                ExecuteSQLResponse executeSQL = hpccConnection.executeSQL(sqlQuery);
+                ExecuteSQLResponseWrapper executeSQL = hpccConnection.executeSQL(sqlQuery);
 
                 result = new HPCCResultSet(hpccConnection, executeSQL.getWorkunit().getWuid(),hpccResultSetName);
                 result.parseDataset("<root>"+executeSQL.getResult()+"</root>");

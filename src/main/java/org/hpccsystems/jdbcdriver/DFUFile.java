@@ -28,7 +28,8 @@ import java.util.logging.Level;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.hpccsystems.ws.client.gen.extended.wssql.v3_05.HPCCColumn;
+import org.hpccsystems.ws.client.wrappers.gen.wssql.HPCCColumnWrapper;
+import org.hpccsystems.ws.client.wrappers.gen.wssql.HPCCTableWrapper;
 import org.hpccsystems.ws.client.utils.FileFormat;
 
 public class DFUFile
@@ -869,13 +870,14 @@ public class DFUFile
         return hasKeyedFieldInfoBeenSet;
     }
 
-    public void setColumns(HPCCColumn[] columns)
+    public void setColumns(List<HPCCColumnWrapper> columnList)
     {
         ecl = "";
-        for (int index = 0; index < columns.length; index++)
+        for (int index = 0; index < columnList.size(); index++)
         {
-            String name = columns[index].getName();
-            String type = columns[index].getType();
+            HPCCColumnWrapper column = columnList.get(index);
+            String name = column.getName();
+            String type = column.getType();
             HPCCColumnMetaData columnmeta = new HPCCColumnMetaData(name, index,java.sql.Types.OTHER);
 
             columnmeta.setEclType(type);
