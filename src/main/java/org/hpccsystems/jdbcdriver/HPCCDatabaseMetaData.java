@@ -32,20 +32,21 @@ import java.util.Properties;
 import java.util.logging.Level;
 
 import org.hpccsystems.jdbcdriver.HPCCJDBCUtils.EclTypes;
-import org.hpccsystems.ws.client.gen.axis2.wsdfu.v1_56.DFUDataColumn;
-import org.hpccsystems.ws.client.gen.axis2.wsdfu.v1_56.DFUSearchDataResponse;
-import org.hpccsystems.ws.client.gen.axis2.wsdfu.v1_56.ArrayOfDFUDataColumn;
-import org.hpccsystems.ws.client.wrappers.gen.wssql.OutputDatasetWrapper;
-import org.hpccsystems.ws.client.wrappers.gen.wssql.HPCCTableWrapper;
-import org.hpccsystems.ws.client.wrappers.gen.wssql.HPCCColumnWrapper;
-import org.hpccsystems.ws.client.wrappers.gen.wssql.HPCCQuerySetWrapper;
-import org.hpccsystems.ws.client.wrappers.gen.wssql.PublishedQueryWrapper;
-import org.hpccsystems.ws.client.wrappers.gen.wssql.QuerySetAliasMapWrapper;
-import org.hpccsystems.ws.client.wrappers.gen.wssql.QuerySignatureWrapper;
 import org.hpccsystems.ws.client.platform.Cluster;
 import org.hpccsystems.ws.client.platform.DataQuerySet;
 import org.hpccsystems.ws.client.platform.Platform;
 import org.hpccsystems.ws.client.platform.Version;
+import org.hpccsystems.ws.client.wrappers.gen.wsdfu.ArrayOfDFUDataColumnWrapper;
+import org.hpccsystems.ws.client.wrappers.gen.wsdfu.DFUDataColumnWrapper;
+import org.hpccsystems.ws.client.wrappers.gen.wsdfu.DFUSearchDataRequestWrapper;
+import org.hpccsystems.ws.client.wrappers.gen.wsdfu.DFUSearchDataResponseWrapper;
+import org.hpccsystems.ws.client.wrappers.gen.wssql.HPCCColumnWrapper;
+import org.hpccsystems.ws.client.wrappers.gen.wssql.HPCCQuerySetWrapper;
+import org.hpccsystems.ws.client.wrappers.gen.wssql.HPCCTableWrapper;
+import org.hpccsystems.ws.client.wrappers.gen.wssql.OutputDatasetWrapper;
+import org.hpccsystems.ws.client.wrappers.gen.wssql.PublishedQueryWrapper;
+import org.hpccsystems.ws.client.wrappers.gen.wssql.QuerySetAliasMapWrapper;
+import org.hpccsystems.ws.client.wrappers.gen.wssql.QuerySignatureWrapper;
 
 public class HPCCDatabaseMetaData implements DatabaseMetaData
 {
@@ -2362,18 +2363,18 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         return file;
     }
 
-    private static void appendIndexKeys(DFUFile file, ArrayOfDFUDataColumn columnArray, boolean keyed)
+    private static void appendIndexKeys(DFUFile file, ArrayOfDFUDataColumnWrapper dfuDataKeyedColumns, boolean keyed)
     {
-        if (file == null || columnArray == null )
+        if (file == null || dfuDataKeyedColumns == null )
             return;
-        
-        DFUDataColumn[] columns = columnArray.getDFUDataColumn();
-        for(int i = 0; i < columns.length; i++)
+
+        List<DFUDataColumnWrapper> columns = dfuDataKeyedColumns.getDFUDataColumn();
+        for (DFUDataColumnWrapper column : columns)
         {
             if (keyed)
-                file.addKeyedColumnInOrder(columns[i].getColumnLabel());
+                file.addKeyedColumnInOrder(column.getColumnLabel());
             else
-                file.addNonKeyedColumnInOrder(columns[i].getColumnLabel());
+                file.addNonKeyedColumnInOrder(column.getColumnLabel());
         }
     }
 
@@ -2384,10 +2385,20 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
 
         try
         {
-            DFUSearchDataResponse dfuData = connection.getWsClient().getWsDFUClient().getDFUData(file.getFullyQualifiedName(), file.getClusterName(), false, -1, -1, true, -1);
+            DFUSearchDataRequestWrapper request = new DFUSearchDataRequestWrapper();
+            request.setLogicalName(file.getFullyQualifiedName());
+            request.setCluster(file.getClusterName());
+            request.setRoxieSelections(false);
+            request.setChooseFile(-1);
+            request.setCount(-1);
+            request.setSchemaOnly(true);
+            request.setStartIndex(-1);
+
+            DFUSearchDataResponseWrapper dfuData = connection.getWsClient().getWsDFUClient().getDFUData(request);
+
             if (dfuData != null)
             {
-                ArrayOfDFUDataColumn dfuDataKeyedColumns = dfuData.getDFUDataKeyedColumns1();
+                ArrayOfDFUDataColumnWrapper dfuDataKeyedColumns = dfuData.getDFUDataKeyedColumns1();
                 if (dfuDataKeyedColumns != null)
                 {
                     appendIndexKeys(file, dfuDataKeyedColumns,true);
