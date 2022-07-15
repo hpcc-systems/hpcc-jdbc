@@ -42,7 +42,7 @@ import java.util.logging.Level;
 
 import org.hpccsystems.ws.client.HPCCWsClient;
 import org.hpccsystems.ws.client.HPCCWsSQLClient;
-import org.hpccsystems.ws.client.gen.axis2.wssql.v3_05.NamedValue;
+import org.hpccsystems.ws.client.gen.axis2.wssql.latest.NamedValue;
 import org.hpccsystems.ws.client.platform.Cluster;
 import org.hpccsystems.ws.client.platform.DataQuerySet;
 import org.hpccsystems.ws.client.platform.Platform;
