@@ -12,14 +12,12 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.sql.SQLWarning;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Properties;
-import java.util.logging.Level;
 
 import org.hpccsystems.jdbcdriver.HPCCConnection;
 import org.hpccsystems.jdbcdriver.HPCCDatabaseMetaData;
@@ -102,7 +100,10 @@ public class HPCCDriverTest
             {
                 ResultSet tables = connectionByProperties.getMetaData().getTables(null, null, "%", null);
 
-                System.out.println("Tables found: ");
+                int pageSize = HPCCJDBCUtils.stringToInt(connectionProperties.getProperty("PageSize"), Integer.valueOf(HPCCDriver.FETCHPAGESIZEDEFAULT));
+                int pageOffset = HPCCJDBCUtils.stringToInt(connectionProperties.getProperty("PageOffset"), Integer.valueOf(HPCCDriver.FETCHPAGEOFFSETDEFAULT));
+
+                System.out.println("Tables found (page offset: '" + pageOffset + "' page size: '" + pageSize + "'):");
                 while (tables.next())
                 {
                     String tablename=null;
@@ -157,22 +158,22 @@ public class HPCCDriverTest
         {
             if(connectionByProperties!=null)
             {
-            String procname=null;
-            ResultSet procs = connectionByProperties.getMetaData().getProcedures(null, null, null);
+	            String procname=null;
+	            ResultSet procs = connectionByProperties.getMetaData().getProcedures(null, null, null);
 
-            System.out.println("Procedures found: ");
-            while (procs.next())
-            {
-                System.out.println("\t" + procs.getString("PROCEDURE_NAME"));
-                if (vmode)
-                {
-                    procname=procs.getString("PROCEDURE_NAME");
-                    ResultSet proccols = connectionByProperties.getMetaData().getProcedureColumns( null, null, procname, null);
-                    while (proccols.next())
-                        System.out.println("\t\t"+ proccols.getString("COLUMN_NAME") + " (" + proccols.getInt("COLUMN_TYPE") + ")");
-                }
-                System.out.println();
-            }
+	            System.out.println("Procedures found: ");
+	            while (procs.next())
+	            {
+	                System.out.println("\t" + procs.getString("PROCEDURE_NAME"));
+	                if (vmode)
+	                {
+	                    procname=procs.getString("PROCEDURE_NAME");
+	                    ResultSet proccols = connectionByProperties.getMetaData().getProcedureColumns( null, null, procname, null);
+	                    while (proccols.next())
+	                        System.out.println("\t\t"+ proccols.getString("COLUMN_NAME") + " (" + proccols.getInt("COLUMN_TYPE") + ")");
+	                }
+	                System.out.println();
+	            }
             }
             else
             {

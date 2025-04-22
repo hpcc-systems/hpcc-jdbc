@@ -25,6 +25,7 @@ import java.sql.ResultSet;
 import java.sql.RowIdLifetime;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
@@ -36,10 +37,12 @@ import org.hpccsystems.ws.client.platform.Cluster;
 import org.hpccsystems.ws.client.platform.DataQuerySet;
 import org.hpccsystems.ws.client.platform.Platform;
 import org.hpccsystems.ws.client.platform.Version;
+import org.hpccsystems.ws.client.utils.FileFormat;
 import org.hpccsystems.ws.client.wrappers.gen.wsdfu.ArrayOfDFUDataColumnWrapper;
 import org.hpccsystems.ws.client.wrappers.gen.wsdfu.DFUDataColumnWrapper;
 import org.hpccsystems.ws.client.wrappers.gen.wsdfu.DFUSearchDataRequestWrapper;
 import org.hpccsystems.ws.client.wrappers.gen.wsdfu.DFUSearchDataResponseWrapper;
+import org.hpccsystems.ws.client.wrappers.gen.wssql.Columns_type1Wrapper;
 import org.hpccsystems.ws.client.wrappers.gen.wssql.HPCCColumnWrapper;
 import org.hpccsystems.ws.client.wrappers.gen.wssql.HPCCQuerySetWrapper;
 import org.hpccsystems.ws.client.wrappers.gen.wssql.HPCCTableWrapper;
@@ -47,6 +50,7 @@ import org.hpccsystems.ws.client.wrappers.gen.wssql.OutputDatasetWrapper;
 import org.hpccsystems.ws.client.wrappers.gen.wssql.PublishedQueryWrapper;
 import org.hpccsystems.ws.client.wrappers.gen.wssql.QuerySetAliasMapWrapper;
 import org.hpccsystems.ws.client.wrappers.gen.wssql.QuerySignatureWrapper;
+import org.hpccsystems.ws.client.wrappers.wsdfu.DFULogicalFileWrapper;
 
 public class HPCCDatabaseMetaData implements DatabaseMetaData
 {
@@ -157,7 +161,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
 
         if (!lazyLoad)
         {
-            setDFUMetaDataCached(fetchHPCCFilesInfo(null));
+            setDFUMetaDataCached(fetchHPCCFilesInfo(null, false));
 
             if (isDFUMetaDataCached())
             {
@@ -1255,14 +1259,13 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         if (alltablesearch)
         {
             if (!isDFUMetaDataCached())
-                setDFUMetaDataCached(fetchHPCCFilesInfo(null));
+                setDFUMetaDataCached(fetchHPCCFilesInfo(null, false));
 
             Enumeration<Object> files = dfufiles.getFiles();
             while (files.hasMoreElements())
             {
-                DFUFile file = (DFUFile) files.nextElement();
-                if (file.hasFileRecDef())
-                    tables.add(populateTableInfo(file));
+                //all-table search is expensive, light-weight version doesn't provide all metadata, add to tables anyway
+                tables.add(populateTableInfo((DFUFile) files.nextElement()));
             }
         }
         else
@@ -1298,7 +1301,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
     public ResultSet getSchemas() throws SQLException
     {
         if (!isDFUMetaDataCached())
-            setDFUMetaDataCached(fetchHPCCFilesInfo(null));
+            setDFUMetaDataCached(fetchHPCCFilesInfo(null, false));
 
         HPCCJDBCUtils.traceoutln(Level.FINEST, "HPCCDatabaseMetaData GETSCHEMAS");
 
@@ -1839,14 +1842,42 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         return hpccVersion.getMinor();
     }
 
-    private boolean fetchHPCCFilesInfo(String filename)
+    private List<HPCCColumnWrapper> fetchHPCCFileColumns(String filename)
+    {
+        if (filename != null && !filename.isEmpty())
+        {
+            try
+            {
+                Columns_type1Wrapper colsWrapper = connection.getHPCCTableColumns(filename);
+                if (colsWrapper != null)
+                    return colsWrapper.getColumn();
+            }
+            catch (Exception e)
+            {
+                HPCCJDBCUtils.traceoutln(Level.ALL, "WARNING: Could not fetch table columns: " + e.getMessage());
+            }
+        }
+        return Collections.emptyList();
+    }
+
+    private boolean fetchHPCCFilesInfo(String filename, boolean fetchColumns) //when fetch all files, don't fetch columns
     {
         boolean isSuccess = true;
 
-        if (dfufiles.getFile(filename) != null)
+        if (dfufiles.containsFileName(filename))
         {
-            HPCCJDBCUtils.traceoutln(Level.INFO, "HPCC dfufile info already present (reconnect to force re-fetch)");
-            return true;
+            if (fetchColumns)
+            {
+                if (dfufiles.getFile(filename).hasFileRecDef())
+                {
+                    HPCCJDBCUtils.traceoutln(Level.INFO, "HPCC dfufile info already present (reconnect to force re-fetch)");
+                    return true;
+                }
+                else
+                {
+                    fetchHPCCFileColumns(filename);
+                }
+            }
         }
 
         Platform hpccPlatform = connection.getHPCCPlatform();
@@ -1860,26 +1891,27 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
         HPCCJDBCUtils.traceoutln(Level.INFO, "Fetching HPCC tables...");
         try
         {
-            HPCCTableWrapper[] tables = connection.getHPCCTables(filename);
-
+            List<DFULogicalFileWrapper> tables = connection.getHPCCTables(filename);
             if (tables != null)
             {
-                for (int dfufileindex = 0; dfufileindex < tables.length; dfufileindex++)
+                for (DFULogicalFileWrapper table : tables)
                 {
-                    HPCCTableWrapper dfuLogicalFile = tables[dfufileindex];
                     DFUFile file = new DFUFile();
+                    String contentType = table.getContentType();
+                    file.setFormat(FileFormat.getFileFormat(contentType));
+                    file.setFullyQualifiedName(table.getName());
+                    if (fetchColumns)
+                    {
+                        file.setColumns(connection.getHPCCTableColumns(file.getFullyQualifiedName()).getColumn());
+                    }
+                    file.setOwner(table.getOwner());
+                    file.setDescription(table.getDescription());
 
-                    file.setFormat(dfuLogicalFile.getFormat());
-                    file.setFullyQualifiedName(dfuLogicalFile.getName());
-                    file.setColumns(dfuLogicalFile.getColumns().getColumn());
-                    file.setOwner(dfuLogicalFile.getOwner());
-                    file.setDescription(dfuLogicalFile.getDescription());
+                    Boolean isSuperFile = null;
+                    isSuperFile = table.getIsSuperfile();
+                    file.setSuperFile(isSuperFile == null ? false : isSuperFile);
 
-                    Boolean thisbool = null;
-                    thisbool = dfuLogicalFile.getIsSuper();
-                    file.setSuperFile(thisbool == null ? false : thisbool);
-                    thisbool = dfuLogicalFile.getIsKeyed();
-                    file.setIsKeyFile(thisbool == null ? false : thisbool);
+                    file.setIsKeyFile(contentType.equals("key") ? true : false);
 
                     if (file.getFullyQualifiedName().length() > 0)
                     {
@@ -2269,12 +2301,11 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
 
     public boolean tableExists(String clustername, String filename)
     {
-        boolean found = dfufiles.containsFileName(filename);
-
-        if (!found)
-            found = fetchHPCCFilesInfo(filename);
-
-        return found;
+        DFUFile file = dfufiles.getFile(filename.toUpperCase());
+        if (file != null && file.hasFileRecDef())
+            return true;
+        else
+            return fetchHPCCFilesInfo(filename, true); //if not already cached, or not parsed, try to fetch from wsdfu
     }
 
     public HPCCQuery getHpccQuery(String hpccqueryname)
@@ -2394,7 +2425,7 @@ public class HPCCDatabaseMetaData implements DatabaseMetaData
             request.setSchemaOnly(true);
             request.setStartIndex(-1);
 
-            DFUSearchDataResponseWrapper dfuData = connection.getWsClient().getWsDFUClient().getDFUData(request);
+            DFUSearchDataResponseWrapper dfuData = connection.getDFUData(request);
 
             if (dfuData != null)
             {

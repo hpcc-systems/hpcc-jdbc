@@ -226,8 +226,8 @@ public class HPCCDriver implements Driver
             if (!connprops.containsKey("LazyLoad"))
                 connprops.setProperty("LazyLoad", LAZYLOADDEFAULT);
 
-            if (!connprops.containsKey("WsSQLport"))
-                connprops.setProperty("WsSQLport", WSSQLPORTDEFAULT);
+            if (!connprops.containsKey("WsSQLPort"))
+                connprops.setProperty("WsSQLPort", WSSQLPORTDEFAULT);
 
         }
         catch (Exception e)
