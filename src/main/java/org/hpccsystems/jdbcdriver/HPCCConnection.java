@@ -134,8 +134,8 @@ public class HPCCConnection implements Connection
                 }
                 catch (MalformedURLException e)
                 {
-                    wsECLWatchURL = new URL(HPCCJDBCUtils.defaultprotocol+HPCCJDBCUtils.protocolsep+wsECLWatchURL);
-                    SQLWarning warn = new SQLWarning("wsECLWatchAddress URL could not be parsed, defaulting to: '" +wsECLWatchURL.toString() + "'");
+                    wsECLWatchURL = new URL(HPCCJDBCUtils.defaultprotocol+HPCCJDBCUtils.protocolsep+wsECLWatchAddress);
+                    SQLWarning warn = new SQLWarning("wsECLWatchAddress URL could not be parsed, defaulting to: '" + wsECLWatchURL.toString() + "'");
                     addWarning(warn);
                     HPCCJDBCUtils.traceoutln(Level.SEVERE, warn.getMessage());
                 }
