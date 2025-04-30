@@ -54,11 +54,17 @@ public class HPCCLogicalFiles
 
     public boolean containsFileName(String filename)
     {
+        if (filename == null || filename.isEmpty())
+            return false;
+
         return files.containsKey(filename.toUpperCase());
     }
 
     public DFUFile getFile(String filename)
     {
+        if (filename == null || filename.isEmpty())
+            return null;
+
         return (DFUFile) files.get(filename.toUpperCase());
     }
 

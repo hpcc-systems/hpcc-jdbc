@@ -516,6 +516,13 @@ public class DFUFile
         return csvTerminate;
     }
 
+    public void setFormat(FileFormat format_)
+    {
+        format = format_;
+        if (format == FileFormat.KEYED)
+            setIsKeyFile(true);
+    }
+
     public void setFormat(String formatstr)
     {
         format = FileFormat.FLAT;
