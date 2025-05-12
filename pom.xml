@@ -2,7 +2,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.hpccsystems</groupId>
     <artifactId>jdbcdriver</artifactId>
-    <version>1.2.1-SNAPSHOT</version>
+    <version>1.2.0</version>
     <packaging>jar</packaging>
     <name>HPCC Systems Java JDBC Driver</name>
     <description>JDBC Driver for HPCC Systems - access HPCC data via SQL in Java or other JVM language</description>
@@ -96,7 +96,7 @@
         <dependency>
             <groupId>org.hpccsystems</groupId>
             <artifactId>wsclient</artifactId>
-            <version>9.12.0-0-SNAPSHOT</version>
+            <version>9.12.0-1</version>
         </dependency>
     </dependencies>
     <profiles>
