@@ -15,7 +15,7 @@ To utilize this library as a dependency in your own maven project, simply add th
 <dependency>
 	<groupId>org.hpccsystems</groupId>
 	<artifactId>jdbcdriver</artifactId>
-	<version>1.0.0</version>
+	<version>1.2.0</version>
 </dependency>
 ```
 
@@ -55,11 +55,18 @@ Test1=[true;1]< sqlstatements>
 	SqlScript=path/to/testcases.txt
 
 #### Change log
-- 1.0.0
-  - Updated dependency to org.hpccsystems.wsclient:1.0.0
-    - Refactoring for WsClient pooling
-  - Readme updates
-  - pom packaging and jdbc.testsuite changes
+
+* 1.2.0
+    * Updated dependency to org.hpccsystems.wsclient:9.12.0-1
+    * Clarify ServerAddress vs WsECLWatchAddress meaning
+    * Avoid references to wsClient in favor of direct calls to wsdfuclient
+    * Avoid long WsSQL call for databases, targets wsdfu call instead
+    * Avoid fetching full file metadata on all-table searches
+* 1.0.0
+    * Updated dependency to org.hpccsystems.wsclient:1.0.0
+    * Refactoring for WsClient pooling
+    * Readme updates
+    * pom packaging and jdbc.testsuite changes
 
 #### Resources
 - https://hpccsystems.com
