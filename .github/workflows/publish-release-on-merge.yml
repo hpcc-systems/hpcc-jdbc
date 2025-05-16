@@ -1,0 +1,49 @@
+name: Publish release to the Maven Central Repository
+on:
+  push:
+    tags:
+    - '*-release'
+jobs:
+  publish-maven-central:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Maven Central Repository
+        uses: actions/setup-java@v4
+        with:
+          java-version: '11'
+          distribution: 'adopt'
+          server-id: central
+          server-username: MAVEN_USERNAME
+          server-password: MAVEN_PASSWORD
+          gpg-private-key: ${{ secrets.CENTRAL_SIGNING_SECRET }}
+          gpg-passphrase: MAVEN_GPG_PASSPHRASE
+      - name: Publish package
+        run: mvn -Pjenkins-release -Dgpg.passphrase=${{ secrets.CENTRAL_SIGN_MODULES_PASSPHRASE }} -DstagingProgressTimeoutMinutes=20 -DskipITs clean deploy -e
+        env:
+          MAVEN_USERNAME: ${{ secrets.CENTRAL_USER_NAME }}
+          MAVEN_PASSWORD: ${{ secrets.CENTRAL_PASS }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.SIGN_MODULES_PASSPHRASE }}
+  publish-jfrog-artifactory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Jfrog Artifactory Deployment
+        uses: actions/setup-java@v4
+        with:
+          java-version: '11'
+          distribution: 'adopt'
+          server-id: 'jfrog'
+          server-username: JFROG_USER
+          server-password: JFROG_TOKEN
+          gpg-private-key: ${{ secrets.CENTRAL_SIGNING_SECRET }}
+          gpg-passphrase: JFROG_GPG_PASSPHRASE
+      - name: Publish package
+        run: mvn -Pjfrog-artifactory -Dgpg.passphrase=${{ secrets.CENTRAL_SIGN_MODULES_PASSPHRASE }} -DstagingProgressTimeoutMinutes=20 -DskipITs clean deploy -e
+        env:
+          JFROG_USER: ${{ secrets.JFROG_USER }}
+          JFROG_TOKEN: ${{ secrets.JFROG_TOKEN }}
+          JFROG_GPG_PASSPHRASE: ${{ secrets.SIGN_MODULES_PASSPHRASE }}
+          JFROG_URL: ${{ vars.JFROG_URL }}
+          JFROG_SNAPSHOT_REPOSITORY: ${{ vars.JFROG_SNAPSHOT_REPOSITORY }}
+          JFROG_REPOSITORY: ${{ vars.JFROG_REPOSITORY }}
