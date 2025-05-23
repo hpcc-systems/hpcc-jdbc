@@ -20,6 +20,7 @@
         <maven.source.version>2.2.1</maven.source.version>
         <maven.gpg.version>1.6</maven.gpg.version>
         <maven.surefire.version>2.22.1</maven.surefire.version>
+        <central.publishing.version>0.7.0</central.publishing.version>
     </properties>
     <scm>
         <connection>scm:git:https://github.com/hpcc-systems/hpcc-jdbc.git</connection>
@@ -52,8 +53,8 @@
             <plugin>
               <groupId>org.sonatype.central</groupId>
               <artifactId>central-publishing-maven-plugin</artifactId>
-	          <version>0.7.0</version>
-	          <extensions>true</extensions>
+              <version>${central.publishing.version}</version>
+              <extensions>true</extensions>
               <configuration>
                 <publishingServerId>central</publishingServerId>
                 <autoPublish>true</autoPublish>
@@ -104,54 +105,52 @@
     </dependencies>
     <profiles>
         <profile>
-            <id>release</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-source-plugin</artifactId>
-                        <version>${maven.source.version}</version>
-                        <executions>
-                            <execution>
-                                <id>attach-sources</id>
-                                <goals>
-                                    <goal>jar-no-fork</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-javadoc-plugin</artifactId>
-                        <version>${maven.javadoc.version}</version>
-                        <executions>
-                            <execution>
-                                <id>attach-javadocs</id>
-                                <goals>
-                                    <goal>jar</goal>
-                                </goals>
-                            </execution>
-                        </executions>
+        	<id>release</id>
+          	<properties>
+            	<central.publishing.autopublish>true</central.publishing.autopublish>
+            	<maven.gpg.skip>false</maven.gpg.skip>
+            	<groups>org.hpccsystems.commons.annotations.BaseTests</groups>
+          	</properties>
+          	<build>
+            	<plugins>
+              		<plugin>
+                		<groupId>org.apache.maven.plugins</groupId>
+                		<artifactId>maven-javadoc-plugin</artifactId>
+                		<version>${maven.javadoc.version}</version>
+              		</plugin>
+              		<plugin>
+		                <groupId>org.apache.maven.plugins</groupId>
+		                <artifactId>maven-source-plugin</artifactId>
+		                <version>${maven.source.version}</version>
 		            </plugin>
 		            <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-gpg-plugin</artifactId>
+		                <groupId>org.sonatype.central</groupId>
+		                <artifactId>central-publishing-maven-plugin</artifactId>
+		                <version>${central.publishing.version}</version>
+		            </plugin>
+		            <plugin>
+		                <groupId>org.apache.maven.plugins</groupId>
+		                <artifactId>maven-gpg-plugin</artifactId>
 		                <version>${maven.gpg.version}</version>
-		                <executions>
-                            <execution>
-                                <id>sign-artifacts</id>
-                                <phase>verify</phase>
-                                <goals>
-                                    <goal>sign</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                        <configuration>
-                            <skip>false</skip>
-                        </configuration>
-                    </plugin>
-              </plugins>
-            </build>
+		                <configuration>
+		                  <useAgent>true</useAgent>
+		                  <gpgArguments>
+		                    <arg>--batch</arg>
+		                    <arg>--pinentry-mode</arg>
+		                    <arg>loopback</arg>
+		                  </gpgArguments>
+		                  <skip>${maven.gpg.skip}</skip>
+		                </configuration>
+		            </plugin>
+	             	<plugin>
+	                	<artifactId>maven-surefire-plugin</artifactId>
+	                	<version>${maven.surefire.version}</version>
+	                	<configuration>
+	                  		<argLine>${argLine}</argLine>
+	                	</configuration>
+	              	</plugin>
+            	</plugins>
+        	</build>
         </profile>
         <profile>
             <id>jdbc.testsuite</id>
@@ -241,44 +240,44 @@
             </repositories>
             <build>
                 <plugins>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-javadoc-plugin</artifactId>
-                    <version>${maven.javadoc.version}</version>
-                    <configuration>
-                        <excludePackageNames>${javadoc.excludePackageNames}</excludePackageNames>
-                    </configuration>
-                </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-source-plugin</artifactId>
-                    <version>${maven.source.version}</version>
-                </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-gpg-plugin</artifactId>
-                    <version>${maven.gpg.version}</version>
-                    <configuration>
-                    <useAgent>true</useAgent>
-                    <gpgArguments>
-                        <arg>--batch</arg>
-                        <arg>--pinentry-mode</arg>
-                        <arg>loopback</arg>
-                    </gpgArguments>
-                    <skip>${maven.gpg.skip}</skip>
-                    </configuration>
-                </plugin>
-                <plugin>
-                    <artifactId>maven-surefire-plugin</artifactId>
-                    <version>${maven.surefire.version}</version>
-                    <configuration>
-                    <argLine>${argLine}</argLine>
-                    <groups>org.hpccsystems.commons.annotations.BaseTests</groups>
-                    </configuration>
-                </plugin>
+	                <plugin>
+	                    <groupId>org.apache.maven.plugins</groupId>
+	                    <artifactId>maven-javadoc-plugin</artifactId>
+	                    <version>${maven.javadoc.version}</version>
+	                    <configuration>
+	                        <excludePackageNames>${javadoc.excludePackageNames}</excludePackageNames>
+	                    </configuration>
+	                </plugin>
+	                <plugin>
+	                    <groupId>org.apache.maven.plugins</groupId>
+	                    <artifactId>maven-source-plugin</artifactId>
+	                    <version>${maven.source.version}</version>
+	                </plugin>
+	                <plugin>
+	                    <groupId>org.apache.maven.plugins</groupId>
+	                    <artifactId>maven-gpg-plugin</artifactId>
+	                    <version>${maven.gpg.version}</version>
+	                    <configuration>
+	                    <useAgent>true</useAgent>
+	                    <gpgArguments>
+	                        <arg>--batch</arg>
+	                        <arg>--pinentry-mode</arg>
+	                        <arg>loopback</arg>
+	                    </gpgArguments>
+	                    <skip>${maven.gpg.skip}</skip>
+	                    </configuration>
+	                </plugin>
+	                <plugin>
+	                    <artifactId>maven-surefire-plugin</artifactId>
+	                    <version>${maven.surefire.version}</version>
+	                    <configuration>
+	                    	<argLine>${argLine}</argLine>
+	                    	<groups>org.hpccsystems.commons.annotations.BaseTests</groups>
+	                    </configuration>
+	                </plugin>
                 </plugins>
             </build>
-            </profile>
+        </profile>
     </profiles>
   
   <developers>
